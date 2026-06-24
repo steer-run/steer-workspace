@@ -1,0 +1,37 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://steer.run/schema/monitoring-dashboard.schema.json",
+  "title": "Steer monitoring dashboard",
+  "description": "A Grafana dashboard published to the Steer dashboards store. The Steer metadata wraps a standard Grafana dashboard model (the 'dashboard' object). The Grafana model is validated loosely on purpose — Grafana owns its own schema and evolves it.",
+  "type": "object",
+  "required": ["name", "uid", "dashboard"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "description": "Display name in the Steer dashboards store." },
+    "uid": {
+      "type": "string",
+      "pattern": "^[a-zA-Z0-9_-]{1,40}$",
+      "description": "Stable Grafana UID. Must be unique. Steer embeds the panel by uid (/d/<uid>?kiosk)."
+    },
+    "category": { "type": "string", "description": "Free-text grouping in the store (e.g. 'overview', 'postgres')." },
+    "description": { "type": "string" },
+    "datasource": {
+      "type": "string",
+      "description": "Expected datasource type the dashboard queries (e.g. 'prometheus', 'loki').",
+      "enum": ["prometheus", "loki", "mixed", "other"]
+    },
+    "dashboard": {
+      "type": "object",
+      "description": "The Grafana dashboard model (panels, templating, time, etc.). Validated loosely.",
+      "required": ["panels"],
+      "properties": {
+        "title": { "type": "string" },
+        "uid": { "type": "string" },
+        "schemaVersion": { "type": "integer" },
+        "panels": { "type": "array", "items": { "type": "object" } },
+        "templating": { "type": "object" },
+        "time": { "type": "object" }
+      }
+    }
+  }
+}

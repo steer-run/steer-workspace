@@ -1,0 +1,175 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://steer.run/schema/service-template.schema.json",
+  "title": "Steer service template",
+  "description": "Logical structure of a Steer application template (service.template) and its sub-records. Templates are authored as Odoo XML; this schema describes the data a valid template must contain. The harness parses the XML into this shape and validates it.",
+  "type": "object",
+  "required": ["name", "code", "docker_compose_template"],
+  "additionalProperties": false,
+  "properties": {
+    "name": { "type": "string", "description": "Display name shown in the catalog." },
+    "code": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$",
+      "description": "Unique, snake/kebab-case identifier. Must be unique across the whole catalog."
+    },
+    "service_code": {
+      "type": "string",
+      "description": "Groups interchangeable apps (cross-restore + 'change template'). Empty = only compatible with itself."
+    },
+    "version": { "type": "string", "description": "Human-readable version label (e.g. '19.0', 'latest')." },
+    "description": { "type": "string", "description": "Short teaser shown on the catalog card." },
+    "rich_description": { "type": "string", "description": "Optional rich HTML description (sanitized HTML allowed)." },
+    "category": {
+      "type": "string",
+      "description": "Classifies the app by what it does.",
+      "enum": [
+        "database", "cache", "storage", "networking", "monitoring", "mail", "security",
+        "dev_tools", "ci_cd", "automation", "ai", "analytics", "cms", "ecommerce", "business",
+        "finance", "productivity", "collaboration", "communication", "media", "knowledge",
+        "gaming", "other"
+      ]
+    },
+    "tags": {
+      "type": "array",
+      "items": { "type": "string", "pattern": "^tag_[a-z0-9_]+$" },
+      "description": "Catalog tags (xmlids of agz_infra_suite.tag_*, without the module prefix)."
+    },
+    "website_url": { "type": "string", "format": "uri" },
+    "documentation_url": { "type": "string", "format": "uri" },
+    "source_url": { "type": "string", "format": "uri" },
+    "is_web_app": {
+      "type": "boolean",
+      "description": "Enables domain/SSL/Traefik. If true, at least one port must be traefik_routed."
+    },
+    "requires_database": { "type": "boolean" },
+    "database_type": {
+      "type": "string",
+      "enum": ["postgres", "mysql", "mongodb", "redis", "sqlserver", "none"]
+    },
+    "database_is_external": {
+      "type": "boolean",
+      "description": "DB is an external host (e.g. on-prem SQL Server), not a container in the stack."
+    },
+    "requires_backup": { "type": "boolean" },
+    "backup_mode": {
+      "type": "string",
+      "enum": ["standard", "custom"],
+      "description": "'standard' tars the data volumes; 'custom' uses backup_script/restore_script (required for databases)."
+    },
+    "health_check_command": {
+      "type": "string",
+      "description": "Soft post-deploy check run inside the container (e.g. 'pg_isready -U $POSTGRES_USER')."
+    },
+    "use_cloudflare_tunnel": { "type": "boolean", "description": "Expose via cloudflared instead of Traefik (servers with no public IP)." },
+    "docker_compose_template": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Jinja2 + YAML compose. Secrets are referenced as ${VAR_NAME}; per-instance values use variables."
+    },
+    "backup_script": { "type": "string", "description": "Bash. Dumps state into $BACKUP_DATA_DIR. Required when backup_mode=custom." },
+    "restore_script": { "type": "string", "description": "Bash. Restores from $RESTORE_DATA_DIR and verifies the data is present." },
+    "ports": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/port" }
+    },
+    "variables": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/variable" }
+    },
+    "volumes": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/volume" }
+    },
+    "config_files": {
+      "type": "array",
+      "items": { "$ref": "#/$defs/config_file" }
+    }
+  },
+  "allOf": [
+    {
+      "if": { "properties": { "is_web_app": { "const": true } }, "required": ["is_web_app"] },
+      "then": {
+        "properties": {
+          "ports": {
+            "type": "array",
+            "minItems": 1,
+            "contains": { "properties": { "traefik_routed": { "const": true } }, "required": ["traefik_routed"] }
+          }
+        },
+        "required": ["ports"]
+      }
+    },
+    {
+      "if": { "properties": { "requires_database": { "const": true } }, "required": ["requires_database"] },
+      "then": {
+        "properties": { "backup_mode": { "const": "custom" } },
+        "required": ["backup_mode", "backup_script", "restore_script"]
+      }
+    }
+  ],
+  "$defs": {
+    "port": {
+      "type": "object",
+      "required": ["code", "default_port"],
+      "additionalProperties": false,
+      "properties": {
+        "code": { "type": "string" },
+        "name": { "type": "string" },
+        "default_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
+        "traefik_routed": { "type": "boolean", "description": "Route a Traefik subdomain to this port (the web port)." },
+        "traefik_subdomain_suffix": { "type": "string", "description": "Optional extra subdomain suffix for this port." },
+        "expose_to_host": { "type": "boolean", "description": "If false, the port is internal (expose:) only." },
+        "sequence": { "type": "integer" }
+      }
+    },
+    "variable": {
+      "type": "object",
+      "required": ["name", "var_type"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "Must match ${NAME} in the compose exactly." },
+        "var_type": {
+          "type": "string",
+          "enum": ["string", "integer", "boolean", "password", "fernet_key", "selection", "text"],
+          "description": "'password'/'fernet_key' are auto-generated secrets."
+        },
+        "is_secret": { "type": "boolean", "description": "Secret value: rendered as ${NAME}, written only to the runtime .env." },
+        "default_value": { "type": "string" },
+        "selection_options": { "type": "string", "description": "For var_type=selection: comma-separated or newline-separated options." },
+        "description": { "type": "string" },
+        "sequence": { "type": "integer" }
+      },
+      "allOf": [
+        {
+          "if": { "properties": { "var_type": { "enum": ["password", "fernet_key"] } } },
+          "then": { "properties": { "is_secret": { "const": true } } }
+        }
+      ]
+    },
+    "volume": {
+      "type": "object",
+      "required": ["name", "local_path"],
+      "additionalProperties": false,
+      "properties": {
+        "name": { "type": "string" },
+        "local_path": { "type": "string", "description": "Relative bind-mount path, e.g. './data'." },
+        "owner": { "type": "string", "pattern": "^[0-9]+:[0-9]+$", "description": "UID:GID that must own the directory." },
+        "exclude_from_backup": { "type": "boolean", "description": "Exclude from the file backup (set true on raw DB data dirs)." },
+        "sequence": { "type": "integer" }
+      }
+    },
+    "config_file": {
+      "type": "object",
+      "required": ["filename", "content_template"],
+      "additionalProperties": false,
+      "properties": {
+        "filename": { "type": "string" },
+        "content_template": { "type": "string", "description": "Jinja2-rendered config file content." },
+        "skip_update": { "type": "boolean", "description": "Do not overwrite on updates." },
+        "active": { "type": "boolean" },
+        "sequence": { "type": "integer" }
+      }
+    }
+  }
+}

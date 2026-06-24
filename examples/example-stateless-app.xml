@@ -1,0 +1,71 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  EXAMPLE — a simple stateless web app (no database).
+  Pattern: one routed port, a couple of plain variables, one data volume, standard backup.
+  Copy into my/templates/ and adapt. Validate with: python harness/validate.py <file>
+-->
+<odoo>
+  <record id="template_example_board" model="service.template">
+    <field name="name">Example Board</field>
+    <field name="code">example-board</field>
+    <field name="service_code">example-board</field>
+    <field name="version">latest</field>
+    <field name="description">A lightweight self-hosted whiteboard — stateless example template.</field>
+    <field name="category">productivity</field>
+    <field name="is_web_app">True</field>
+    <field name="requires_database">False</field>
+    <field name="database_type">none</field>
+    <field name="requires_backup">True</field>
+    <field name="backup_mode">standard</field>
+    <field name="health_check_command">curl -fsS http://localhost:8080/ || exit 1</field>
+    <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted')])]"/>
+    <field name="website_url">https://example.com/</field>
+    <field name="source_url">https://github.com/example/board</field>
+    <field name="docker_compose_template"><![CDATA[services:
+  app:
+    image: example/board:latest
+    restart: unless-stopped
+    environment:
+      - PUBLIC_URL=https://${main_domain}
+      - MAX_BOARDS=${max_boards}
+    ports:
+      - '{{ PORT_HTTP }}:8080'
+    volumes:
+      - ./board_data:/app/data
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+      - agz-proxy-network
+networks:
+  agz-proxy-network:
+    external: true
+]]></field>
+  </record>
+
+  <record id="template_example_board_port_http" model="service.template.port">
+    <field name="template_id" ref="template_example_board"/>
+    <field name="code">http</field>
+    <field name="name">HTTP</field>
+    <field name="default_port">8080</field>
+    <field name="traefik_routed">True</field>
+    <field name="sequence">10</field>
+  </record>
+
+  <!-- A plain (non-secret) value the user can tune; given a default so it boots unattended. -->
+  <record id="template_example_board_var_max_boards" model="service.template.variable">
+    <field name="template_id" ref="template_example_board"/>
+    <field name="name">max_boards</field>
+    <field name="var_type">integer</field>
+    <field name="default_value">100</field>
+    <field name="sequence">10</field>
+  </record>
+
+  <!-- All persistent state lives here → kept in the standard file backup. -->
+  <record id="template_example_board_vol_data" model="service.template.volume">
+    <field name="template_id" ref="template_example_board"/>
+    <field name="name">board-data</field>
+    <field name="local_path">./board_data</field>
+    <field name="owner">1000:1000</field>
+    <field name="exclude_from_backup">False</field>
+    <field name="sequence">10</field>
+  </record>
+</odoo>

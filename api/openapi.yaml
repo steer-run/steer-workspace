@@ -1,0 +1,212 @@
+openapi: 3.1.0
+info:
+  title: Steer Panel API
+  version: 0.1.0-draft
+  description: |
+    Web services to operate a Steer panel from an agent (the **imperative plane**): list servers,
+    create and deploy instances, check status, run backups.
+
+    **Status: planned.** This file is the *contract* the panel will implement — it is not live yet.
+    Endpoints carry `x-status: planned` until shipped. The **declarative plane** (authoring templates
+    and dashboards under `my/` and letting the panel sync them) works today and needs no API.
+
+    A thin MCP server is expected to wrap this API so any agent can call it as tools.
+  contact:
+    name: Steer
+    url: https://steer.run
+    email: hello@steer.run
+  license:
+    name: MIT
+servers:
+  - url: https://your-panel.example.com/api/v1
+    description: Your Steer panel
+security:
+  - apiKey: []
+tags:
+  - name: servers
+  - name: templates
+  - name: instances
+  - name: backups
+paths:
+  /servers:
+    get:
+      tags: [servers]
+      operationId: listServers
+      summary: List managed servers
+      x-status: planned
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Server" }
+  /templates:
+    get:
+      tags: [templates]
+      operationId: listTemplates
+      summary: List installed application templates (the catalog)
+      x-status: planned
+      parameters:
+        - { name: q, in: query, schema: { type: string }, description: Free-text filter }
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Template" }
+  /instances:
+    get:
+      tags: [instances]
+      operationId: listInstances
+      summary: List instances
+      x-status: planned
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/Instance" }
+    post:
+      tags: [instances]
+      operationId: createInstance
+      summary: Create an instance from a template
+      x-status: planned
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/InstanceCreate" }
+      responses:
+        "201":
+          description: Created
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Instance" }
+  /instances/{id}:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [instances]
+      operationId: getInstance
+      summary: Get an instance
+      x-status: planned
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Instance" }
+  /instances/{id}/deploy:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [instances]
+      operationId: deployInstance
+      summary: Deploy (or redeploy) an instance
+      description: Long-running. Returns an operation id; stream its log or poll status.
+      x-status: planned
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Operation" }
+  /instances/{id}/status:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    get:
+      tags: [instances]
+      operationId: getInstanceStatus
+      summary: Container/health status of an instance
+      x-status: planned
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/InstanceStatus" }
+  /instances/{id}/backup:
+    parameters:
+      - { name: id, in: path, required: true, schema: { type: integer } }
+    post:
+      tags: [backups]
+      operationId: backupInstance
+      summary: Run a backup of an instance
+      x-status: planned
+      responses:
+        "202":
+          description: Accepted
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/Operation" }
+components:
+  securitySchemes:
+    apiKey:
+      type: apiKey
+      in: header
+      name: X-Steer-Api-Key
+  schemas:
+    Server:
+      type: object
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        state: { type: string, enum: [ready, provisioning, error, offline] }
+        docker_ready: { type: boolean }
+    Template:
+      type: object
+      properties:
+        code: { type: string }
+        name: { type: string }
+        category: { type: string }
+        version: { type: string }
+        is_web_app: { type: boolean }
+        requires_database: { type: boolean }
+    Instance:
+      type: object
+      properties:
+        id: { type: integer }
+        code: { type: string }
+        template_code: { type: string }
+        server_id: { type: integer }
+        subdomain: { type: string }
+        full_domain: { type: string }
+        state: { type: string, enum: [draft, running, stopped, error] }
+    InstanceCreate:
+      type: object
+      required: [template_code, server_id, subdomain]
+      properties:
+        template_code: { type: string, description: Code of an installed template }
+        server_id: { type: integer }
+        subdomain: { type: string }
+        environment: { type: string, enum: [production, staging, development], default: staging }
+        ssl_enabled: { type: boolean, default: true }
+        variables:
+          type: object
+          additionalProperties: { type: string }
+          description: Overrides for template variable values (non-secret).
+    InstanceStatus:
+      type: object
+      properties:
+        running: { type: boolean }
+        degraded: { type: boolean }
+        summary: { type: string }
+        containers:
+          type: array
+          items:
+            type: object
+            properties:
+              service: { type: string }
+              state: { type: string }
+    Operation:
+      type: object
+      properties:
+        operation_id: { type: integer }
+        state: { type: string, enum: [queued, running, done, failed] }
+        log_url: { type: string }

@@ -1,0 +1,24 @@
+name: validate
+
+# Validate everything you author under my/ before it can reach your panel.
+on:
+  push:
+    paths: ["my/**", "schema/**", "harness/**", "examples/**"]
+  pull_request:
+    paths: ["my/**", "schema/**", "harness/**", "examples/**"]
+  workflow_dispatch:
+
+jobs:
+  validate:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-python@v5
+        with:
+          python-version: "3.x"
+      - name: Install validator deps
+        run: pip install jsonschema
+      - name: Validate examples (must stay green)
+        run: python harness/validate.py examples/
+      - name: Validate your apps
+        run: python harness/validate.py my/

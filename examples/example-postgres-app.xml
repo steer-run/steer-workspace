@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  EXAMPLE — a web application backed by its own PostgreSQL container.
+  This is the canonical pattern for a stateful app: typed secrets, a domain variable,
+  a custom DB backup/restore, and the raw DB data dir excluded from the file backup.
+  Copy it into my/templates/ and adapt. Validate with: python harness/validate.py <file>
+-->
+<odoo>
+  <record id="template_example_notes" model="service.template">
+    <field name="name">Example Notes</field>
+    <field name="code">example-notes</field>
+    <field name="service_code">example-notes</field>
+    <field name="version">1.0</field>
+    <field name="description">A self-hosted notes app — example template backed by PostgreSQL.</field>
+    <field name="category">productivity</field>
+    <field name="is_web_app">True</field>
+    <field name="requires_database">True</field>
+    <field name="database_type">postgres</field>
+    <field name="requires_backup">True</field>
+    <field name="backup_mode">custom</field>
+    <field name="health_check_command">curl -fsS http://localhost:3000/healthz || exit 1</field>
+    <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity')])]"/>
+    <field name="website_url">https://example.com/</field>
+    <field name="source_url">https://github.com/example/notes</field>
+    <field name="docker_compose_template"><![CDATA[services:
+  app:
+    image: example/notes:1.0
+    restart: unless-stopped
+    depends_on:
+      - db
+    environment:
+      # A secret stays a ${reference}; its value lands in the runtime .env, never here.
+      - DATABASE_URL=postgresql://notes:${db_password}@db:5432/notes
+      # ${main_domain} resolves to the instance's public domain at deploy.
+      - PUBLIC_URL=https://${main_domain}
+      - SESSION_SECRET=${session_secret}
+    ports:
+      - '{{ PORT_HTTP }}:3000'
+    volumes:
+      - ./app_data:/data
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+      - internal
+      - agz-proxy-network
+  db:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    user: postgres
+    environment:
+      POSTGRES_USER: notes
+      POSTGRES_DB: notes
+      POSTGRES_PASSWORD: ${db_password}
+    volumes:
+      - ./postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U notes"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    container_name: '{{ INSTANCE_CODE }}_db'
+    networks:
+      - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Consistent dump of the running PostgreSQL into $BACKUP_DATA_DIR.
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+    <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d db
+for i in $(seq 1 30); do
+  docker compose exec -T db sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verify the restore is non-empty (the hard proof that data survived).
+N=$(docker compose exec -T db sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "restored tables: $N"
+test "$N" -gt 0
+]]></field>
+  </record>
+
+  <!-- Web port: traefik_routed=True so Steer routes a subdomain to it. -->
+  <record id="template_example_notes_port_http" model="service.template.port">
+    <field name="template_id" ref="template_example_notes"/>
+    <field name="code">http</field>
+    <field name="name">HTTP</field>
+    <field name="default_port">3000</field>
+    <field name="traefik_routed">True</field>
+    <field name="sequence">10</field>
+  </record>
+
+  <!-- Secret: auto-generated password, referenced as ${db_password} in the compose. -->
+  <record id="template_example_notes_var_db_password" model="service.template.variable">
+    <field name="template_id" ref="template_example_notes"/>
+    <field name="name">db_password</field>
+    <field name="var_type">password</field>
+    <field name="is_secret">True</field>
+    <field name="sequence">10</field>
+  </record>
+  <record id="template_example_notes_var_session_secret" model="service.template.variable">
+    <field name="template_id" ref="template_example_notes"/>
+    <field name="name">session_secret</field>
+    <field name="var_type">password</field>
+    <field name="is_secret">True</field>
+    <field name="sequence">20</field>
+  </record>
+
+  <!-- App data: kept in the file backup. -->
+  <record id="template_example_notes_vol_app" model="service.template.volume">
+    <field name="template_id" ref="template_example_notes"/>
+    <field name="name">app-data</field>
+    <field name="local_path">./app_data</field>
+    <field name="owner">1000:1000</field>
+    <field name="exclude_from_backup">False</field>
+    <field name="sequence">10</field>
+  </record>
+  <!-- Raw DB data dir: EXCLUDED from the file backup (the pg_dump is the source of truth). -->
+  <record id="template_example_notes_vol_db" model="service.template.volume">
+    <field name="template_id" ref="template_example_notes"/>
+    <field name="name">postgres-data</field>
+    <field name="local_path">./postgres_data</field>
+    <field name="owner">999:999</field>
+    <field name="exclude_from_backup">True</field>
+    <field name="sequence">20</field>
+  </record>
+</odoo>

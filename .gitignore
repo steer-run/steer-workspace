@@ -1,0 +1,14 @@
+# Python (the harness)
+__pycache__/
+*.py[cod]
+.venv/
+venv/
+
+# OS / editor
+.DS_Store
+Thumbs.db
+*.swp
+
+# Local scratch
+*.log
+.tmp/
