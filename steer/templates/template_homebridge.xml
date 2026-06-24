@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'homebridge' (imagen homebridge/homebridge:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_homebridge" model="service.template">
+        <field name="name">Homebridge</field>
+        <field name="code">homebridge</field>
+        <field name="service_code">homebridge</field>
+        <field name="version">latest</field>
+        <field name="description">Homebridge is a lightweight Node.js server that brings unsupported smart devices into Apple HomeKit (and, from v2, Matter ecosystems).</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Homebridge is a lightweight Node.js server that brings unsupported smart devices into Apple HomeKit (and, from v2, Matter ecosystems).</p>
+  <p>It emulates the HomeKit Accessory Protocol (HAP) on your home network so that devices without native HomeKit support can be controlled from the Apple Home app and Siri. Functionality is delivered through a vast catalog of community plugins, each bridging a specific brand or third-party API. Homebridge v2 also lets plugins expose their devices over the Matter standard, reaching Google Home, Amazon Alexa, SmartThings and other controllers.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Emulates the HomeKit Accessory Protocol (HAP) to add HomeKit support where vendors provide none</li>
+    <li>Plugin architecture with 2,000+ community plugins covering thousands of accessories</li>
+    <li>Optional Matter support (v2) to expose devices to Google Home, Alexa, SmartThings and more</li>
+    <li>Web-based admin UI (config-ui-x) for plugin install, configuration, logs and backups</li>
+    <li>Runs on Raspberry Pi, Linux, macOS, Windows, Docker and many NAS platforms</li>
+    <li>Free, community-driven and fully self-hosted on your own network</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Home automation enthusiasts and self-hosters who want to unify heterogeneous smart-home gear under Apple Home/Siri (or Matter), without relying on vendor clouds.</p>
+</div>]]></field>
+        <field name="category">automation</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/homebridge.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_smart_home')])]"/>
+        <field name="website_url">https://homebridge.io/</field>
+        <field name="documentation_url">https://github.com/homebridge/homebridge/wiki</field>
+        <field name="source_url">https://github.com/homebridge/homebridge</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  homebridge:
+    image: homebridge/homebridge:latest
+    restart: always
+    ports:
+    - '{{ PORT_HTTP }}:8581'
+    volumes:
+    - ./volumes/homebridge:/homebridge
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://homebridge:8581/
+      interval: 60s
+      retries: 5
+      start_period: 300s
+      timeout: 2s
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_homebridge_port_http" model="service.template.port">
+        <field name="template_id" ref="template_homebridge"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8581</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

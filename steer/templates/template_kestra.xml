@@ -1,0 +1,143 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'kestra' (imagen kestra/kestra:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_kestra" model="service.template">
+        <field name="name">Kestra</field>
+        <field name="code">kestra</field>
+        <field name="service_code">kestra</field>
+        <field name="version">latest</field>
+        <field name="description">Kestra is an open-source, event-driven orchestration platform that lets you define and govern business-critical workflows declaratively as YAML, from code or the UI.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Kestra is an open-source, event-driven orchestration platform that lets you define and govern business-critical workflows declaratively as YAML, from code or the UI.</p>
+  <p>It unifies scheduled and event-driven automation across data pipelines, AI tasks, infrastructure and business processes behind a single declarative control plane. Workflows are written in a language-agnostic YAML interface and can run scripts in Python, Node.js, R, Go or Shell, with a rich plugin ecosystem connecting databases, cloud storage, APIs and SaaS tools. It targets data engineers, platform teams and anyone needing reliable, auditable orchestration without locking logic into application code.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Declarative YAML workflows defined from a built-in code editor or the UI, with Git version control integration</li>
+    <li>Event-driven and scheduled triggers, with retries, error handling, conditional branching and dynamic tasks</li>
+    <li>Real-time topology view rendering each workflow as a live Directed Acyclic Graph (DAG)</li>
+    <li>Extensive plugin catalog to extract, transform and load data across clouds, databases and APIs, and run code in any language</li>
+    <li>AI Copilot to generate workflows from natural-language prompts and AI Agents for autonomous, tool-using orchestration with human-in-the-loop approvals</li>
+    <li>Self-hostable on Docker or Kubernetes, including air-gapped deployments; namespaces, unit tests and SLAs for production governance</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Data engineering, platform and DevOps teams that need to orchestrate data, AI, infrastructure and business workflows at scale with version control, observability and full auditability — a modern, language-agnostic alternative to Python-DAG schedulers.</p>
+</div>]]></field>
+        <field name="category">automation</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/kestra.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="website_url">https://kestra.io</field>
+        <field name="documentation_url">https://kestra.io/docs</field>
+        <field name="source_url">https://github.com/kestra-io/kestra</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  postgres:
+    image: postgres
+    volumes:
+    - ./postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: kestra
+      POSTGRES_USER: kestra
+      POSTGRES_PASSWORD: k3str4
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}
+      interval: 30s
+      timeout: 10s
+      retries: 10
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    restart: unless-stopped
+    networks:
+    - internal
+  kestra:
+    image: kestra/kestra:latest
+    pull_policy: always
+    user: root
+    command: server standalone
+    volumes:
+    - ./kestra_data:/app/storage
+    - /var/run/docker.sock:/var/run/docker.sock
+    - /tmp/kestra-wd:/tmp/kestra-wd
+    environment:
+      KESTRA_CONFIGURATION: "datasources:\n  postgres:\n    url: jdbc:postgresql://postgres:5432/kestra\n\
+        \    driverClassName: org.postgresql.Driver\n    username: kestra\n    password: k3str4\nkestra:\n\
+        \  server:\n    basicAuth:\n      enabled: false\n      username: \"admin@localhost.dev\" # it\
+        \ must be a valid email address\n      password: k3str4p@ss\n  repository:\n    type: postgres\n\
+        \  storage:\n    type: local\n    local:\n      basePath: \"/app/storage\"\n  queue:\n    type:\
+        \ postgres\n  tasks:\n    tmpDir:\n      path: /tmp/kestra-wd/tmp\n  url: http://localhost:8080/\n"
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    depends_on:
+      postgres:
+        condition: service_started
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_kestra_port_http" model="service.template.port">
+        <field name="template_id" ref="template_kestra"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_kestra_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_kestra"/>
+        <field name="name">postgres-data</field>
+        <field name="local_path">./postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_kestra_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_kestra"/>
+        <field name="name">kestra-data</field>
+        <field name="local_path">./kestra_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

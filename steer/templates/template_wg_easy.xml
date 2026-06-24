@@ -1,0 +1,101 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'wg-easy' (imagen ghcr.io/wg-easy/wg-easy:15) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_wg_easy" model="service.template">
+        <field name="name">WG-Easy</field>
+        <field name="code">wg_easy</field>
+        <field name="service_code">wg_easy</field>
+        <field name="version">15</field>
+        <field name="description">WG-Easy is the easiest way to run a WireGuard VPN server with a clean web admin interface.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">WG-Easy is the easiest way to run a WireGuard VPN server with a clean web admin interface.</p>
+  <p>It bundles WireGuard and a Vue-based management UI into a single, all-in-one deployment, removing the need to hand-edit configuration files. Administrators create, edit, enable and remove VPN clients from the browser, while users receive ready-to-use configs via QR code or file download. It targets homelabs, small teams and self-hosters who want a secure VPN tunnel without command-line WireGuard administration.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Web UI to list, create, edit, enable, disable and delete VPN clients</li>
+    <li>One-click client provisioning with QR codes and downloadable configuration files</li>
+    <li>Connection statistics with live Tx/Rx traffic charts and client expiration management</li>
+    <li>Built-in authentication with Argon2 password hashing and TOTP two-factor authentication</li>
+    <li>Per-client firewall filtering, IPv6 and CIDR support, and Prometheus metrics</li>
+    <li>Multilingual interface, automatic light/dark mode and a single-container Docker deployment</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Homelabs, small businesses and individuals who need a fast, secure, self-hosted WireGuard VPN with an approachable management dashboard instead of manual CLI configuration.</p>
+</div>]]></field>
+        <field name="category">networking</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/wg_easy.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_vpn'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="website_url">https://wg-easy.github.io/</field>
+        <field name="documentation_url">https://github.com/wg-easy/wg-easy/wiki</field>
+        <field name="source_url">https://github.com/wg-easy/wg-easy</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  wg-easy:
+    environment:
+    - INIT_ENABLED=1
+    - INIT_HOST={{ wireguard_host }}
+    - INIT_PORT=51820
+    - INIT_USERNAME=admin
+    - INIT_PASSWORD={{ wireguard_password }}
+    - INIT_DNS=1.1.1.1,8.8.8.8
+    - PORT=51821
+    image: ghcr.io/wg-easy/wg-easy:15
+    container_name: '{{ INSTANCE_CODE }}'
+    volumes:
+    - ./etc_wireguard:/etc/wireguard
+    - /lib/modules:/lib/modules:ro
+    ports:
+    - '{{ PORT_HTTP }}:51821'
+    restart: unless-stopped
+    cap_add:
+    - NET_ADMIN
+    - SYS_MODULE
+    - NET_RAW
+    sysctls:
+    - net.ipv4.ip_forward=1
+    - net.ipv4.conf.all.src_valid_mark=1
+    - net.ipv6.conf.all.disable_ipv6=0
+    - net.ipv6.conf.all.forwarding=1
+    - net.ipv6.conf.default.forwarding=1
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_wg_easy_port_http" model="service.template.port">
+        <field name="template_id" ref="template_wg_easy"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">51821</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_wg_easy_var_wg_password" model="service.template.variable">
+        <field name="template_id" ref="template_wg_easy"/>
+        <field name="name">wg_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_wg_easy_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_wg_easy"/>
+        <field name="name">etc_wireguard</field>
+        <field name="local_path">./etc_wireguard</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

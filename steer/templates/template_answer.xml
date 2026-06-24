@@ -1,0 +1,136 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'answer' (imagen apache/answer:1.4.1) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_answer" model="service.template">
+        <field name="name">Answer</field>
+        <field name="code">answer</field>
+        <field name="service_code">answer</field>
+        <field name="version">v1.4.1</field>
+        <field name="description">Apache Answer is an open-source Q&amp;amp;A platform that turns scattered team knowledge into a structured, searchable community.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Apache Answer is an open-source Q&amp;A platform that turns scattered team knowledge into a structured, searchable community.</p>
+  <p>Developed under the Apache Software Foundation, Answer lets you run your own question-and-answer service for community forums, help centers, or internal knowledge bases. It positions itself as a self-hosted alternative to Stack Overflow for Teams, giving you full ownership of your data with no per-user fees. Built in Go with a React/TypeScript frontend, it ships as a single Docker-friendly application backed by MySQL, PostgreSQL, or SQLite.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Structured questions and answers with tags, voting, and accepted answers</li>
+    <li>Reputation, badges, and gamification to reward quality contributions</li>
+    <li>Full-text search plus a Markdown editor with code syntax highlighting</li>
+    <li>Plugin architecture for OAuth login, S3 storage, external search, and anti-spam</li>
+    <li>Roles, moderation tools, and fine-grained access control</li>
+    <li>40+ language packs and a RESTful API for integrations</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams and communities that need a searchable knowledge base or support forum: engineering orgs documenting internal know-how, product help centers, and open communities seeking a self-hosted alternative to Stack Overflow for Teams.</p>
+</div>]]></field>
+        <field name="category">collaboration</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/answer.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_documentation'), ref('agz_infra_suite.tag_search')])]"/>
+        <field name="website_url">https://answer.apache.org/</field>
+        <field name="documentation_url">https://answer.apache.org/docs</field>
+        <field name="source_url">https://github.com/apache/answer</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  answer:
+    image: apache/answer:1.4.1
+    ports:
+    - '{{ PORT_HTTP }}:9080'
+    restart: on-failure
+    volumes:
+    - ./answer_data:/data
+    depends_on:
+      db:
+        condition: service_healthy
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+  db:
+    image: postgres:16
+    restart: always
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      interval: 5s
+      timeout: 5s
+      retries: 5
+    volumes:
+    - ./db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: answer
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    container_name: '{{ INSTANCE_CODE }}_db'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d db
+for i in $(seq 1 30); do
+  docker compose exec -T db sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T db sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_answer_port_http" model="service.template.port">
+        <field name="template_id" ref="template_answer"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">9080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_answer_var_service_hash" model="service.template.variable">
+        <field name="template_id" ref="template_answer"/>
+        <field name="name">service_hash</field>
+        <field name="var_type">string</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_answer_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_answer"/>
+        <field name="name">answer-data</field>
+        <field name="local_path">./answer_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_answer_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_answer"/>
+        <field name="name">db-data</field>
+        <field name="local_path">./db_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

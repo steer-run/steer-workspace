@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'homeassistant' (imagen ghcr.io/home-assistant/home-assistant:stable) desconocido → DEFAULT 1000:1000, verificar.
+           - Tiene 1 mount(s) de config: revisar rutas y montaje en el compose.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_homeassistant" model="service.template">
+        <field name="name">Home Assistant</field>
+        <field name="code">homeassistant</field>
+        <field name="service_code">homeassistant</field>
+        <field name="version">stable</field>
+        <field name="description">Home Assistant is the leading open-source home automation platform that puts local control and privacy first.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Home Assistant is the leading open-source home automation platform that puts local control and privacy first.</p>
+  <p>It unifies thousands of smart-home devices and services behind a single self-hosted hub, letting you create automations that run instantly on your own hardware rather than in someone else's cloud. Built in Python with a vast integration ecosystem, it serves both non-technical users through a no-code automation editor and power users through scripting, templating and a rich add-on system.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Local-first control of 2000+ integrations across lighting, climate, sensors, cameras and media</li>
+    <li>Visual no-code automation editor plus advanced scripting, scenes and templating</li>
+    <li>Customizable dashboards (Lovelace) for web and mobile companion apps</li>
+    <li>Optional add-on ecosystem via the Supervisor, with secure ingress and token-based auth</li>
+    <li>Local voice and AI assist (Whisper STT, Piper TTS, Ollama LLMs) with no cloud dependency</li>
+    <li>Energy management, history, logbook and Zigbee/Z-Wave/Matter/Thread support</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Homeowners, makers and privacy-conscious users who want to consolidate smart-home devices into one self-hosted hub and keep automation data on-premises, as well as integrators building reliable, vendor-neutral home or small-office automation.</p>
+</div>]]></field>
+        <field name="category">automation</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/homeassistant.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_smart_home')])]"/>
+        <field name="website_url">https://www.home-assistant.io/</field>
+        <field name="documentation_url">https://www.home-assistant.io/getting-started/onboarding/</field>
+        <field name="source_url">https://github.com/home-assistant/core</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  homeassistant:
+    image: ghcr.io/home-assistant/home-assistant:stable
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:8123'
+    volumes:
+    - ../files/configuration.yaml:/config/configuration.yaml
+    - ../files/automations.yaml:/config/automations.yaml
+    - ../files/scripts.yaml:/config/scripts.yaml
+    - ../files/scenes.yaml:/config/scenes.yaml
+    - /opt/homeassistant:/config
+    - /etc/localtime:/etc/localtime:ro
+    - /run/dbus:/run/dbus:ro
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://homeassistant:8123/
+      interval: 60s
+      retries: 5
+      start_period: 300s
+      timeout: 2s
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_homeassistant_port_http" model="service.template.port">
+        <field name="template_id" ref="template_homeassistant"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8123</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_homeassistant_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_homeassistant"/>
+        <field name="name">configuration.yaml</field>
+        <field name="filename">configuration.yaml</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[
+# Loads default set of integrations. Do not remove.
+default_config:
+
+# Load frontend themes from the themes folder
+frontend:
+  themes: !include_dir_merge_named themes
+
+automation: !include automations.yaml
+script: !include scripts.yaml
+scene: !include scenes.yaml
+
+http:
+  use_x_forwarded_for: true
+  trusted_proxies:
+    - 192.168.0.0/16 # Local LAN Subnet
+    - 172.0.0.0/8 # Docker Subnet
+    - 10.0.0.0/16 # Docker Swarm Subnet
+]]></field>
+    </record>
+</odoo>

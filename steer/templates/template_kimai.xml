@@ -1,0 +1,199 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'app' (imagen kimai/kimai2:apache-2.31.0) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_kimai" model="service.template">
+        <field name="name">Kimai</field>
+        <field name="code">kimai</field>
+        <field name="service_code">kimai</field>
+        <field name="version">2.31.0</field>
+        <field name="description">Kimai is the leading open-source, multi-user time-tracking application for freelancers, agencies and organizations.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Kimai is the leading open-source, multi-user time-tracking application for freelancers, agencies and organizations.</p>
+  <p>Built on PHP and the Symfony framework, Kimai lets teams record working hours, manage projects and customers, and turn tracked time into reports and invoices. It scales from a single freelancer to large companies with role-based permissions, team management, and per-user, per-customer or per-project rates, all while keeping data on your own infrastructure.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Multi-user time tracking with multi-timer and punch-in/punch-out modes</li>
+    <li>Invoicing, data exports and time/money budgets per project or customer</li>
+    <li>Advanced reporting, search, filtering and tagging</li>
+    <li>Enterprise authentication: SAML, LDAP, OIDC and 2FA via TOTP</li>
+    <li>Role-based permissions, teams and customer/project-specific rates</li>
+    <li>JSON API, plugin marketplace and 30+ interface translations</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Freelancers, consultancies, agencies and companies that bill by the hour and need self-hosted, privacy-friendly time tracking with built-in invoicing and reporting.</p>
+</div>]]></field>
+        <field name="category">business</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/kimai.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_finance'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_project_management'), ref('agz_infra_suite.tag_identity')])]"/>
+        <field name="website_url">https://www.kimai.org</field>
+        <field name="documentation_url">https://www.kimai.org/documentation</field>
+        <field name="source_url">https://github.com/kimai/kimai</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  app:
+    image: kimai/kimai2:apache-2.31.0
+    restart: unless-stopped
+    environment:
+      APP_ENV: prod
+      DATABASE_URL: mysql://kimai:${KI_MYSQL_PASSWORD:-kimai}@db/kimai
+      TRUSTED_PROXIES: localhost
+      APP_SECRET: {{ ki_app_secret }}
+      MAILER_FROM: ${KI_MAILER_FROM:-admin@kimai.local}
+      MAILER_URL: ${KI_MAILER_URL:-null://null}
+      ADMINMAIL: ${KI_ADMINMAIL:-admin@kimai.local}
+      ADMINPASS: {{ ki_adminpass }}
+    volumes:
+    - ./kimai_data:/opt/kimai/var
+    depends_on:
+      db:
+        condition: service_healthy
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8001'
+    networks:
+    - internal
+    - agz-proxy-network
+  db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+    - MYSQL_DATABASE=kimai
+    - MYSQL_USER=kimai
+    - MYSQL_PASSWORD={{ ki_mysql_password }}
+    - MYSQL_ROOT_PASSWORD={{ ki_mysql_root_password }}
+    volumes:
+    - ./mysql_data:/var/lib/mysql
+    command:
+    - --character-set-server=utf8mb4
+    - --collation-server=utf8mb4_unicode_ci
+    - --innodb-buffer-pool-size=256M
+    - --innodb-flush-log-at-trx-commit=2
+    healthcheck:
+      test:
+      - CMD
+      - mysqladmin
+      - ping
+      - -h
+      - localhost
+      - -u
+      - kimai
+      - -p{{ ki_mysql_password }}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    container_name: '{{ INSTANCE_CODE }}_db'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T db sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d db
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T db sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_kimai_port_http" model="service.template.port">
+        <field name="template_id" ref="template_kimai"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8001</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_kimai_var_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_kimai"/>
+        <field name="name">admin_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_kimai_var_mysql_password" model="service.template.variable">
+        <field name="template_id" ref="template_kimai"/>
+        <field name="name">mysql_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_kimai_var_mysql_root_password" model="service.template.variable">
+        <field name="template_id" ref="template_kimai"/>
+        <field name="name">mysql_root_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_kimai_var_app_secret" model="service.template.variable">
+        <field name="template_id" ref="template_kimai"/>
+        <field name="name">app_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_kimai_var_ki_adminmail" model="service.template.variable">
+        <field name="template_id" ref="template_kimai"/>
+        <field name="name">ki_adminmail</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin@kimai.local</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_kimai_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_kimai"/>
+        <field name="name">kimai-data</field>
+        <field name="local_path">./kimai_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_kimai_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_kimai"/>
+        <field name="name">mysql-data</field>
+        <field name="local_path">./mysql_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

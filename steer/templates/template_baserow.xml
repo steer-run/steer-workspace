@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'baserow' (imagen baserow/baserow:1.25.2) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_baserow" model="service.template">
+        <field name="name">Baserow</field>
+        <field name="code">baserow</field>
+        <field name="service_code">baserow</field>
+        <field name="version">1.25.2</field>
+        <field name="description">Baserow is an open-source no-code database and application platform, a self-hosted alternative to Airtable.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Baserow is an open-source no-code database and application platform, a self-hosted alternative to Airtable.</p>
+  <p>It combines a spreadsheet-style interface with a real relational database, letting teams structure, link and collaborate on data without writing code. Built on Django, Vue.js and PostgreSQL with an API-first, headless architecture, it adds an application and portal builder, workflow automation and dashboards on top of the data layer. It targets teams that want full control over their data through self-hosting.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Spreadsheet-database hybrid with grid, form, kanban and other views</li>
+    <li>Relational tables with linked records, field types and per-view permissions</li>
+    <li>Application and portal builder with custom-domain publishing</li>
+    <li>Workflow automations and interactive dashboards for visualization</li>
+    <li>REST API and headless design for integration and extension via plugins</li>
+    <li>Self-hosting with no row/storage limits via Docker, Helm, Cloudron and major clouds</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams and organizations that need a flexible no-code database, CRM, project tracker or internal tool while keeping data on their own infrastructure, and developers who want an API-first backend they can extend.</p>
+</div>]]></field>
+        <field name="category">database</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/baserow.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_automation')])]"/>
+        <field name="website_url">https://baserow.io/</field>
+        <field name="documentation_url">https://baserow.io/docs/index</field>
+        <field name="source_url">https://github.com/Baserow/baserow</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  baserow:
+    image: baserow/baserow:1.25.2
+    environment:
+      BASEROW_PUBLIC_URL: http://{{ instance.full_domain }}
+    volumes:
+    - ./baserow_data:/baserow/data
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_baserow_port_http" model="service.template.port">
+        <field name="template_id" ref="template_baserow"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_baserow_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_baserow"/>
+        <field name="name">baserow_data</field>
+        <field name="local_path">./baserow_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

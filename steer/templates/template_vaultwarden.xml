@@ -1,0 +1,218 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================== -->
+    <!-- Template: Vaultwarden                         -->
+    <!-- ============================================== -->
+    <record id="template_vaultwarden" model="service.template">
+        <field name="name">Vaultwarden</field>
+        <field name="code">vaultwarden</field>
+        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/vaultwarden.png"/>
+        <field name="description">Gestor de contraseñas self-hosted compatible con Bitwarden. Almacena contraseñas, notas seguras, tarjetas y más. Funciona con todas las apps oficiales de Bitwarden (móvil, escritorio, extensiones).</field>
+        <field name="category">security</field>
+        <field name="version">latest</field>
+        <field name="service_code">vaultwarden</field>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_password_manager'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_self_hosted')])]"/>
+        <field name="is_web_app">True</field>
+        <field name="is_global">True</field>
+        <field name="active">True</field>
+        <field name="requires_database">False</field>
+        <field name="database_type">none</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  vaultwarden:
+    image: vaultwarden/server:{{ version | default('latest') }}
+    container_name: {{ INSTANCE_CODE }}
+    ports:
+      - "{{ PORT_HTTP }}:80"
+    volumes:
+      - ./data:/data
+    environment:
+      # Dominio público (requerido para URLs correctas)
+      - DOMAIN=https://{{ instance.full_domain }}
+      # Zona horaria
+      - TZ={{ timezone | default('America/Argentina/Buenos_Aires') }}
+      # Registro de usuarios
+      - SIGNUPS_ALLOWED={{ signups_allowed | default('false') }}
+      # Verificación de email (requiere SMTP configurado)
+      - SIGNUPS_VERIFY={{ signups_verify | default('false') }}
+      # Invitaciones por email
+      - INVITATIONS_ALLOWED={{ invitations_allowed | default('true') }}
+      # Token de administración (acceso a /admin)
+      - ADMIN_TOKEN={{ admin_token }}
+      # WebSocket para notificaciones en tiempo real
+      - WEBSOCKET_ENABLED=true
+      # Logging
+      - LOG_LEVEL=info
+      - EXTENDED_LOGGING=true
+      {% if smtp_host %}
+      # Configuración SMTP (opcional)
+      - SMTP_HOST={{ smtp_host }}
+      - SMTP_PORT={{ smtp_port | default('587') }}
+      - SMTP_SECURITY={{ smtp_security | default('starttls') }}
+      - SMTP_FROM={{ smtp_from }}
+      - SMTP_USERNAME={{ smtp_username }}
+      - SMTP_PASSWORD={{ smtp_password }}
+      {% endif %}
+    restart: unless-stopped
+    networks:
+      - agz-proxy-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/alive || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+networks:
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+
+    <!-- Puertos del template Vaultwarden -->
+    <record id="template_vaultwarden_port_http" model="service.template.port">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="code">http</field>
+        <field name="name">HTTP (Vaultwarden)</field>
+        <field name="default_port">8080</field>
+        <field name="sequence">10</field>
+        <field name="traefik_routed" eval="True"/>
+    </record>
+
+    <!-- Variables del template Vaultwarden -->
+    <record id="template_vaultwarden_var_version" model="service.template.variable">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="name">version</field>
+        <field name="display_name">Versión</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">latest,1.32.5,1.32.4,1.31.0,alpine</field>
+        <field name="default_value">latest</field>
+        <field name="required">False</field>
+        <field name="sequence">10</field>
+        <field name="help">Versión de Vaultwarden. 'latest' siempre usa la última versión estable. 'alpine' es la versión ligera.</field>
+    </record>
+
+    <record id="template_vaultwarden_var_admin_token" model="service.template.variable">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="name">admin_token</field>
+        <field name="display_name">Token de Administración</field>
+        <field name="var_type">password</field>
+        <field name="required">True</field>
+        <field name="sequence">20</field>
+        <field name="help">Token secreto para acceder al panel de administración en /admin. Guárdalo en un lugar seguro. Se recomienda un token largo y aleatorio.</field>
+    </record>
+
+    <record id="template_vaultwarden_var_signups_allowed" model="service.template.variable">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="name">signups_allowed</field>
+        <field name="display_name">Permitir Registros</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">false,true</field>
+        <field name="default_value">false</field>
+        <field name="required">False</field>
+        <field name="sequence">30</field>
+        <field name="help">Permitir que cualquier persona se registre. Se recomienda 'false' para uso privado y gestionar usuarios via invitaciones o panel admin.</field>
+    </record>
+
+    <record id="template_vaultwarden_var_invitations_allowed" model="service.template.variable">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="name">invitations_allowed</field>
+        <field name="display_name">Permitir Invitaciones</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">true,false</field>
+        <field name="default_value">true</field>
+        <field name="required">False</field>
+        <field name="sequence">40</field>
+        <field name="help">Permitir invitar usuarios por email desde el panel de admin u organizaciones.</field>
+    </record>
+
+    <record id="template_vaultwarden_var_timezone" model="service.template.variable">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="name">timezone</field>
+        <field name="display_name">Zona Horaria</field>
+        <field name="var_type">string</field>
+        <field name="default_value">America/Argentina/Buenos_Aires</field>
+        <field name="required">False</field>
+        <field name="sequence">50</field>
+        <field name="help">Zona horaria para logs y timestamps.</field>
+    </record>
+
+    <!-- Variables SMTP opcionales -->
+    <record id="template_vaultwarden_var_smtp_host" model="service.template.variable">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="name">smtp_host</field>
+        <field name="display_name">SMTP Host</field>
+        <field name="var_type">string</field>
+        <field name="required">False</field>
+        <field name="sequence">60</field>
+        <field name="help">Servidor SMTP para envío de emails (invitaciones, verificaciones, etc). Ejemplo: smtp.gmail.com</field>
+    </record>
+
+    <record id="template_vaultwarden_var_smtp_port" model="service.template.variable">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="name">smtp_port</field>
+        <field name="display_name">SMTP Puerto</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">587,465,25</field>
+        <field name="default_value">587</field>
+        <field name="required">False</field>
+        <field name="sequence">70</field>
+        <field name="help">Puerto del servidor SMTP. 587 para STARTTLS, 465 para SSL/TLS.</field>
+    </record>
+
+    <record id="template_vaultwarden_var_smtp_from" model="service.template.variable">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="name">smtp_from</field>
+        <field name="display_name">SMTP From</field>
+        <field name="var_type">string</field>
+        <field name="required">False</field>
+        <field name="sequence">80</field>
+        <field name="help">Dirección de email que aparece como remitente. Ejemplo: vaultwarden@tudominio.com</field>
+    </record>
+
+    <record id="template_vaultwarden_var_smtp_username" model="service.template.variable">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="name">smtp_username</field>
+        <field name="display_name">SMTP Usuario</field>
+        <field name="var_type">string</field>
+        <field name="required">False</field>
+        <field name="sequence">90</field>
+        <field name="help">Usuario para autenticación SMTP.</field>
+    </record>
+
+    <record id="template_vaultwarden_var_smtp_password" model="service.template.variable">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="name">smtp_password</field>
+        <field name="display_name">SMTP Contraseña</field>
+        <field name="var_type">password</field>
+        <field name="required">False</field>
+        <field name="sequence">100</field>
+        <field name="help">Contraseña para autenticación SMTP.</field>
+    </record>
+
+    <!-- Volúmenes del template Vaultwarden -->
+    <record id="template_vaultwarden_vol_data" model="service.template.volume">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="name">Datos Vaultwarden</field>
+        <field name="local_path">./data</field>
+        <field name="owner">0:0</field>
+        <field name="permissions">755</field>
+        <field name="sequence">10</field>
+    </record>
+
+
+    <!-- Config Docker por servicio — defaults recomendados (VPS 2-8 GB) -->
+    <!-- ========== Vaultwarden (template_vaultwarden) ========== -->
+    <record id="svcfg_vaultwarden" model="service.template.service.config">
+        <field name="template_id" ref="template_vaultwarden"/>
+        <field name="service_name">vaultwarden</field>
+        <field name="sequence">10</field>
+        <field name="memory_limit">128m</field>
+        <field name="cpu_limit">0.25</field>
+        <field name="memory_reservation">64m</field>
+        <field name="log_max_size">10m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+</odoo>

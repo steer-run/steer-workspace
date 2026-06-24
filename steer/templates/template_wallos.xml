@@ -1,0 +1,87 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'wallos' (imagen bellamy/wallos:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_wallos" model="service.template">
+        <field name="name">Wallos</field>
+        <field name="code">wallos</field>
+        <field name="service_code">wallos</field>
+        <field name="version">latest</field>
+        <field name="description">Wallos is a self-hosted personal subscription tracker that turns your recurring expenses into a clear, organized view of your financial commitments.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Wallos is a self-hosted personal subscription tracker that turns your recurring expenses into a clear, organized view of your financial commitments.</p>
+  <p>It helps you log every subscription and recurring payment, anticipate upcoming charges, and spot wasteful spending without relying on spreadsheets or third-party budgeting services. Built with PHP and backed by SQLite or MySQL, it runs entirely on your own server, keeping financial data private. With multi-currency support, statistics, calendar views, and notifications across many channels, it suits anyone who wants full ownership of their subscription budget.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Track recurring subscriptions and payments with due-date awareness and customizable categories</li>
+    <li>Multi-currency support with exchange-rate conversion to a main currency</li>
+    <li>Statistics, graphs and calendar views to understand spending habits</li>
+    <li>Notifications via email, Discord, Telegram, Pushover, Gotify and webhooks</li>
+    <li>Household member management, automatic logo search and 21+ language translations</li>
+    <li>REST API plus OIDC/OAuth authentication for integration and single sign-on</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals and households who want a private, self-hosted way to monitor recurring expenses, control their budget, and avoid surprise renewals.</p>
+</div>]]></field>
+        <field name="category">finance</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/wallos.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_finance'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="website_url">https://wallosapp.com</field>
+        <field name="documentation_url">https://github.com/ellite/wallos?tab=readme-ov-file#getting-started</field>
+        <field name="source_url">https://github.com/ellite/wallos</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  wallos:
+    image: bellamy/wallos:latest
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    environment:
+      TZ: Europe/Paris
+    volumes:
+    - ./wallos_db:/var/www/html/db
+    - ./wallos_logos:/var/www/html/images/uploads/logos
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_wallos_port_http" model="service.template.port">
+        <field name="template_id" ref="template_wallos"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_wallos_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_wallos"/>
+        <field name="name">wallos_db</field>
+        <field name="local_path">./wallos_db</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_wallos_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_wallos"/>
+        <field name="name">wallos_logos</field>
+        <field name="local_path">./wallos_logos</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

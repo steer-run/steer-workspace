@@ -1,0 +1,219 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'ezbookkeeping' (imagen mayswind/ezbookkeeping) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_ezbookkeeping" model="service.template">
+        <field name="name">EZBookkeeping</field>
+        <field name="code">ezbookkeeping</field>
+        <field name="service_code">ezbookkeeping</field>
+        <field name="version">latest</field>
+        <field name="description">ezBookkeeping is a lightweight, self-hosted personal finance app that keeps full control of your bookkeeping data on your own hardware.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">ezBookkeeping is a lightweight, self-hosted personal finance app that keeps full control of your bookkeeping data on your own hardware.</p>
+  <p>Built in Go and Vue.js, it lets you record daily transactions, import statements from dozens of formats, and analyze spending through rich charts and ad-hoc queries. It is exceptionally resource-efficient, deploys with a single Docker command, and runs anywhere from a Raspberry Pi to a clustered NAS while backing onto SQLite, MySQL or PostgreSQL.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Two-level accounts, categories and tags with scheduled transactions, attachments, tags and map-based location tracking</li>
+    <li>Multi-currency support with automatic exchange rates from 15+ central banks, plus 20+ languages including RTL</li>
+    <li>Broad import support: CSV, Excel, OFX, QFX, QIF, IIF, MT940, Camt, GnuCash, Firefly III, Beancount and more</li>
+    <li>Insights Explorer for advanced multi-condition queries with pie, line, treemap, sunburst and heatmap visualizations</li>
+    <li>Hardened auth: 2FA, OIDC and Nextcloud/Gitea/GitHub login, WebAuthn/PIN app lock and login rate limiting</li>
+    <li>Multi-user with per-account restrictions, PWA mobile/desktop UIs, dark mode and optional AI receipt recognition via MCP</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals and households who want a private, low-footprint ledger for personal finances, and homelab or NAS users seeking a self-hosted alternative to cloud budgeting tools without sacrificing analytics or import flexibility.</p>
+</div>]]></field>
+        <field name="category">finance</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/ezbookkeeping.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_finance'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="website_url">https://github.com/mayswind/ezbookkeeping</field>
+        <field name="documentation_url">https://github.com/mayswind/ezbookkeeping</field>
+        <field name="source_url">https://github.com/mayswind/ezbookkeeping</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  mysql:
+    image: mysql:8.0
+    restart: unless-stopped
+    environment:
+    - MYSQL_ROOT_PASSWORD={{ mysql_root_password }}
+    - MYSQL_DATABASE={{ mysql_database }}
+    - MYSQL_USER={{ mysql_user }}
+    - MYSQL_PASSWORD={{ mysql_password }}
+    volumes:
+    - ./mysql_data:/var/lib/mysql
+    container_name: '{{ INSTANCE_CODE }}_mysql'
+    networks:
+    - internal
+  ezbookkeeping:
+    image: mayswind/ezbookkeeping
+    restart: unless-stopped
+    depends_on:
+    - mysql
+    environment:
+    - EBK_SERVER_DOMAIN={{ ebk_server_domain }}
+    - EBK_SERVER_ENABLE_GZIP={{ ebk_server_enable_gzip }}
+    - EBK_DATABASE_TYPE={{ ebk_database_type }}
+    - EBK_DATABASE_HOST={{ ebk_database_host }}
+    - EBK_DATABASE_NAME={{ ebk_database_name }}
+    - EBK_DATABASE_USER={{ ebk_database_user }}
+    - EBK_DATABASE_PASSWD={{ ebk_database_passwd }}
+    - EBK_LOG_MODE={{ ebk_log_mode }}
+    - EBK_SECURITY_SECRET_KEY={{ ebk_security_secret_key }}
+    volumes:
+    - /etc/localtime:/etc/localtime:ro
+    - ./storage:/ezbookkeeping/storage
+    - ./logs:/ezbookkeeping/log
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T mysql sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d mysql
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T mysql sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_ezbookkeeping_port_http" model="service.template.port">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_ezbookkeeping_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="name">db_name</field>
+        <field name="var_type">string</field>
+        <field name="default_value">ezbookkeeping</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_ezbookkeeping_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="name">db_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">ezbookkeeping</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_ezbookkeeping_var_db_pass" model="service.template.variable">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="name">db_pass</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_ezbookkeeping_var_root_pass" model="service.template.variable">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="name">root_pass</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_ezbookkeeping_var_secret_key" model="service.template.variable">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="name">secret_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_ezbookkeeping_var_ebk_server_enable_gzip" model="service.template.variable">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="name">ebk_server_enable_gzip</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_ezbookkeeping_var_ebk_database_type" model="service.template.variable">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="name">ebk_database_type</field>
+        <field name="var_type">string</field>
+        <field name="default_value">mysql</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_ezbookkeeping_var_ebk_database_host" model="service.template.variable">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="name">ebk_database_host</field>
+        <field name="var_type">string</field>
+        <field name="default_value">mysql:3306</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_ezbookkeeping_var_ebk_log_mode" model="service.template.variable">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="name">ebk_log_mode</field>
+        <field name="var_type">string</field>
+        <field name="default_value">file</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_ezbookkeeping_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="name">mysql-data</field>
+        <field name="local_path">./mysql_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_ezbookkeeping_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="name">storage</field>
+        <field name="local_path">./storage</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_ezbookkeeping_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_ezbookkeeping"/>
+        <field name="name">logs</field>
+        <field name="local_path">./logs</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+</odoo>

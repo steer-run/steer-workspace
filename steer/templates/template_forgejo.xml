@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'forgejo' (imagen codeberg.org/forgejo/forgejo:10) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_forgejo" model="service.template">
+        <field name="name">Forgejo</field>
+        <field name="code">forgejo</field>
+        <field name="service_code">forgejo</field>
+        <field name="version">10</field>
+        <field name="description">Forgejo is a lightweight, self-hosted software forge that gives you full control over your code, issues, and CI without depending on a commercial platform.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Forgejo is a lightweight, self-hosted software forge that gives you full control over your code, issues, and CI without depending on a commercial platform.</p>
+  <p>It provides a complete GitHub-like experience for Git hosting, code review, and project collaboration, packaged as a single Go binary that runs comfortably on modest hardware. A community fork of Gitea, Forgejo is governed by the non-profit Codeberg e.V. and is fully free software, with a strong emphasis on transparency, privacy, and long-term data portability. It stays highly compatible with Gitea at the database and API level, making migrations in either direction straightforward.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Git repository hosting with pull requests, issues, wikis, and code review</li>
+    <li>Built-in CI/CD via Forgejo Actions, compatible with GitHub Actions workflow syntax</li>
+    <li>Integrated container and package registries plus Git LFS support</li>
+    <li>Authentication via LDAP, OAuth2/OIDC, SAML, SMTP, and PAM</li>
+    <li>Built-in importers for GitHub, GitLab, Gitea, Gogs, and plain Git URLs</li>
+    <li>Low resource footprint as a single static binary, with emerging ActivityPub federation</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams, organizations, and individuals who want a private, low-maintenance GitHub alternative with built-in CI/CD, especially those who value non-profit community governance, copyleft licensing, and full ownership of their development infrastructure.</p>
+</div>]]></field>
+        <field name="category">dev_tools</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/forgejo.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_git'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ci_cd'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_project_management')])]"/>
+        <field name="website_url">https://forgejo.org/</field>
+        <field name="documentation_url">https://forgejo.org/docs/latest/</field>
+        <field name="source_url">https://codeberg.org/forgejo/forgejo</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  forgejo:
+    image: codeberg.org/forgejo/forgejo:10
+    environment:
+    - USER_UID=${USER_UID}
+    - USER_GID=${USER_GID}
+    - FORGEJO__database__DB_TYPE=postgres
+    - FORGEJO__database__HOST=db:5432
+    - FORGEJO__database__NAME=forgejo
+    - FORGEJO__database__USER=forgejo
+    - FORGEJO__database__PASSWD=forgejo
+    restart: always
+    volumes:
+    - ./forgejo_server:/data
+    - /etc/timezone:/etc/timezone:ro
+    - /etc/localtime:/etc/localtime:ro
+    depends_on:
+    - db
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    networks:
+    - internal
+    - agz-proxy-network
+  db:
+    image: postgres:17
+    restart: always
+    environment:
+    - POSTGRES_USER=forgejo
+    - POSTGRES_PASSWORD=forgejo
+    - POSTGRES_DB=forgejo
+    volumes:
+    - ./forgejo_db:/var/lib/postgresql/data
+    container_name: '{{ INSTANCE_CODE }}_db'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d db
+for i in $(seq 1 30); do
+  docker compose exec -T db sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T db sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_forgejo_port_http" model="service.template.port">
+        <field name="template_id" ref="template_forgejo"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_forgejo_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_forgejo"/>
+        <field name="name">forgejo_server</field>
+        <field name="local_path">./forgejo_server</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_forgejo_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_forgejo"/>
+        <field name="name">forgejo_db</field>
+        <field name="local_path">./forgejo_db</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

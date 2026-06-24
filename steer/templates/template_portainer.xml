@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================== -->
+    <!-- Template: Portainer CE                        -->
+    <!-- ============================================== -->
+    <record id="template_portainer" model="service.template">
+        <field name="name">Portainer CE</field>
+        <field name="code">portainer</field>
+        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/portainer.png"/>
+        <field name="description">Interfaz web para gestionar contenedores Docker. Visualiza, crea, inicia, detiene y elimina contenedores, imágenes, redes y volúmenes. Incluye gestión de stacks con Docker Compose.</field>
+        <field name="category">dev_tools</field>
+        <field name="version">latest</field>
+        <field name="service_code">portainer</field>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_self_hosted')])]"/>
+        <field name="is_web_app">True</field>
+        <field name="is_global">True</field>
+        <field name="active">True</field>
+        <field name="requires_database">False</field>
+        <field name="database_type">none</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  portainer:
+    image: portainer/portainer-ce:{{ version | default('latest') }}
+    container_name: {{ INSTANCE_CODE }}
+    ports:
+      - "{{ PORT_HTTP }}:9000"
+      - "{{ PORT_HTTPS }}:9443"
+      - "{{ PORT_AGENT }}:8000"
+    volumes:
+      - /var/run/docker.sock:/var/run/docker.sock:ro
+      - ./data:/data
+    environment:
+      - TZ={{ timezone | default('America/Argentina/Buenos_Aires') }}
+    restart: unless-stopped
+    networks:
+      - agz-proxy-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:9000/api/status || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+networks:
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+
+    <!-- Puertos del template Portainer -->
+    <record id="template_portainer_port_http" model="service.template.port">
+        <field name="template_id" ref="template_portainer"/>
+        <field name="code">http</field>
+        <field name="name">HTTP (Portainer UI)</field>
+        <field name="default_port">9000</field>
+        <field name="sequence">10</field>
+        <field name="traefik_routed" eval="True"/>
+    </record>
+
+    <record id="template_portainer_port_https" model="service.template.port">
+        <field name="template_id" ref="template_portainer"/>
+        <field name="code">https</field>
+        <field name="name">HTTPS (Portainer UI)</field>
+        <field name="default_port">9443</field>
+        <field name="sequence">20</field>
+        <field name="expose_to_host" eval="True"/>
+    </record>
+
+    <record id="template_portainer_port_agent" model="service.template.port">
+        <field name="template_id" ref="template_portainer"/>
+        <field name="code">agent</field>
+        <field name="name">Portainer Agent/Edge</field>
+        <field name="default_port">8000</field>
+        <field name="sequence">30</field>
+        <field name="expose_to_host" eval="True"/>
+    </record>
+
+    <!-- Variables del template Portainer -->
+    <record id="template_portainer_var_version" model="service.template.variable">
+        <field name="template_id" ref="template_portainer"/>
+        <field name="name">version</field>
+        <field name="display_name">Versión</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">latest,2.21.5,2.21.4,2.20.3,alpine</field>
+        <field name="default_value">latest</field>
+        <field name="required">False</field>
+        <field name="sequence">10</field>
+        <field name="help">Versión de Portainer CE. 'latest' siempre usa la última versión estable. 'alpine' es la versión ligera.</field>
+    </record>
+
+    <record id="template_portainer_var_timezone" model="service.template.variable">
+        <field name="template_id" ref="template_portainer"/>
+        <field name="name">timezone</field>
+        <field name="display_name">Zona Horaria</field>
+        <field name="var_type">string</field>
+        <field name="default_value">America/Argentina/Buenos_Aires</field>
+        <field name="required">False</field>
+        <field name="sequence">20</field>
+        <field name="help">Zona horaria para mostrar fechas correctamente.</field>
+    </record>
+
+    <!-- Volúmenes del template Portainer -->
+    <record id="template_portainer_vol_data" model="service.template.volume">
+        <field name="template_id" ref="template_portainer"/>
+        <field name="name">Datos Portainer</field>
+        <field name="local_path">./data</field>
+        <field name="owner">0:0</field>
+        <field name="permissions">755</field>
+        <field name="sequence">10</field>
+    </record>
+
+
+    <!-- Config Docker por servicio — defaults recomendados (VPS 2-8 GB) -->
+    <!-- ========== Portainer (template_portainer) ========== -->
+    <record id="svcfg_portainer" model="service.template.service.config">
+        <field name="template_id" ref="template_portainer"/>
+        <field name="service_name">portainer</field>
+        <field name="sequence">10</field>
+        <field name="memory_limit">256m</field>
+        <field name="cpu_limit">0.5</field>
+        <field name="memory_reservation">128m</field>
+        <field name="log_max_size">10m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+</odoo>

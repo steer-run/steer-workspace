@@ -1,0 +1,75 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'changedetection' (imagen ghcr.io/dgtlmoon/changedetection.io:0.49) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_changedetection" model="service.template">
+        <field name="name">Change Detection</field>
+        <field name="code">changedetection</field>
+        <field name="service_code">changedetection</field>
+        <field name="version">0.49</field>
+        <field name="description">A self-hosted website change detection and web page monitoring tool that alerts you the moment any page you care about changes.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">A self-hosted website change detection and web page monitoring tool that alerts you the moment any page you care about changes.</p>
+  <p>changedetection.io periodically fetches web pages, computes differences against previous snapshots, and notifies you when meaningful content changes occur. It targets specific parts of a page using XPath, CSS selectors, JSONPath or jq, can render JavaScript-heavy sites through a headless browser, and supports interactive steps such as logging in or filling forms. It is widely used as an open-source alternative to commercial services like Visualping for price tracking, restock alerts, content monitoring and website defacement detection.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Visual selector plus XPath, CSS, JSONPath and jq filters to watch only the relevant part of a page</li>
+    <li>Optional headless browser rendering with JavaScript execution and interactive browser steps (login, clicks, form filling)</li>
+    <li>Notifications through Discord, Email, Slack, Telegram, webhooks and many other channels</li>
+    <li>Specialized detection for price drops, restock events and PDF document changes</li>
+    <li>Conditional triggers, scheduling and per-watch configuration for fine-grained control</li>
+    <li>REST API with OpenAPI documentation and a browser extension for quickly adding URLs</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Smart shoppers, data journalists, researchers, analysts and security teams who need reliable, automated alerts on web page changes without relying on a third-party SaaS, and operators who want full control of monitoring data on their own infrastructure.</p>
+</div>]]></field>
+        <field name="category">monitoring</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/changedetection.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow')])]"/>
+        <field name="website_url">https://changedetection.io</field>
+        <field name="documentation_url">https://github.com/dgtlmoon/changedetection.io/wiki</field>
+        <field name="source_url">https://github.com/dgtlmoon/changedetection.io</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  changedetection:
+    image: ghcr.io/dgtlmoon/changedetection.io:0.49
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:5000'
+    volumes:
+    - ./datastore:/datastore
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_changedetection_port_http" model="service.template.port">
+        <field name="template_id" ref="template_changedetection"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">5000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_changedetection_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_changedetection"/>
+        <field name="name">datastore</field>
+        <field name="local_path">./datastore</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

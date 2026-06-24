@@ -1,0 +1,1076 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'appwrite': appwrite-console, appwrite-realtime, appwrite-worker-audits, appwrite-worker-webhooks, appwrite-worker-deletes, appwrite-worker-databases, appwrite-worker-builds, appwrite-worker-certificates, appwrite-worker-functions, appwrite-worker-mails, appwrite-worker-messaging, appwrite-worker-migrations, appwrite-task-maintenance, appwrite-task-stats-resources, appwrite-worker-stats-resources, appwrite-worker-stats-usage, appwrite-task-scheduler-functions, appwrite-task-scheduler-executions, appwrite-task-scheduler-messages, appwrite-assistant, appwrite-browser, openruntimes-executor): revisar backup/red/init.
+           - Owner UID:GID de 'appwrite' (imagen appwrite/appwrite:1.8.0) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'appwrite-worker-deletes' (imagen appwrite/appwrite:1.8.0) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'appwrite-worker-builds' (imagen appwrite/appwrite:1.8.0) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'appwrite-worker-certificates' (imagen appwrite/appwrite:1.8.0) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'appwrite-worker-messaging' (imagen appwrite/appwrite:1.8.0) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'appwrite-worker-migrations' (imagen appwrite/appwrite:1.8.0) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'openruntimes-executor' (imagen openruntimes/executor:0.7.22) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_appwrite" model="service.template">
+        <field name="name">Appwrite</field>
+        <field name="code">appwrite</field>
+        <field name="service_code">appwrite</field>
+        <field name="version">1.8.0</field>
+        <field name="description">Appwrite is an open-source, all-in-one backend platform that lets you build secure web, mobile, and AI apps without stitching together infrastructure.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Appwrite is an open-source, all-in-one backend platform that lets you build secure web, mobile, and AI apps without stitching together infrastructure.</p>
+  <p>It bundles the backend primitives most apps need—authentication, databases, storage, serverless functions, messaging, realtime, and integrated web hosting—behind REST, GraphQL, and WebSocket APIs. Packaged as Docker microservices, it self-hosts with a single command and is a fully open, data-sovereign alternative to proprietary BaaS offerings like Firebase. It targets solo developers and teams who want production-ready backends fast while keeping full control over their infrastructure.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Authentication with email/password, SMS, OAuth, magic links, and anonymous sessions</li>
+    <li>Document database (backed by MariaDB) with querying, pagination, and indexing</li>
+    <li>File storage with encryption and on-the-fly image transformation</li>
+    <li>Serverless Functions supporting 15+ language runtimes</li>
+    <li>Multi-channel messaging (email, SMS, push) and realtime subscriptions</li>
+    <li>Sites: integrated web hosting for static and SSR frameworks with custom domains and Git deploys</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Developers and teams building full-stack web, mobile, or AI applications who want a self-hosted, open-source backend with strong developer experience and full data ownership. Ideal for replacing fragmented backend stacks or a self-hostable Firebase alternative.</p>
+</div>]]></field>
+        <field name="category">dev_tools</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/appwrite.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_paas'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_identity'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_automation')])]"/>
+        <field name="website_url">https://appwrite.io/</field>
+        <field name="documentation_url">https://appwrite.io/docs</field>
+        <field name="source_url">https://github.com/appwrite/appwrite</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  appwrite:
+    logging: &id001
+      driver: json-file
+      options:
+        max-file: '5'
+        max-size: 10m
+    image: appwrite/appwrite:1.8.0
+    restart: unless-stopped
+    labels:
+    - traefik.enable=true
+    - traefik.constraint-label-stack=appwrite
+    volumes:
+    - ./appwrite_uploads:/storage/uploads
+    - ./appwrite_imports:/storage/imports
+    - ./appwrite_cache:/storage/cache
+    - ./appwrite_config:/storage/config
+    - ./appwrite_certificates:/storage/certificates
+    - ./appwrite_functions:/storage/functions
+    - ./appwrite_sites:/storage/sites
+    - ./appwrite_builds:/storage/builds
+    depends_on:
+    - mariadb
+    - redis
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_LOCALE
+    - _APP_COMPRESSION_MIN_SIZE_BYTES
+    - _APP_CONSOLE_WHITELIST_ROOT
+    - _APP_CONSOLE_WHITELIST_EMAILS
+    - _APP_CONSOLE_SESSION_ALERTS
+    - _APP_CONSOLE_WHITELIST_IPS
+    - _APP_CONSOLE_HOSTNAMES
+    - _APP_SYSTEM_EMAIL_NAME
+    - _APP_SYSTEM_EMAIL_ADDRESS
+    - _APP_EMAIL_SECURITY
+    - _APP_SYSTEM_RESPONSE_FORMAT
+    - _APP_OPTIONS_ABUSE
+    - _APP_OPTIONS_ROUTER_PROTECTION
+    - _APP_OPTIONS_FORCE_HTTPS
+    - _APP_OPTIONS_ROUTER_FORCE_HTTPS
+    - _APP_OPENSSL_KEY_V1
+    - _APP_DOMAIN
+    - _APP_DOMAIN_TARGET_CNAME
+    - _APP_DOMAIN_TARGET_AAAA
+    - _APP_DOMAIN_TARGET_A
+    - _APP_DOMAIN_TARGET_CAA
+    - _APP_DNS
+    - _APP_DOMAIN_FUNCTIONS
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_SMTP_HOST
+    - _APP_SMTP_PORT
+    - _APP_SMTP_SECURE
+    - _APP_SMTP_USERNAME
+    - _APP_SMTP_PASSWORD
+    - _APP_USAGE_STATS
+    - _APP_STORAGE_LIMIT
+    - _APP_STORAGE_PREVIEW_LIMIT
+    - _APP_STORAGE_ANTIVIRUS
+    - _APP_STORAGE_ANTIVIRUS_HOST
+    - _APP_STORAGE_ANTIVIRUS_PORT
+    - _APP_STORAGE_DEVICE
+    - _APP_STORAGE_S3_ACCESS_KEY
+    - _APP_STORAGE_S3_SECRET
+    - _APP_STORAGE_S3_REGION
+    - _APP_STORAGE_S3_BUCKET
+    - _APP_STORAGE_S3_ENDPOINT
+    - _APP_STORAGE_DO_SPACES_ACCESS_KEY
+    - _APP_STORAGE_DO_SPACES_SECRET
+    - _APP_STORAGE_DO_SPACES_REGION
+    - _APP_STORAGE_DO_SPACES_BUCKET
+    - _APP_STORAGE_BACKBLAZE_ACCESS_KEY
+    - _APP_STORAGE_BACKBLAZE_SECRET
+    - _APP_STORAGE_BACKBLAZE_REGION
+    - _APP_STORAGE_BACKBLAZE_BUCKET
+    - _APP_STORAGE_LINODE_ACCESS_KEY
+    - _APP_STORAGE_LINODE_SECRET
+    - _APP_STORAGE_LINODE_REGION
+    - _APP_STORAGE_LINODE_BUCKET
+    - _APP_STORAGE_WASABI_ACCESS_KEY
+    - _APP_STORAGE_WASABI_SECRET
+    - _APP_STORAGE_WASABI_REGION
+    - _APP_STORAGE_WASABI_BUCKET
+    - _APP_COMPUTE_SIZE_LIMIT
+    - _APP_FUNCTIONS_TIMEOUT
+    - _APP_SITES_TIMEOUT
+    - _APP_COMPUTE_BUILD_TIMEOUT
+    - _APP_COMPUTE_CPUS
+    - _APP_COMPUTE_MEMORY
+    - _APP_FUNCTIONS_RUNTIMES
+    - _APP_SITES_RUNTIMES
+    - _APP_DOMAIN_SITES
+    - _APP_EXECUTOR_SECRET={{ app_executor_secret }}
+    - _APP_EXECUTOR_HOST
+    - _APP_LOGGING_CONFIG
+    - _APP_MAINTENANCE_INTERVAL
+    - _APP_MAINTENANCE_DELAY
+    - _APP_MAINTENANCE_START_TIME
+    - _APP_MAINTENANCE_RETENTION_EXECUTION
+    - _APP_MAINTENANCE_RETENTION_CACHE
+    - _APP_MAINTENANCE_RETENTION_ABUSE
+    - _APP_MAINTENANCE_RETENTION_AUDIT
+    - _APP_MAINTENANCE_RETENTION_AUDIT_CONSOLE
+    - _APP_MAINTENANCE_RETENTION_USAGE_HOURLY
+    - _APP_MAINTENANCE_RETENTION_SCHEDULES
+    - _APP_SMS_PROVIDER
+    - _APP_SMS_FROM
+    - _APP_GRAPHQL_MAX_BATCH_SIZE
+    - _APP_GRAPHQL_MAX_COMPLEXITY
+    - _APP_GRAPHQL_MAX_DEPTH
+    - _APP_VCS_GITHUB_APP_NAME
+    - _APP_VCS_GITHUB_PRIVATE_KEY
+    - _APP_VCS_GITHUB_APP_ID
+    - _APP_VCS_GITHUB_WEBHOOK_SECRET
+    - _APP_VCS_GITHUB_CLIENT_SECRET
+    - _APP_VCS_GITHUB_CLIENT_ID
+    - _APP_MIGRATIONS_FIREBASE_CLIENT_ID
+    - _APP_MIGRATIONS_FIREBASE_CLIENT_SECRET
+    - _APP_ASSISTANT_OPENAI_API_KEY
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+  appwrite-console:
+    logging: *id001
+    image: appwrite/console:7.4.7
+    restart: unless-stopped
+    labels:
+    - traefik.enable=true
+    - traefik.constraint-label-stack=appwrite
+    container_name: '{{ INSTANCE_CODE }}_appwrite_console'
+    networks:
+    - internal
+  appwrite-realtime:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: realtime
+    restart: unless-stopped
+    labels:
+    - traefik.enable=true
+    - traefik.constraint-label-stack=appwrite
+    depends_on:
+    - mariadb
+    - redis
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPTIONS_ABUSE
+    - _APP_OPTIONS_ROUTER_PROTECTION
+    - _APP_OPENSSL_KEY_V1
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_USAGE_STATS
+    - _APP_LOGGING_CONFIG
+    container_name: '{{ INSTANCE_CODE }}_appwrite_realtime'
+    networks:
+    - internal
+  appwrite-worker-audits:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: worker-audits
+    restart: unless-stopped
+    depends_on:
+    - redis
+    - mariadb
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_LOGGING_CONFIG
+    container_name: '{{ INSTANCE_CODE }}_appwrite_worker_audits'
+    networks:
+    - internal
+  appwrite-worker-webhooks:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: worker-webhooks
+    restart: unless-stopped
+    depends_on:
+    - redis
+    - mariadb
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_EMAIL_SECURITY
+    - _APP_SYSTEM_SECURITY_EMAIL_ADDRESS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_LOGGING_CONFIG
+    container_name: '{{ INSTANCE_CODE }}_appwrite_worker_webhooks'
+    networks:
+    - internal
+  appwrite-worker-deletes:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: worker-deletes
+    restart: unless-stopped
+    depends_on:
+    - redis
+    - mariadb
+    volumes:
+    - ./appwrite_uploads:/storage/uploads
+    - ./appwrite_cache:/storage/cache
+    - ./appwrite_functions:/storage/functions
+    - ./appwrite_sites:/storage/sites
+    - ./appwrite_builds:/storage/builds
+    - ./appwrite_certificates:/storage/certificates
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_STORAGE_DEVICE
+    - _APP_STORAGE_S3_ACCESS_KEY
+    - _APP_STORAGE_S3_SECRET
+    - _APP_STORAGE_S3_REGION
+    - _APP_STORAGE_S3_BUCKET
+    - _APP_STORAGE_S3_ENDPOINT
+    - _APP_STORAGE_DO_SPACES_ACCESS_KEY
+    - _APP_STORAGE_DO_SPACES_SECRET
+    - _APP_STORAGE_DO_SPACES_REGION
+    - _APP_STORAGE_DO_SPACES_BUCKET
+    - _APP_STORAGE_BACKBLAZE_ACCESS_KEY
+    - _APP_STORAGE_BACKBLAZE_SECRET
+    - _APP_STORAGE_BACKBLAZE_REGION
+    - _APP_STORAGE_BACKBLAZE_BUCKET
+    - _APP_STORAGE_LINODE_ACCESS_KEY
+    - _APP_STORAGE_LINODE_SECRET
+    - _APP_STORAGE_LINODE_REGION
+    - _APP_STORAGE_LINODE_BUCKET
+    - _APP_STORAGE_WASABI_ACCESS_KEY
+    - _APP_STORAGE_WASABI_SECRET
+    - _APP_STORAGE_WASABI_REGION
+    - _APP_STORAGE_WASABI_BUCKET
+    - _APP_LOGGING_CONFIG
+    - _APP_EXECUTOR_SECRET={{ app_executor_secret }}
+    - _APP_EXECUTOR_HOST
+    - _APP_MAINTENANCE_RETENTION_ABUSE
+    - _APP_MAINTENANCE_RETENTION_AUDIT
+    - _APP_MAINTENANCE_RETENTION_AUDIT_CONSOLE
+    - _APP_MAINTENANCE_RETENTION_EXECUTION
+    - _APP_SYSTEM_SECURITY_EMAIL_ADDRESS
+    - _APP_EMAIL_CERTIFICATES
+    container_name: '{{ INSTANCE_CODE }}_appwrite_worker_deletes'
+    networks:
+    - internal
+  appwrite-worker-databases:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: worker-databases
+    restart: unless-stopped
+    depends_on:
+    - redis
+    - mariadb
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_LOGGING_CONFIG
+    container_name: '{{ INSTANCE_CODE }}_appwrite_worker_databases'
+    networks:
+    - internal
+  appwrite-worker-builds:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: worker-builds
+    restart: unless-stopped
+    depends_on:
+    - redis
+    - mariadb
+    volumes:
+    - ./appwrite_functions:/storage/functions
+    - ./appwrite_sites:/storage/sites
+    - ./appwrite_builds:/storage/builds
+    - ./appwrite_uploads:/storage/uploads
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_EXECUTOR_SECRET={{ app_executor_secret }}
+    - _APP_EXECUTOR_HOST
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_LOGGING_CONFIG
+    - _APP_VCS_GITHUB_APP_NAME
+    - _APP_VCS_GITHUB_PRIVATE_KEY
+    - _APP_VCS_GITHUB_APP_ID
+    - _APP_FUNCTIONS_TIMEOUT
+    - _APP_SITES_TIMEOUT
+    - _APP_COMPUTE_BUILD_TIMEOUT
+    - _APP_COMPUTE_CPUS
+    - _APP_COMPUTE_MEMORY
+    - _APP_COMPUTE_SIZE_LIMIT
+    - _APP_OPTIONS_FORCE_HTTPS
+    - _APP_OPTIONS_ROUTER_FORCE_HTTPS
+    - _APP_DOMAIN
+    - _APP_STORAGE_DEVICE
+    - _APP_STORAGE_S3_ACCESS_KEY
+    - _APP_STORAGE_S3_SECRET
+    - _APP_STORAGE_S3_REGION
+    - _APP_STORAGE_S3_BUCKET
+    - _APP_STORAGE_S3_ENDPOINT
+    - _APP_STORAGE_DO_SPACES_ACCESS_KEY
+    - _APP_STORAGE_DO_SPACES_SECRET
+    - _APP_STORAGE_DO_SPACES_REGION
+    - _APP_STORAGE_DO_SPACES_BUCKET
+    - _APP_STORAGE_BACKBLAZE_ACCESS_KEY
+    - _APP_STORAGE_BACKBLAZE_SECRET
+    - _APP_STORAGE_BACKBLAZE_REGION
+    - _APP_STORAGE_BACKBLAZE_BUCKET
+    - _APP_STORAGE_LINODE_ACCESS_KEY
+    - _APP_STORAGE_LINODE_SECRET
+    - _APP_STORAGE_LINODE_REGION
+    - _APP_STORAGE_LINODE_BUCKET
+    - _APP_STORAGE_WASABI_ACCESS_KEY
+    - _APP_STORAGE_WASABI_SECRET
+    - _APP_STORAGE_WASABI_REGION
+    - _APP_STORAGE_WASABI_BUCKET
+    - _APP_DOMAIN_SITES
+    container_name: '{{ INSTANCE_CODE }}_appwrite_worker_builds'
+    networks:
+    - internal
+  appwrite-worker-certificates:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: worker-certificates
+    restart: unless-stopped
+    depends_on:
+    - redis
+    - mariadb
+    volumes:
+    - ./appwrite_config:/storage/config
+    - ./appwrite_certificates:/storage/certificates
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_DOMAIN
+    - _APP_DOMAIN_TARGET_CNAME
+    - _APP_DOMAIN_TARGET_AAAA
+    - _APP_DOMAIN_TARGET_A
+    - _APP_DOMAIN_TARGET_CAA
+    - _APP_DNS
+    - _APP_DOMAIN_FUNCTIONS
+    - _APP_EMAIL_CERTIFICATES
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_LOGGING_CONFIG
+    container_name: '{{ INSTANCE_CODE }}_appwrite_worker_certificates'
+    networks:
+    - internal
+  appwrite-worker-functions:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: worker-functions
+    restart: unless-stopped
+    depends_on:
+    - redis
+    - mariadb
+    - openruntimes-executor
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_DOMAIN
+    - _APP_OPTIONS_FORCE_HTTPS
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_FUNCTIONS_TIMEOUT
+    - _APP_SITES_TIMEOUT
+    - _APP_COMPUTE_BUILD_TIMEOUT
+    - _APP_COMPUTE_CPUS
+    - _APP_COMPUTE_MEMORY
+    - _APP_EXECUTOR_SECRET={{ app_executor_secret }}
+    - _APP_EXECUTOR_HOST
+    - _APP_USAGE_STATS
+    - _APP_DOCKER_HUB_USERNAME
+    - _APP_DOCKER_HUB_PASSWORD
+    - _APP_LOGGING_CONFIG
+    container_name: '{{ INSTANCE_CODE }}_appwrite_worker_functions'
+    networks:
+    - internal
+  appwrite-worker-mails:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: worker-mails
+    restart: unless-stopped
+    depends_on:
+    - redis
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_SYSTEM_EMAIL_NAME
+    - _APP_SYSTEM_EMAIL_ADDRESS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_SMTP_HOST
+    - _APP_SMTP_PORT
+    - _APP_SMTP_SECURE
+    - _APP_SMTP_USERNAME
+    - _APP_SMTP_PASSWORD
+    - _APP_LOGGING_CONFIG
+    - _APP_DOMAIN
+    - _APP_OPTIONS_FORCE_HTTPS
+    container_name: '{{ INSTANCE_CODE }}_appwrite_worker_mails'
+    networks:
+    - internal
+  appwrite-worker-messaging:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: worker-messaging
+    restart: unless-stopped
+    volumes:
+    - ./appwrite_uploads:/storage/uploads
+    depends_on:
+    - redis
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_LOGGING_CONFIG
+    - _APP_SMS_FROM
+    - _APP_SMS_PROVIDER
+    - _APP_STORAGE_DEVICE
+    - _APP_STORAGE_S3_ACCESS_KEY
+    - _APP_STORAGE_S3_SECRET
+    - _APP_STORAGE_S3_REGION
+    - _APP_STORAGE_S3_BUCKET
+    - _APP_STORAGE_S3_ENDPOINT
+    - _APP_STORAGE_DO_SPACES_ACCESS_KEY
+    - _APP_STORAGE_DO_SPACES_SECRET
+    - _APP_STORAGE_DO_SPACES_REGION
+    - _APP_STORAGE_DO_SPACES_BUCKET
+    - _APP_STORAGE_BACKBLAZE_ACCESS_KEY
+    - _APP_STORAGE_BACKBLAZE_SECRET
+    - _APP_STORAGE_BACKBLAZE_REGION
+    - _APP_STORAGE_BACKBLAZE_BUCKET
+    - _APP_STORAGE_LINODE_ACCESS_KEY
+    - _APP_STORAGE_LINODE_SECRET
+    - _APP_STORAGE_LINODE_REGION
+    - _APP_STORAGE_LINODE_BUCKET
+    - _APP_STORAGE_WASABI_ACCESS_KEY
+    - _APP_STORAGE_WASABI_SECRET
+    - _APP_STORAGE_WASABI_REGION
+    - _APP_STORAGE_WASABI_BUCKET
+    container_name: '{{ INSTANCE_CODE }}_appwrite_worker_messaging'
+    networks:
+    - internal
+  appwrite-worker-migrations:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: worker-migrations
+    restart: unless-stopped
+    volumes:
+    - ./appwrite_imports:/storage/imports
+    depends_on:
+    - mariadb
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_DOMAIN
+    - _APP_DOMAIN_TARGET_CNAME
+    - _APP_DOMAIN_TARGET_AAAA
+    - _APP_DOMAIN_TARGET_A
+    - _APP_DOMAIN_TARGET_CAA
+    - _APP_DNS
+    - _APP_EMAIL_SECURITY
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_LOGGING_CONFIG
+    - _APP_MIGRATIONS_FIREBASE_CLIENT_ID
+    - _APP_MIGRATIONS_FIREBASE_CLIENT_SECRET
+    container_name: '{{ INSTANCE_CODE }}_appwrite_worker_migrations'
+    networks:
+    - internal
+  appwrite-task-maintenance:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: maintenance
+    restart: unless-stopped
+    depends_on:
+    - redis
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_DOMAIN
+    - _APP_DOMAIN_TARGET_CNAME
+    - _APP_DOMAIN_TARGET_AAAA
+    - _APP_DOMAIN_TARGET_A
+    - _APP_DOMAIN_TARGET_CAA
+    - _APP_DNS
+    - _APP_DOMAIN_FUNCTIONS
+    - _APP_OPENSSL_KEY_V1
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_MAINTENANCE_INTERVAL
+    - _APP_MAINTENANCE_RETENTION_EXECUTION
+    - _APP_MAINTENANCE_RETENTION_CACHE
+    - _APP_MAINTENANCE_RETENTION_ABUSE
+    - _APP_MAINTENANCE_RETENTION_AUDIT
+    - _APP_MAINTENANCE_RETENTION_AUDIT_CONSOLE
+    - _APP_MAINTENANCE_RETENTION_USAGE_HOURLY
+    - _APP_MAINTENANCE_RETENTION_SCHEDULES
+    container_name: '{{ INSTANCE_CODE }}_appwrite_task_maintenance'
+    networks:
+    - internal
+  appwrite-task-stats-resources:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: stats-resources
+    restart: unless-stopped
+    depends_on:
+    - redis
+    - mariadb
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_USAGE_STATS
+    - _APP_LOGGING_CONFIG
+    - _APP_DATABASE_SHARED_TABLES
+    - _APP_STATS_RESOURCES_INTERVAL
+    container_name: '{{ INSTANCE_CODE }}_appwrite_task_stats_resources'
+    networks:
+    - internal
+  appwrite-worker-stats-resources:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: worker-stats-resources
+    restart: unless-stopped
+    depends_on:
+    - redis
+    - mariadb
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_USAGE_STATS
+    - _APP_LOGGING_CONFIG
+    - _APP_STATS_RESOURCES_INTERVAL
+    container_name: '{{ INSTANCE_CODE }}_appwrite_worker_stats_resources'
+    networks:
+    - internal
+  appwrite-worker-stats-usage:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: worker-stats-usage
+    restart: unless-stopped
+    depends_on:
+    - redis
+    - mariadb
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_USAGE_STATS
+    - _APP_LOGGING_CONFIG
+    - _APP_USAGE_AGGREGATION_INTERVAL
+    container_name: '{{ INSTANCE_CODE }}_appwrite_worker_stats_usage'
+    networks:
+    - internal
+  appwrite-task-scheduler-functions:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: schedule-functions
+    restart: unless-stopped
+    depends_on:
+    - mariadb
+    - redis
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    container_name: '{{ INSTANCE_CODE }}_appwrite_task_scheduler_functions'
+    networks:
+    - internal
+  appwrite-task-scheduler-executions:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: schedule-executions
+    restart: unless-stopped
+    depends_on:
+    - mariadb
+    - redis
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    container_name: '{{ INSTANCE_CODE }}_appwrite_task_scheduler_executions'
+    networks:
+    - internal
+  appwrite-task-scheduler-messages:
+    logging: *id001
+    image: appwrite/appwrite:1.8.0
+    entrypoint: schedule-messages
+    restart: unless-stopped
+    depends_on:
+    - mariadb
+    - redis
+    environment:
+    - _APP_ENV
+    - _APP_WORKER_PER_CORE
+    - _APP_OPENSSL_KEY_V1
+    - _APP_REDIS_HOST
+    - _APP_REDIS_PORT
+    - _APP_REDIS_USER
+    - _APP_REDIS_PASS
+    - _APP_DB_HOST
+    - _APP_DB_PORT
+    - _APP_DB_SCHEMA
+    - _APP_DB_USER
+    - _APP_DB_PASS
+    container_name: '{{ INSTANCE_CODE }}_appwrite_task_scheduler_messages'
+    networks:
+    - internal
+  appwrite-assistant:
+    logging: *id001
+    image: appwrite/assistant:0.8.3
+    restart: unless-stopped
+    environment:
+    - _APP_ASSISTANT_OPENAI_API_KEY
+    container_name: '{{ INSTANCE_CODE }}_appwrite_assistant'
+    networks:
+    - internal
+  appwrite-browser:
+    logging: *id001
+    image: appwrite/browser:0.2.4
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}_appwrite_browser'
+    networks:
+    - internal
+  openruntimes-executor:
+    logging: *id001
+    hostname: exc1
+    restart: unless-stopped
+    stop_signal: SIGINT
+    image: openruntimes/executor:0.7.22
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ./appwrite_builds:/storage/builds
+    - ./appwrite_functions:/storage/functions
+    - ./appwrite_sites:/storage/sites
+    - /tmp:/tmp:rw
+    environment:
+    - OPR_EXECUTOR_INACTIVE_TRESHOLD=$_APP_COMPUTE_INACTIVE_THRESHOLD
+    - OPR_EXECUTOR_MAINTENANCE_INTERVAL=$_APP_COMPUTE_MAINTENANCE_INTERVAL
+    - OPR_EXECUTOR_NETWORK=$_APP_COMPUTE_RUNTIMES_NETWORK
+    - OPR_EXECUTOR_DOCKER_HUB_USERNAME=$_APP_DOCKER_HUB_USERNAME
+    - OPR_EXECUTOR_DOCKER_HUB_PASSWORD=$_APP_DOCKER_HUB_PASSWORD
+    - OPR_EXECUTOR_ENV=$_APP_ENV
+    - OPR_EXECUTOR_RUNTIMES=$_APP_FUNCTIONS_RUNTIMES,$_APP_SITES_RUNTIMES
+    - OPR_EXECUTOR_SECRET={{ app_executor_secret }}
+    - OPR_EXECUTOR_RUNTIME_VERSIONS=v5
+    - OPR_EXECUTOR_LOGGING_CONFIG=$_APP_LOGGING_CONFIG
+    - OPR_EXECUTOR_STORAGE_DEVICE=$_APP_STORAGE_DEVICE
+    - OPR_EXECUTOR_STORAGE_S3_ACCESS_KEY=$_APP_STORAGE_S3_ACCESS_KEY
+    - OPR_EXECUTOR_STORAGE_S3_SECRET=$_APP_STORAGE_S3_SECRET
+    - OPR_EXECUTOR_STORAGE_S3_REGION=$_APP_STORAGE_S3_REGION
+    - OPR_EXECUTOR_STORAGE_S3_BUCKET=$_APP_STORAGE_S3_BUCKET
+    - OPR_EXECUTOR_STORAGE_S3_ENDPOINT=$_APP_STORAGE_S3_ENDPOINT
+    - OPR_EXECUTOR_STORAGE_DO_SPACES_ACCESS_KEY=$_APP_STORAGE_DO_SPACES_ACCESS_KEY
+    - OPR_EXECUTOR_STORAGE_DO_SPACES_SECRET=$_APP_STORAGE_DO_SPACES_SECRET
+    - OPR_EXECUTOR_STORAGE_DO_SPACES_REGION=$_APP_STORAGE_DO_SPACES_REGION
+    - OPR_EXECUTOR_STORAGE_DO_SPACES_BUCKET=$_APP_STORAGE_DO_SPACES_BUCKET
+    - OPR_EXECUTOR_STORAGE_BACKBLAZE_ACCESS_KEY=$_APP_STORAGE_BACKBLAZE_ACCESS_KEY
+    - OPR_EXECUTOR_STORAGE_BACKBLAZE_SECRET=$_APP_STORAGE_BACKBLAZE_SECRET
+    - OPR_EXECUTOR_STORAGE_BACKBLAZE_REGION=$_APP_STORAGE_BACKBLAZE_REGION
+    - OPR_EXECUTOR_STORAGE_BACKBLAZE_BUCKET=$_APP_STORAGE_BACKBLAZE_BUCKET
+    - OPR_EXECUTOR_STORAGE_LINODE_ACCESS_KEY=$_APP_STORAGE_LINODE_ACCESS_KEY
+    - OPR_EXECUTOR_STORAGE_LINODE_SECRET=$_APP_STORAGE_LINODE_SECRET
+    - OPR_EXECUTOR_STORAGE_LINODE_REGION=$_APP_STORAGE_LINODE_REGION
+    - OPR_EXECUTOR_STORAGE_LINODE_BUCKET=$_APP_STORAGE_LINODE_BUCKET
+    - OPR_EXECUTOR_STORAGE_WASABI_ACCESS_KEY=$_APP_STORAGE_WASABI_ACCESS_KEY
+    - OPR_EXECUTOR_STORAGE_WASABI_SECRET=$_APP_STORAGE_WASABI_SECRET
+    - OPR_EXECUTOR_STORAGE_WASABI_REGION=$_APP_STORAGE_WASABI_REGION
+    - OPR_EXECUTOR_STORAGE_WASABI_BUCKET=$_APP_STORAGE_WASABI_BUCKET
+    container_name: '{{ INSTANCE_CODE }}_openruntimes_executor'
+    networks:
+    - internal
+  mariadb:
+    logging: *id001
+    image: mariadb:10.11
+    restart: unless-stopped
+    volumes:
+    - ./appwrite_mariadb:/var/lib/mysql
+    environment:
+    - MYSQL_ROOT_PASSWORD=${_APP_DB_ROOT_PASS}
+    - MYSQL_DATABASE=${_APP_DB_SCHEMA}
+    - MYSQL_USER=${_APP_DB_USER}
+    - MYSQL_PASSWORD=${_APP_DB_PASS}
+    - MARIADB_AUTO_UPGRADE=1
+    command: mysqld --innodb-flush-method=fsync
+    container_name: '{{ INSTANCE_CODE }}_mariadb'
+    networks:
+    - internal
+  redis:
+    logging: *id001
+    image: redis:7.2.4-alpine
+    restart: unless-stopped
+    command: 'redis-server --maxmemory            512mb --maxmemory-policy     allkeys-lru --maxmemory-samples    5
+
+      '
+    volumes:
+    - ./appwrite_redis:/data
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T mariadb sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d mariadb
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T mariadb sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_appwrite_port_http" model="service.template.port">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_appwrite_var_functions_domain" model="service.template.variable">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">functions_domain</field>
+        <field name="var_type">string</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_appwrite_var_sites_domain" model="service.template.variable">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">sites_domain</field>
+        <field name="var_type">string</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_appwrite_var_openssl_key" model="service.template.variable">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">openssl_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_appwrite_var_db_root_pw" model="service.template.variable">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">db_root_pw</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_appwrite_var_db_user_pw" model="service.template.variable">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">db_user_pw</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_appwrite_var_executor_secret" model="service.template.variable">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">app_executor_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_appwrite_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">appwrite-uploads</field>
+        <field name="local_path">./appwrite_uploads</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_appwrite_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">appwrite-imports</field>
+        <field name="local_path">./appwrite_imports</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_appwrite_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">appwrite-cache</field>
+        <field name="local_path">./appwrite_cache</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_appwrite_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">appwrite-config</field>
+        <field name="local_path">./appwrite_config</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_appwrite_vol_4" model="service.template.volume">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">appwrite-certificates</field>
+        <field name="local_path">./appwrite_certificates</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_appwrite_vol_5" model="service.template.volume">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">appwrite-functions</field>
+        <field name="local_path">./appwrite_functions</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_appwrite_vol_6" model="service.template.volume">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">appwrite-sites</field>
+        <field name="local_path">./appwrite_sites</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_appwrite_vol_7" model="service.template.volume">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">appwrite-builds</field>
+        <field name="local_path">./appwrite_builds</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_appwrite_vol_8" model="service.template.volume">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">appwrite-mariadb</field>
+        <field name="local_path">./appwrite_mariadb</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_appwrite_vol_9" model="service.template.volume">
+        <field name="template_id" ref="template_appwrite"/>
+        <field name="name">appwrite-redis</field>
+        <field name="local_path">./appwrite_redis</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">100</field>
+    </record>
+</odoo>

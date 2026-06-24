@@ -1,0 +1,807 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'nginx': minio, postgres, gotrue, appflowy_cloud, admin_frontend, ai, appflowy_worker, appflowy_web): revisar backup/red/init.
+           - Owner UID:GID de 'minio' (imagen minio/minio) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'postgres' (imagen pgvector/pgvector:pg16) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Tiene 1 mount(s) de config: revisar rutas y montaje en el compose.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_appflowy" model="service.template">
+        <field name="name">App Flowy</field>
+        <field name="code">appflowy</field>
+        <field name="service_code">appflowy</field>
+        <field name="version">0.9.3</field>
+        <field name="description">AppFlowy is the leading open-source, privacy-first alternative to Notion: an AI-powered collaborative workspace where you keep full control of your data.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">AppFlowy is the leading open-source, privacy-first alternative to Notion: an AI-powered collaborative workspace where you keep full control of your data.</p>
+  <p>It combines a block-based document editor with multi-view databases, kanban boards, calendars and wikis in a single local-first application that runs natively on desktop and mobile. The desktop app writes to a local SQLite store and syncs in the background, while teams can self-host the full AppFlowy Cloud stack (API server, web UI, background worker, GoTrue auth, PostgreSQL with pgvector, Redis and MinIO) via Docker. It is built with Flutter and Rust and connects to both local AI models (Mistral, Llama) and cloud providers (GPT, Gemini, Claude).</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Block-based editor with slash commands, nested pages and rich documents</li>
+    <li>Multi-view databases: grid, board/kanban, calendar, gallery, list and chart</li>
+    <li>Advanced data tools: filters, sorting, grouping, two-way relations, rollups and calculations</li>
+    <li>AI assistance with on-device local models or external cloud providers</li>
+    <li>Local-first offline use with background sync to self-hosted or managed cloud</li>
+    <li>Self-hostable Docker stack on your own infrastructure with full data ownership</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Privacy-conscious teams, organizations with data-sovereignty requirements, and individuals who want a powerful Notion-style workspace for docs, project management and knowledge bases without per-seat SaaS pricing or sending data to third parties.</p>
+</div>]]></field>
+        <field name="category">productivity</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/appflowy.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_project_management'), ref('agz_infra_suite.tag_documentation'), ref('agz_infra_suite.tag_notes'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="website_url">https://appflowy.io/</field>
+        <field name="documentation_url">https://docs.appflowy.io/docs</field>
+        <field name="source_url">https://github.com/AppFlowy-IO/AppFlowy</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  nginx:
+    restart: on-failure
+    image: nginx
+    volumes:
+    - ../files/nginx/nginx.conf:/etc/nginx/nginx.conf
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+  minio:
+    restart: on-failure
+    image: minio/minio
+    environment:
+    - MINIO_BROWSER_REDIRECT_URL=https://{{ DOMAIN }}/minio
+    - MINIO_ROOT_USER=${APPFLOWY_S3_ACCESS_KEY:-minioadmin}
+    - MINIO_ROOT_PASSWORD=${APPFLOWY_S3_SECRET_KEY:-minioadmin}
+    command: server /data --console-address ":9001"
+    volumes:
+    - ./minio_data:/data
+    container_name: '{{ INSTANCE_CODE }}_minio'
+    networks:
+    - internal
+  postgres:
+    restart: on-failure
+    image: pgvector/pgvector:pg16
+    environment:
+    - POSTGRES_USER=${POSTGRES_USER:-postgres}
+    - POSTGRES_DB=${POSTGRES_DB:-postgres}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-password}
+    - POSTGRES_HOST=${POSTGRES_HOST:-postgres}
+    healthcheck:
+      test:
+      - CMD
+      - pg_isready
+      - -U
+      - ${POSTGRES_USER}
+      - -d
+      - ${POSTGRES_DB}
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+    - ./postgres_data:/var/lib/postgresql/data
+    - ./files/volumes/postgres/:/docker-entrypoint-initdb.d/
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    networks:
+    - internal
+  redis:
+    restart: on-failure
+    image: redis
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    networks:
+    - internal
+  gotrue:
+    restart: on-failure
+    image: appflowyinc/gotrue:${GOTRUE_VERSION:-latest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - --fail
+      - http://127.0.0.1:9999/health
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    environment:
+    - GOTRUE_ADMIN_EMAIL=${GOTRUE_ADMIN_EMAIL:-admin@example.com}
+    - GOTRUE_ADMIN_PASSWORD=${GOTRUE_ADMIN_PASSWORD}
+    - GOTRUE_DISABLE_SIGNUP=${GOTRUE_DISABLE_SIGNUP:-false}
+    - GOTRUE_SITE_URL=appflowy-flutter://
+    - GOTRUE_URI_ALLOW_LIST=${GOTRUE_URI_ALLOW_LIST:-**}
+    - API_EXTERNAL_URL=https://{{ DOMAIN }}/gotrue
+    - GOTRUE_JWT_SECRET=${GOTRUE_JWT_SECRET}
+    - GOTRUE_JWT_EXP=${GOTRUE_JWT_EXP:-7200}
+    - GOTRUE_JWT_ADMIN_GROUP_NAME=supabase_admin
+    - GOTRUE_DB_DRIVER=postgres
+    - DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-postgres}?search_path=auth
+    - PORT=9999
+    - GOTRUE_SMTP_HOST=${GOTRUE_SMTP_HOST}
+    - GOTRUE_SMTP_PORT=${GOTRUE_SMTP_PORT}
+    - GOTRUE_SMTP_USER=${GOTRUE_SMTP_USER}
+    - GOTRUE_SMTP_PASS=${GOTRUE_SMTP_PASS}
+    - GOTRUE_SMTP_ADMIN_EMAIL=${GOTRUE_SMTP_ADMIN_EMAIL}
+    - GOTRUE_SMTP_MAX_FREQUENCY=${GOTRUE_SMTP_MAX_FREQUENCY:-1ns}
+    - GOTRUE_RATE_LIMIT_EMAIL_SENT=${GOTRUE_RATE_LIMIT_EMAIL_SENT:-100}
+    - GOTRUE_MAILER_AUTOCONFIRM=${GOTRUE_MAILER_AUTOCONFIRM:-true}
+    - GOTRUE_MAILER_URLPATHS_CONFIRMATION=/gotrue/verify
+    - GOTRUE_MAILER_URLPATHS_INVITE=/gotrue/verify
+    - GOTRUE_MAILER_URLPATHS_RECOVERY=/gotrue/verify
+    - GOTRUE_MAILER_URLPATHS_EMAIL_CHANGE=/gotrue/verify
+    - GOTRUE_MAILER_TEMPLATES_MAGIC_LINK=${GOTRUE_MAILER_TEMPLATES_MAGIC_LINK}
+    - GOTRUE_EXTERNAL_GOOGLE_ENABLED=${GOTRUE_EXTERNAL_GOOGLE_ENABLED:-false}
+    - GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID=${GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID}
+    - GOTRUE_EXTERNAL_GOOGLE_SECRET=${GOTRUE_EXTERNAL_GOOGLE_SECRET}
+    - GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI=${GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI}
+    - GOTRUE_EXTERNAL_GITHUB_ENABLED=${GOTRUE_EXTERNAL_GITHUB_ENABLED:-false}
+    - GOTRUE_EXTERNAL_GITHUB_CLIENT_ID=${GOTRUE_EXTERNAL_GITHUB_CLIENT_ID}
+    - GOTRUE_EXTERNAL_GITHUB_SECRET=${GOTRUE_EXTERNAL_GITHUB_SECRET}
+    - GOTRUE_EXTERNAL_GITHUB_REDIRECT_URI=${GOTRUE_EXTERNAL_GITHUB_REDIRECT_URI}
+    - GOTRUE_EXTERNAL_DISCORD_ENABLED=${GOTRUE_EXTERNAL_DISCORD_ENABLED:-false}
+    - GOTRUE_EXTERNAL_DISCORD_CLIENT_ID=${GOTRUE_EXTERNAL_DISCORD_CLIENT_ID}
+    - GOTRUE_EXTERNAL_DISCORD_SECRET=${GOTRUE_EXTERNAL_DISCORD_SECRET}
+    - GOTRUE_EXTERNAL_DISCORD_REDIRECT_URI=${GOTRUE_EXTERNAL_DISCORD_REDIRECT_URI}
+    - GOTRUE_SAML_ENABLED=${GOTRUE_SAML_ENABLED:-false}
+    - GOTRUE_SAML_PRIVATE_KEY=${GOTRUE_SAML_PRIVATE_KEY}
+    container_name: '{{ INSTANCE_CODE }}_gotrue'
+    networks:
+    - internal
+  appflowy_cloud:
+    restart: on-failure
+    image: appflowyinc/appflowy_cloud:${APPFLOWY_CLOUD_VERSION:-latest}
+    depends_on:
+      gotrue:
+        condition: service_healthy
+    environment:
+    - RUST_LOG=${RUST_LOG:-info}
+    - APPFLOWY_ENVIRONMENT=production
+    - APPFLOWY_DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-postgres}
+    - APPFLOWY_REDIS_URI=redis://redis:6379
+    - APPFLOWY_WEB_URL=https://{{ DOMAIN }}
+    - APPFLOWY_GOTRUE_JWT_SECRET=${GOTRUE_JWT_SECRET}
+    - APPFLOWY_GOTRUE_JWT_EXP=${GOTRUE_JWT_EXP:-7200}
+    - APPFLOWY_GOTRUE_BASE_URL=http://gotrue:9999
+    - APPFLOWY_S3_CREATE_BUCKET=${APPFLOWY_S3_CREATE_BUCKET:-true}
+    - APPFLOWY_S3_USE_MINIO=${APPFLOWY_S3_USE_MINIO:-true}
+    - APPFLOWY_S3_MINIO_URL=http://minio:9000
+    - APPFLOWY_S3_ACCESS_KEY=${APPFLOWY_S3_ACCESS_KEY}
+    - APPFLOWY_S3_SECRET_KEY=${APPFLOWY_S3_SECRET_KEY}
+    - APPFLOWY_S3_BUCKET=${APPFLOWY_S3_BUCKET:-appflowy}
+    - APPFLOWY_S3_REGION=${APPFLOWY_S3_REGION:-us-east-1}
+    - APPFLOWY_S3_PRESIGNED_URL_ENDPOINT=https://{{ DOMAIN }}/minio-api
+    - APPFLOWY_MAILER_SMTP_HOST=${APPFLOWY_MAILER_SMTP_HOST}
+    - APPFLOWY_MAILER_SMTP_PORT=${APPFLOWY_MAILER_SMTP_PORT}
+    - APPFLOWY_MAILER_SMTP_USERNAME=${APPFLOWY_MAILER_SMTP_USERNAME}
+    - APPFLOWY_MAILER_SMTP_EMAIL=${APPFLOWY_MAILER_SMTP_EMAIL}
+    - APPFLOWY_MAILER_SMTP_PASSWORD=${APPFLOWY_MAILER_SMTP_PASSWORD}
+    - APPFLOWY_MAILER_SMTP_TLS_KIND=${APPFLOWY_MAILER_SMTP_TLS_KIND:-wrapper}
+    - APPFLOWY_ACCESS_CONTROL=${APPFLOWY_ACCESS_CONTROL:-true}
+    - APPFLOWY_DATABASE_MAX_CONNECTIONS=${APPFLOWY_DATABASE_MAX_CONNECTIONS:-40}
+    - APPFLOWY_WEBSOCKET_MAILBOX_SIZE=${APPFLOWY_WEBSOCKET_MAILBOX_SIZE:-6000}
+    - AI_SERVER_HOST=${AI_SERVER_HOST:-ai}
+    - AI_SERVER_PORT=${AI_SERVER_PORT:-5001}
+    - AI_OPENAI_API_KEY=${AI_OPENAI_API_KEY}
+    container_name: '{{ INSTANCE_CODE }}_appflowy_cloud'
+    networks:
+    - internal
+  admin_frontend:
+    restart: on-failure
+    image: appflowyinc/admin_frontend:${APPFLOWY_ADMIN_FRONTEND_VERSION:-latest}
+    depends_on:
+      gotrue:
+        condition: service_healthy
+      appflowy_cloud:
+        condition: service_started
+    environment:
+    - RUST_LOG=${RUST_LOG:-info}
+    - ADMIN_FRONTEND_REDIS_URL=redis://redis:6379
+    - ADMIN_FRONTEND_GOTRUE_URL=http://gotrue:9999
+    - ADMIN_FRONTEND_APPFLOWY_CLOUD_URL=http://appflowy_cloud:8000
+    - ADMIN_FRONTEND_PATH_PREFIX=${ADMIN_FRONTEND_PATH_PREFIX:-/console}
+    container_name: '{{ INSTANCE_CODE }}_admin_frontend'
+    networks:
+    - internal
+  ai:
+    restart: on-failure
+    image: appflowyinc/appflowy_ai:${APPFLOWY_AI_VERSION:-latest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+      appflowy_cloud:
+        condition: service_started
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:5001/health
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 40s
+    environment:
+    - AI_SERVER_PORT=${AI_SERVER_PORT:-5001}
+    - OPENAI_API_KEY=${AI_OPENAI_API_KEY}
+    - DEFAULT_AI_MODEL=${DEFAULT_AI_MODEL:-gpt-4o-mini}
+    - DEFAULT_AI_COMPLETION_MODEL=${DEFAULT_AI_COMPLETION_MODEL:-gpt-4o-mini}
+    - AZURE_OPENAI_API_KEY=${AZURE_OPENAI_API_KEY}
+    - AZURE_OPENAI_ENDPOINT=${AZURE_OPENAI_ENDPOINT}
+    - AZURE_OPENAI_API_VERSION=${AZURE_OPENAI_API_VERSION}
+    - AI_DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-postgres}
+    - AI_REDIS_URL=redis://redis:6379
+    - APPFLOWY_S3_ACCESS_KEY=${APPFLOWY_S3_ACCESS_KEY}
+    - APPFLOWY_S3_SECRET_KEY=${APPFLOWY_S3_SECRET_KEY}
+    - APPFLOWY_S3_BUCKET=${APPFLOWY_S3_BUCKET:-appflowy}
+    - APPFLOWY_S3_REGION=${APPFLOWY_S3_REGION:-us-east-1}
+    - AI_USE_MINIO=${APPFLOWY_S3_USE_MINIO:-true}
+    - AI_MINIO_URL=http://minio:9000
+    - AI_APPFLOWY_HOST=https://{{ DOMAIN }}
+    - APPFLOWY_GOTRUE_JWT_SECRET=${GOTRUE_JWT_SECRET}
+    container_name: '{{ INSTANCE_CODE }}_ai'
+    networks:
+    - internal
+  appflowy_worker:
+    restart: on-failure
+    image: appflowyinc/appflowy_worker:${APPFLOWY_WORKER_VERSION:-latest}
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+    - RUST_LOG=${RUST_LOG:-info}
+    - APPFLOWY_ENVIRONMENT=production
+    - APPFLOWY_WORKER_REDIS_URL=redis://redis:6379
+    - APPFLOWY_WORKER_ENVIRONMENT=production
+    - APPFLOWY_WORKER_DATABASE_URL=postgres://${POSTGRES_USER:-postgres}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB:-postgres}
+    - APPFLOWY_WORKER_DATABASE_NAME=${POSTGRES_DB:-postgres}
+    - APPFLOWY_WORKER_IMPORT_TICK_INTERVAL=${APPFLOWY_WORKER_IMPORT_TICK_INTERVAL:-30}
+    - APPFLOWY_S3_USE_MINIO=${APPFLOWY_S3_USE_MINIO:-true}
+    - APPFLOWY_S3_MINIO_URL=http://minio:9000
+    - APPFLOWY_S3_ACCESS_KEY=${APPFLOWY_S3_ACCESS_KEY}
+    - APPFLOWY_S3_SECRET_KEY=${APPFLOWY_S3_SECRET_KEY}
+    - APPFLOWY_S3_BUCKET=${APPFLOWY_S3_BUCKET:-appflowy}
+    - APPFLOWY_S3_REGION=${APPFLOWY_S3_REGION:-us-east-1}
+    - APPFLOWY_MAILER_SMTP_HOST=${APPFLOWY_MAILER_SMTP_HOST}
+    - APPFLOWY_MAILER_SMTP_PORT=${APPFLOWY_MAILER_SMTP_PORT}
+    - APPFLOWY_MAILER_SMTP_USERNAME=${APPFLOWY_MAILER_SMTP_USERNAME}
+    - APPFLOWY_MAILER_SMTP_EMAIL=${APPFLOWY_MAILER_SMTP_EMAIL}
+    - APPFLOWY_MAILER_SMTP_PASSWORD=${APPFLOWY_MAILER_SMTP_PASSWORD}
+    - APPFLOWY_MAILER_SMTP_TLS_KIND=${APPFLOWY_MAILER_SMTP_TLS_KIND:-wrapper}
+    container_name: '{{ INSTANCE_CODE }}_appflowy_worker'
+    networks:
+    - internal
+  appflowy_web:
+    restart: on-failure
+    image: appflowyinc/appflowy_web:${APPFLOWY_WEB_VERSION:-latest}
+    depends_on:
+    - appflowy_cloud
+    environment:
+    - AF_BASE_URL=https://{{ DOMAIN }}
+    - AF_GOTRUE_URL=https://{{ DOMAIN }}/gotrue
+    - AF_WS_V2_URL=wss://{{ DOMAIN }}/ws/v2
+    container_name: '{{ INSTANCE_CODE }}_appflowy_web'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_appflowy_port_http" model="service.template.port">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_appflowy_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">minio_data</field>
+        <field name="local_path">./minio_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_appflowy_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">postgres_data</field>
+        <field name="local_path">./postgres_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_appflowy_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">nginx.conf</field>
+        <field name="filename">nginx.conf</field>
+        <field name="path">./files/nginx</field>
+        <field name="content_template"><![CDATA[# Minimal nginx configuration for AppFlowy-Cloud
+# Self Hosted AppFlowy Cloud user should alter this file to suit their needs,
+# or use the appflowy.site.conf in external_proxy_config/nginx if they are using
+# an external proxy.
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    # docker dns resolver
+    resolver 127.0.0.11 valid=10s;
+    #error_log /var/log/nginx/error.log debug;
+
+    map $http_upgrade $connection_upgrade {
+        default upgrade;
+        '' close;
+    }
+
+    map $http_origin $cors_origin {
+        # AppFlowy Web origin
+        "~^http://localhost:3000$" $http_origin;
+        default "null";
+    }
+
+    server {
+        listen 8080;
+
+        # https://github.com/nginxinc/nginx-prometheus-exporter
+        location = /stub_status {
+            stub_status;
+        }
+    }
+
+
+    server {
+
+        listen 80;
+        client_max_body_size 10M;
+
+        underscores_in_headers on;
+        set $appflowy_cloud_backend "http://appflowy_cloud:8000";
+        set $gotrue_backend "http://gotrue:9999";
+        set $admin_frontend_backend "http://admin_frontend:3000";
+        set $appflowy_web_backend "http://appflowy_web:80";
+        set $minio_backend "http://minio:9001";
+        set $minio_api_backend "http://minio:9000";
+        # Host name for minio, used internally within docker compose
+        set $minio_internal_host "minio:9000";
+        set $pgadmin_backend "http://pgadmin:80";
+
+        # GoTrue
+        location /gotrue/ {
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' $cors_origin always;
+                add_header 'Access-Control-Allow-Credentials' 'true' always;
+                add_header 'Access-Control-Allow-Headers' '*' always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                add_header 'Access-Control-Max-Age' 3600 always;
+                add_header 'Content-Type' 'text/plain charset=UTF-8' always;
+                add_header 'Content-Length' 0 always;
+                return 204;
+            }
+
+            proxy_pass $gotrue_backend;
+
+            rewrite ^/gotrue(/.*)$ $1 break;
+
+            # Allow headers like redirect_to to be handed over to the gotrue
+            # for correct redirecting
+            proxy_set_header Host $http_host;
+            proxy_pass_request_headers on;
+        }
+
+        # WebSocket
+        location /ws {
+            proxy_pass $appflowy_cloud_backend;
+
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "Upgrade";
+            proxy_set_header Host $host;
+            proxy_read_timeout 86400s;
+        }
+
+        location /api {
+            proxy_pass $appflowy_cloud_backend;
+            proxy_set_header X-Request-Id $request_id;
+            proxy_set_header Host $http_host;
+
+            # Set CORS headers for other requests
+            if ($request_method = 'OPTIONS') {
+                add_header 'Access-Control-Allow-Origin' $cors_origin always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, Accept, Client-Version, Device-Id' always;
+                add_header 'Access-Control-Max-Age' 3600 always;
+                return 204;
+            }
+
+            add_header 'Access-Control-Allow-Origin' $cors_origin always;
+            add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+            add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, Accept, Client-Version, Device-Id' always;
+            add_header 'Access-Control-Max-Age' 3600 always;
+
+            location ~* ^/api/workspace/([a-zA-Z0-9_-]+)/publish$ {
+                proxy_pass $appflowy_cloud_backend;
+                proxy_request_buffering off;
+                client_max_body_size 256M;
+                if ($request_method = 'OPTIONS') {
+                    add_header 'Access-Control-Allow-Origin' $cors_origin always;
+                    add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                    add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, Accept, Client-Version, Device-Id' always;
+                    add_header 'Access-Control-Max-Age' 3600 always;
+                    return 204;
+                }
+
+                add_header 'Access-Control-Allow-Origin' $cors_origin always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, Accept, Client-Version, Device-Id' always;
+                add_header 'Access-Control-Max-Age' 3600 always;
+            }
+
+            # AppFlowy-Cloud
+            location /api/chat {
+                proxy_pass $appflowy_cloud_backend;
+
+                proxy_http_version 1.1;
+                proxy_set_header Connection "";
+                chunked_transfer_encoding on;
+                proxy_buffering off;
+                proxy_cache off;
+
+                proxy_read_timeout 600s;
+                proxy_connect_timeout 600s;
+                proxy_send_timeout 600s;
+            }
+
+            location /api/import {
+                proxy_pass $appflowy_cloud_backend;
+
+                # Set headers
+                proxy_set_header X-Request-Id $request_id;
+                proxy_set_header Host $http_host;
+
+                # Handle CORS
+                add_header 'Access-Control-Allow-Origin' $cors_origin always;
+                add_header 'Access-Control-Allow-Methods' 'GET, POST, PUT, DELETE, PATCH, OPTIONS' always;
+                add_header 'Access-Control-Allow-Headers' 'Content-Type, Authorization, Accept, Device-Id' always;
+                add_header 'Access-Control-Max-Age' 3600 always;
+
+                # Timeouts
+                proxy_read_timeout 600s;
+                proxy_connect_timeout 600s;
+                proxy_send_timeout 600s;
+
+                # Disable buffering for large file uploads
+                proxy_request_buffering off;
+                proxy_buffering off;
+                proxy_cache off;
+                client_max_body_size 2G;
+            }
+        }
+
+        # Minio Web UI
+        # Derive from: https://min.io/docs/minio/linux/integrations/setup-nginx-proxy-with-minio.html
+        # Optional Module, comment this section if you did not deploy minio in docker-compose.yml
+        # This endpoint is meant to be used for the MinIO Web UI, accessible via the admin portal
+        location /minio/ {
+            proxy_pass $minio_backend;
+
+            rewrite ^/minio/(.*) /$1 break;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_set_header X-NginX-Proxy true;
+
+            ## This is necessary to pass the correct IP to be hashed
+            real_ip_header X-Real-IP;
+
+            proxy_connect_timeout 300s;
+
+            ## To support websockets in MinIO versions released after January 2023
+            proxy_http_version 1.1;
+            proxy_set_header Upgrade $http_upgrade;
+            proxy_set_header Connection "upgrade";
+            # Some environments may encounter CORS errors (Kubernetes + Nginx Ingress)
+            # Uncomment the following line to set the Origin request to an empty string
+            # proxy_set_header Origin '';
+
+            chunked_transfer_encoding off;
+        }
+
+        # Optional Module, comment this section if you did not deploy minio in docker-compose.yml
+        # This is used for presigned url, which is needs to be exposed to the AppFlowy client application.
+        location /minio-api/ {
+            proxy_pass $minio_api_backend;
+
+            # Set the host to internal host because the presigned url was signed against the internal host
+            proxy_set_header Host $minio_internal_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+
+            rewrite ^/minio-api/(.*) /$1 break;
+
+            proxy_connect_timeout 300s;
+            # Default is HTTP/1, keepalive is only enabled in HTTP/1.1
+            proxy_http_version 1.1;
+            proxy_set_header Connection "";
+            chunked_transfer_encoding off;
+        }
+
+        # PgAdmin
+        # Optional Module, comment this section if you did not deploy pgadmin in docker-compose.yml
+        location /pgadmin/ {
+            set $pgadmin pgadmin;
+            proxy_pass $pgadmin_backend;
+
+            proxy_set_header X-Script-Name /pgadmin;
+            proxy_set_header X-Scheme $scheme;
+            proxy_set_header Host $host;
+            proxy_redirect off;
+        }
+
+        # Admin Frontend
+        # Optional Module, comment this section if you did not deploy admin_frontend in docker-compose.yml
+        location /console {
+            proxy_pass $admin_frontend_backend;
+
+            proxy_set_header X-Scheme $scheme;
+            proxy_set_header Host $host;
+        }
+
+        # AppFlowy Web
+        location / {
+            proxy_pass $appflowy_web_backend;
+            proxy_set_header X-Scheme $scheme;
+            proxy_set_header Host $host;
+        }
+    }
+
+}
+]]></field>
+    </record>
+    <record id="template_appflowy_var_gotrue_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_ADMIN_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_jwt_secret" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_JWT_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_external_google_secret" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_EXTERNAL_GOOGLE_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_external_github_secret" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_EXTERNAL_GITHUB_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_external_discord_secret" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_EXTERNAL_DISCORD_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_saml_private_key" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_SAML_PRIVATE_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_appflowy_var_appflowy_s3_access_key" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">APPFLOWY_S3_ACCESS_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_appflowy_var_appflowy_s3_secret_key" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">APPFLOWY_S3_SECRET_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_appflowy_var_appflowy_mailer_smtp_password" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">APPFLOWY_MAILER_SMTP_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_appflowy_var_ai_openai_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">AI_OPENAI_API_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">100</field>
+    </record>
+    <record id="template_appflowy_var_azure_openai_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">AZURE_OPENAI_API_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">110</field>
+    </record>
+    <record id="template_appflowy_var_postgres_user" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">POSTGRES_USER</field>
+        <field name="var_type">string</field>
+        <field name="default_value">postgres</field>
+        <field name="sequence">120</field>
+    </record>
+    <record id="template_appflowy_var_postgres_db" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">POSTGRES_DB</field>
+        <field name="var_type">string</field>
+        <field name="default_value">postgres</field>
+        <field name="sequence">130</field>
+    </record>
+    <record id="template_appflowy_var_postgres_password" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">POSTGRES_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">140</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_admin_email" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_ADMIN_EMAIL</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin@example.com</field>
+        <field name="sequence">150</field>
+    </record>
+    <record id="template_appflowy_var_azure_openai_endpoint" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">AZURE_OPENAI_ENDPOINT</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">160</field>
+    </record>
+    <record id="template_appflowy_var_azure_openai_api_version" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">AZURE_OPENAI_API_VERSION</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">170</field>
+    </record>
+    <!-- Variables opcionales (SMTP / OAuth providers / plantilla magic-link): se declaran con
+         default vacío para silenciar el warning «variable is not set» del deploy. La app arranca
+         igual con autoconfirm de email y los proveedores OAuth deshabilitados. -->
+    <record id="template_appflowy_var_gotrue_smtp_host" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_SMTP_HOST</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">180</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_smtp_port" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_SMTP_PORT</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">190</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_smtp_user" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_SMTP_USER</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">200</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_smtp_pass" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_SMTP_PASS</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">210</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_smtp_admin_email" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_SMTP_ADMIN_EMAIL</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">220</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_mailer_templates_magic_link" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_MAILER_TEMPLATES_MAGIC_LINK</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">230</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_external_google_client_id" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_EXTERNAL_GOOGLE_CLIENT_ID</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">240</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_external_google_redirect_uri" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_EXTERNAL_GOOGLE_REDIRECT_URI</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">250</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_external_github_client_id" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_EXTERNAL_GITHUB_CLIENT_ID</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">260</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_external_github_redirect_uri" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_EXTERNAL_GITHUB_REDIRECT_URI</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">270</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_external_discord_client_id" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_EXTERNAL_DISCORD_CLIENT_ID</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">280</field>
+    </record>
+    <record id="template_appflowy_var_gotrue_external_discord_redirect_uri" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">GOTRUE_EXTERNAL_DISCORD_REDIRECT_URI</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">290</field>
+    </record>
+    <record id="template_appflowy_var_mailer_smtp_host" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">APPFLOWY_MAILER_SMTP_HOST</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">300</field>
+    </record>
+    <record id="template_appflowy_var_mailer_smtp_port" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">APPFLOWY_MAILER_SMTP_PORT</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">310</field>
+    </record>
+    <record id="template_appflowy_var_mailer_smtp_username" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">APPFLOWY_MAILER_SMTP_USERNAME</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">320</field>
+    </record>
+    <record id="template_appflowy_var_mailer_smtp_email" model="service.template.variable">
+        <field name="template_id" ref="template_appflowy"/>
+        <field name="name">APPFLOWY_MAILER_SMTP_EMAIL</field>
+        <field name="var_type">string</field>
+        <field name="default_value"></field>
+        <field name="sequence">330</field>
+    </record>
+</odoo>

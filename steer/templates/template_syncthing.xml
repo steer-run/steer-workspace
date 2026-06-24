@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'syncthing' (imagen lscr.io/linuxserver/syncthing:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_syncthing" model="service.template">
+        <field name="name">Syncthing</field>
+        <field name="code">syncthing</field>
+        <field name="service_code">syncthing</field>
+        <field name="version">latest</field>
+        <field name="description">Syncthing is an open-source, peer-to-peer continuous file synchronization tool that keeps your files in sync across devices without any cloud or central server.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Syncthing is an open-source, peer-to-peer continuous file synchronization tool that keeps your files in sync across devices without any cloud or central server.</p>
+  <p>It connects two or more computers directly and replicates changes between them in near real time, so edits, additions and deletions propagate automatically. Every device is identified by a strong cryptographic certificate and all traffic is encrypted with TLS, giving you cloud-like convenience while your data stays under your own control. It runs on Linux, macOS, Windows, BSD and more, and is managed through a clean web interface.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Real-time, bidirectional sync between any number of devices with no central server</li>
+    <li>End-to-end TLS encryption and certificate-based device identity</li>
+    <li>Flexible folder sharing with versioning, ignore patterns and conflict handling</li>
+    <li>Encrypted (untrusted) devices, so you can relay data through hosts that never see plaintext</li>
+    <li>Automatic device discovery (local and global) plus relays and NAT traversal for remote links</li>
+    <li>Web-based GUI and REST API for configuration, monitoring and automation</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals, teams and self-hosters who want private, vendor-independent file synchronization and lightweight backup across laptops, servers and NAS devices, as a self-controlled alternative to proprietary cloud sync services.</p>
+</div>]]></field>
+        <field name="category">storage</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/syncthing.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_backup'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_security')])]"/>
+        <field name="website_url">https://syncthing.net/</field>
+        <field name="documentation_url">https://docs.syncthing.net/</field>
+        <field name="source_url">https://github.com/syncthing/syncthing</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  syncthing:
+    image: lscr.io/linuxserver/syncthing:latest
+    restart: unless-stopped
+    expose:
+    - 8384
+    - 22000
+    - 21027/udp
+    volumes:
+    - ./syncthing_config:/config
+    - ./syncthing_data:/var/syncthing/Sync
+    environment:
+    - PUID=1000
+    - PGID=1000
+    - TZ={{ timezone }}
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8384'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_syncthing_port_http" model="service.template.port">
+        <field name="template_id" ref="template_syncthing"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8384</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_syncthing_var_timezone" model="service.template.variable">
+        <field name="template_id" ref="template_syncthing"/>
+        <field name="name">timezone</field>
+        <field name="var_type">string</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_syncthing_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_syncthing"/>
+        <field name="name">syncthing_config</field>
+        <field name="local_path">./syncthing_config</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_syncthing_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_syncthing"/>
+        <field name="name">syncthing_data</field>
+        <field name="local_path">./syncthing_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

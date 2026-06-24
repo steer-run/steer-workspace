@@ -1,0 +1,431 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================== -->
+    <!-- Template: WordPress Development (con IDE)      -->
+    <!-- ============================================== -->
+    <record id="template_wordpress_dev" model="service.template">
+        <field name="name">WordPress Development</field>
+        <field name="code">wordpress-dev</field>
+        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/wordpress.png"/>
+        <field name="description">WordPress con IDE integrado (code-server) para desarrollo de temas y plugins. Incluye MariaDB y permite programar directamente en el navegador.</field>
+        <field name="category">cms</field>
+        <field name="version">6</field>
+        <field name="service_code">wordpress-dev</field>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_cms'), ref('agz_infra_suite.tag_blog'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="is_web_app">True</field>
+        <field name="is_global">True</field>
+        <field name="active">True</field>
+        <!-- RESTRICCIÓN: No permitir en producción -->
+        <field name="allowed_production">False</field>
+        <field name="allowed_staging">True</field>
+        <field name="allowed_development">True</field>
+        <!-- Indica que tiene IDE integrado -->
+        <field name="has_integrated_ide">True</field>
+        <!-- Subdominios adicionales: configurados en puertos (traefik_subdomain_suffix) -->
+        <field name="additional_subdomain_suffixes"></field>
+        <!-- Base de datos -->
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <!-- Docker Compose con IDE -->
+        <field name="docker_compose_template"><![CDATA[services:
+  db:
+    image: mariadb:{{ mariadb_version | default('11') }}
+    container_name: {{ INSTANCE_CODE }}_db
+    environment:
+      - MYSQL_ROOT_PASSWORD={{ db_password }}
+      - MYSQL_DATABASE={{ db_name | default('wordpress') }}
+      - MYSQL_USER={{ db_user | default('wordpress') }}
+      - MYSQL_PASSWORD={{ db_password }}
+    volumes:
+      - ./db-data:/var/lib/mysql
+    restart: unless-stopped
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "healthcheck.sh --connect --innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  wordpress:
+    image: wordpress:{{ wp_version | default('6-apache') }}
+    container_name: {{ INSTANCE_CODE }}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "{{ PORT_HTTP }}:80"
+    environment:
+      - WORDPRESS_DB_HOST=db
+      - WORDPRESS_DB_USER={{ db_user | default('wordpress') }}
+      - WORDPRESS_DB_PASSWORD={{ db_password }}
+      - WORDPRESS_DB_NAME={{ db_name | default('wordpress') }}
+      - WORDPRESS_TABLE_PREFIX={{ wp_table_prefix | default('wp_') }}
+      - WORDPRESS_DEBUG=1
+    volumes:
+      - ./wp-content:/var/www/html/wp-content
+    restart: unless-stopped
+    networks:
+      - internal
+      - agz-proxy-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  # === IDE Integrado (code-server) ===
+  ide:
+    image: linuxserver/code-server:latest
+    container_name: {{ INSTANCE_CODE }}_ide
+    depends_on:
+      - wordpress
+    ports:
+      - "{{ PORT_IDE }}:8443"
+    volumes:
+      - ./wp-content:/config/workspace:rw
+      - ./ide-config:/config:rw
+    environment:
+      - PUID=1000
+      - PGID=1000
+      - TZ={{ timezone | default('America/Argentina/Buenos_Aires') }}
+      - PASSWORD={{ ide_password }}
+      - DEFAULT_WORKSPACE=/config/workspace
+    restart: unless-stopped
+    networks:
+      - internal
+      - agz-proxy-network
+
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+# Pre-backup: Genera dump de MariaDB para WordPress
+# Variables del sistema: SERVICE_PATH, INSTANCE_CODE, BACKUP_DATA_DIR
+# Variables del servicio: db_user, db_name, db_password, etc.
+# El directorio wp-content se incluye automáticamente en el tar del sistema
+set -e
+cd "$SERVICE_PATH"
+
+# Usar variables del servicio (minúsculas) con defaults
+DB_USER="${db_user:-wordpress}"
+DB_NAME="${db_name:-wordpress}"
+DB_PASSWORD="${db_password}"
+CONTAINER="${INSTANCE_CODE}_db"
+
+echo "=== Backup MariaDB (WordPress Dev) ==="
+
+# Verificar contenedor
+if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER}$"; then
+    echo "ERROR: Contenedor $CONTAINER no está corriendo"
+    exit 1
+fi
+
+# Dump de la base de datos con opciones óptimas para WordPress
+echo "Creando dump de $DB_NAME..."
+docker exec $CONTAINER mariadb-dump -u "$DB_USER" -p"$DB_PASSWORD" \
+    --single-transaction --quick --lock-tables=false \
+    --routines --triggers --events \
+    "$DB_NAME" > "$BACKUP_DATA_DIR/database.sql"
+
+# Verificar que el dump no está vacío
+if [ ! -s "$BACKUP_DATA_DIR/database.sql" ]; then
+    echo "ERROR: El dump está vacío"
+    exit 1
+fi
+
+# Mostrar tamaño del dump
+DUMP_SIZE=$(du -h "$BACKUP_DATA_DIR/database.sql" | cut -f1)
+echo "Dump creado: $DUMP_SIZE"
+
+# Contar tablas en el dump como verificación
+TABLE_COUNT=$(grep -c "CREATE TABLE" "$BACKUP_DATA_DIR/database.sql" || echo "0")
+echo "Tablas en el dump: $TABLE_COUNT"
+
+echo "=== Backup completado ==="
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+# Post-restore: Restaura dump de MariaDB para WordPress
+# Variables del sistema: SERVICE_PATH, INSTANCE_CODE, RESTORE_DATA_DIR
+# Variables del servicio: db_user, db_name, db_password, etc.
+# El sistema ya extrajo los archivos (incluido wp-content)
+set -e
+cd "$SERVICE_PATH"
+
+# Usar variables del servicio (minúsculas) con defaults
+DB_USER="${db_user:-wordpress}"
+DB_NAME="${db_name:-wordpress}"
+DB_PASSWORD="${db_password}"
+CONTAINER="${INSTANCE_CODE}_db"
+
+echo "=== Restore MariaDB (WordPress Dev) ==="
+
+# Verificar archivo de dump
+if [ ! -f "$RESTORE_DATA_DIR/database.sql" ]; then
+    echo "WARN: No hay database.sql en $RESTORE_DATA_DIR, saltando restore de BD"
+    exit 0
+fi
+
+# Verificar que el dump no está vacío
+if [ ! -s "$RESTORE_DATA_DIR/database.sql" ]; then
+    echo "ERROR: El archivo database.sql está vacío"
+    exit 1
+fi
+
+echo "Dump encontrado: $(du -h "$RESTORE_DATA_DIR/database.sql" | cut -f1)"
+
+# Iniciar contenedor de BD si no está corriendo
+if ! docker ps --format '{{.Names}}' | grep -q "^${CONTAINER}$"; then
+    echo "Iniciando contenedor de base de datos..."
+    docker compose up -d db
+
+    # Esperar a que MariaDB esté listo
+    echo "Esperando que MariaDB esté listo..."
+    for i in $(seq 1 60); do
+        if docker exec $CONTAINER mariadb -u "$DB_USER" -p"$DB_PASSWORD" -e "SELECT 1" &>/dev/null; then
+            echo "MariaDB listo (intento $i)"
+            break
+        fi
+        if [ $i -eq 60 ]; then
+            echo "ERROR: MariaDB no responde después de 60 segundos"
+            exit 1
+        fi
+        sleep 1
+    done
+fi
+
+# Limpiar la base de datos existente
+echo "Limpiando base de datos existente..."
+docker exec $CONTAINER mariadb -u root -p"$DB_PASSWORD" -e "DROP DATABASE IF EXISTS \`$DB_NAME\`; CREATE DATABASE \`$DB_NAME\`;"
+
+# Restaurar dump
+echo "Restaurando base de datos..."
+docker exec -i $CONTAINER mariadb -u "$DB_USER" -p"$DB_PASSWORD" "$DB_NAME" < "$RESTORE_DATA_DIR/database.sql"
+
+RESTORE_EXIT=$?
+if [ $RESTORE_EXIT -ne 0 ]; then
+    echo "ERROR: Restore falló con código $RESTORE_EXIT"
+    exit $RESTORE_EXIT
+fi
+
+# Verificar que la BD tiene datos
+TABLE_COUNT=$(docker exec $CONTAINER mariadb -u "$DB_USER" -p"$DB_PASSWORD" -N -e "SELECT COUNT(*) FROM information_schema.tables WHERE table_schema = '$DB_NAME';" 2>/dev/null | tr -d ' ')
+echo "Tablas restauradas: $TABLE_COUNT"
+
+if [ "$TABLE_COUNT" = "0" ] || [ -z "$TABLE_COUNT" ]; then
+    echo "ERROR: La base de datos está vacía después del restore"
+    exit 1
+fi
+
+echo "=== Restore completado ==="
+]]></field>
+    </record>
+
+    <!-- Puertos del template WordPress Dev -->
+    <record id="template_wordpress_dev_port_http" model="service.template.port">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="code">http</field>
+        <field name="name">HTTP (WordPress)</field>
+        <field name="default_port">80</field>
+        <field name="sequence">10</field>
+        <field name="traefik_routed" eval="True"/>
+    </record>
+
+    <record id="template_wordpress_dev_port_ide" model="service.template.port">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="code">ide</field>
+        <field name="name">IDE (code-server)</field>
+        <field name="default_port">8443</field>
+        <field name="sequence">20</field>
+        <field name="traefik_routed" eval="True"/>
+        <field name="traefik_subdomain_suffix">-ide</field>
+        <field name="traefik_docker_service">ide</field>
+    </record>
+
+    <!-- Variables del template WordPress Dev -->
+    <record id="template_wordpress_dev_var_wp_version" model="service.template.variable">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="name">wp_version</field>
+        <field name="display_name">Versión de WordPress</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">6-apache,6-fpm,6.4-apache,6.3-apache</field>
+        <field name="default_value">6-apache</field>
+        <field name="required">True</field>
+        <field name="sequence">10</field>
+        <field name="help">Versión de la imagen Docker de WordPress</field>
+    </record>
+
+    <record id="template_wordpress_dev_var_mariadb_version" model="service.template.variable">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="name">mariadb_version</field>
+        <field name="display_name">Versión de MariaDB</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">11,10.11,10.6</field>
+        <field name="default_value">11</field>
+        <field name="required">True</field>
+        <field name="sequence">20</field>
+        <field name="help">Versión de MariaDB para la base de datos</field>
+    </record>
+
+    <record id="template_wordpress_dev_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="name">db_user</field>
+        <field name="display_name">Usuario de Base de Datos</field>
+        <field name="var_type">string</field>
+        <field name="default_value">wordpress</field>
+        <field name="required">True</field>
+        <field name="sequence">30</field>
+    </record>
+
+    <record id="template_wordpress_dev_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="name">db_password</field>
+        <field name="display_name">Contraseña de Base de Datos</field>
+        <field name="var_type">password</field>
+        <field name="required">True</field>
+        <field name="sequence">40</field>
+        <field name="help">Contraseña para el usuario de MariaDB (también usada como root password)</field>
+    </record>
+
+    <record id="template_wordpress_dev_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="name">db_name</field>
+        <field name="display_name">Nombre de Base de Datos</field>
+        <field name="var_type">string</field>
+        <field name="default_value">wordpress</field>
+        <field name="required">False</field>
+        <field name="sequence">50</field>
+        <field name="help">Nombre de la base de datos WordPress</field>
+    </record>
+
+    <record id="template_wordpress_dev_var_wp_table_prefix" model="service.template.variable">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="name">wp_table_prefix</field>
+        <field name="display_name">Prefijo de Tablas</field>
+        <field name="var_type">string</field>
+        <field name="default_value">wp_</field>
+        <field name="required">False</field>
+        <field name="sequence">60</field>
+        <field name="help">Prefijo para las tablas de WordPress (ej: wp_, blog_)</field>
+    </record>
+
+    <record id="template_wordpress_dev_var_ide_password" model="service.template.variable">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="name">ide_password</field>
+        <field name="display_name">Contraseña IDE</field>
+        <field name="var_type">password</field>
+        <field name="required">True</field>
+        <field name="sequence">70</field>
+        <field name="help">Contraseña para acceder al IDE (code-server).</field>
+    </record>
+
+    <record id="template_wordpress_dev_var_timezone" model="service.template.variable">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="name">timezone</field>
+        <field name="display_name">Zona Horaria</field>
+        <field name="var_type">string</field>
+        <field name="default_value">America/Argentina/Buenos_Aires</field>
+        <field name="required">False</field>
+        <field name="sequence">80</field>
+        <field name="help">Zona horaria para el IDE (ej: America/Argentina/Buenos_Aires, UTC)</field>
+    </record>
+
+    <!-- Volúmenes del template WordPress Dev -->
+    <record id="template_wordpress_dev_vol_db" model="service.template.volume">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="name">Datos MariaDB</field>
+        <field name="local_path">./db-data</field>
+        <field name="owner">999:999</field>
+        <field name="permissions">755</field>
+        <field name="sequence">10</field>
+        <field name="exclude_from_backup" eval="True"/>
+    </record>
+
+    <record id="template_wordpress_dev_vol_wp_content" model="service.template.volume">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="name">WordPress Content</field>
+        <field name="local_path">./wp-content</field>
+        <field name="owner">33:33</field>
+        <field name="permissions">755</field>
+        <field name="sequence">20</field>
+        <field name="exclude_from_backup" eval="False"/>
+    </record>
+
+    <record id="template_wordpress_dev_vol_ide_config" model="service.template.volume">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="name">Configuración IDE</field>
+        <field name="local_path">./ide-config</field>
+        <field name="owner">1000:1000</field>
+        <field name="permissions">755</field>
+        <field name="sequence">30</field>
+        <field name="exclude_from_backup" eval="True"/>
+    </record>
+
+    <!-- SSH config del IDE: alias "wordpress" → nombre único del contenedor.    -->
+    <!-- Evita que "ssh wordpress@wordpress" colisione en agz-proxy-network (red   -->
+    <!-- compartida) y caiga en el WordPress de otra instancia. Se escribe en      -->
+    <!-- ./ide-config/.ssh/config = /config/.ssh/config (HOME de code-server).     -->
+    <record id="template_wordpress_dev_config_ssh" model="service.template.config.file">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="name">SSH Config (IDE → WordPress)</field>
+        <field name="filename">config</field>
+        <field name="path">./ide-config/.ssh/</field>
+        <field name="syntax_mode">text</field>
+        <field name="sequence">10</field>
+        <field name="description">Alias SSH "wordpress" que apunta al contenedor único de esta instancia ({{ INSTANCE_CODE }}), para que "ssh wordpress@wordpress" desde el IDE nunca resuelva al WordPress de otro entorno en la red compartida. Ajustar "User" según el sshd del contenedor.</field>
+        <field name="content_template"><![CDATA[# Generado para {{ instance.name }} - {{ generated_at }}
+# El host "wordpress" se reescribe al nombre único del contenedor de esta
+# instancia para evitar colisiones de DNS en agz-proxy-network.
+Host wordpress
+    HostName {{ INSTANCE_CODE }}
+    User wordpress
+    StrictHostKeyChecking no
+    UserKnownHostsFile /dev/null
+    LogLevel ERROR
+]]></field>
+    </record>
+
+
+    <!-- Config Docker por servicio — defaults recomendados (VPS 2-8 GB) -->
+    <!-- ========== WordPress Dev (template_wordpress_dev) ========== -->
+    <record id="svcfg_wpdev_db" model="service.template.service.config">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="service_name">db</field>
+        <field name="sequence">10</field>
+        <field name="memory_limit">512m</field>
+        <field name="cpu_limit">1.0</field>
+        <field name="memory_reservation">256m</field>
+        <field name="log_max_size">30m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+    <record id="svcfg_wpdev_wordpress" model="service.template.service.config">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="service_name">wordpress</field>
+        <field name="sequence">20</field>
+        <field name="memory_limit">512m</field>
+        <field name="cpu_limit">1.0</field>
+        <field name="memory_reservation">256m</field>
+        <field name="log_max_size">30m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+    <record id="svcfg_wpdev_ide" model="service.template.service.config">
+        <field name="template_id" ref="template_wordpress_dev"/>
+        <field name="service_name">ide</field>
+        <field name="sequence">30</field>
+        <field name="memory_limit">1g</field>
+        <field name="cpu_limit">1.5</field>
+        <field name="memory_reservation">512m</field>
+        <field name="log_max_size">30m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+</odoo>

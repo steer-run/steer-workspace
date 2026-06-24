@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'cloudreve' (imagen cloudreve/cloudreve:4.10.1) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_cloudreve" model="service.template">
+        <field name="name">Cloudreve</field>
+        <field name="code">cloudreve</field>
+        <field name="service_code">cloudreve</field>
+        <field name="version">4.10.1</field>
+        <field name="description">Cloudreve is a self-hosted file management and sharing platform that turns local disks and multiple cloud providers into a single, unified cloud drive.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Cloudreve is a self-hosted file management and sharing platform that turns local disks and multiple cloud providers into a single, unified cloud drive.</p>
+  <p>It builds a virtual file system on top of a database, decoupling what users see from where bytes physically live, so files can span local storage and many object stores at once. Aimed at individuals, teams, and providers who want a private alternative to commercial cloud storage, it stands out for its broad storage-backend support, direct client-to-storage transfers, and built-in clustering for scaling out.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Many storage backends: local disk, remote nodes, S3-compatible, OneDrive, Aliyun OSS, Tencent COS, Huawei OBS, Qiniu, and more</li>
+    <li>Virtual file system abstracting physical storage, with users, groups, and per-policy storage</li>
+    <li>Direct client-side uploads/downloads to storage without relaying through the server</li>
+    <li>WebDAV access plus share links with expiration, resumable drag-and-drop uploads</li>
+    <li>Online preview for video, images, audio, ePub, and Office documents; aria2/qBittorrent offline downloads</li>
+    <li>Primary-replica clustering and security options such as FIDO2 keys and two-factor authentication</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals and teams building a private cloud drive, and service providers offering multi-tenant file storage who need to combine local and multiple cloud backends behind one interface.</p>
+</div>]]></field>
+        <field name="category">storage</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/cloudreve.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_collaboration')])]"/>
+        <field name="website_url">https://cloudreve.org</field>
+        <field name="documentation_url">https://docs.cloudreve.org</field>
+        <field name="source_url">https://github.com/cloudreve/Cloudreve</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  cloudreve:
+    image: cloudreve/cloudreve:4.10.1
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_started
+    restart: unless-stopped
+    environment:
+    - CR_CONF_Database.Type=postgres
+    - CR_CONF_Database.Host=postgresql
+    - CR_CONF_Database.User={{ postgres_user }}
+    - CR_CONF_Database.Password={{ postgres_password }}
+    - CR_CONF_Database.Name={{ postgres_db }}
+    - CR_CONF_Database.Port=5432
+    - CR_CONF_Redis.Server=redis:6379
+    volumes:
+    - ./cloudreve_data:/cloudreve/data
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:5212'
+    networks:
+    - internal
+    - agz-proxy-network
+  postgresql:
+    image: postgres:17
+    restart: unless-stopped
+    environment:
+    - POSTGRES_USER={{ postgres_user }}
+    - POSTGRES_PASSWORD={{ postgres_password }}
+    - POSTGRES_DB={{ postgres_db }}
+    volumes:
+    - ./postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U {{ postgres_user }} -d {{ postgres_db }}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    container_name: '{{ INSTANCE_CODE }}_postgresql'
+    networks:
+    - internal
+  redis:
+    image: redis:8.4.0
+    restart: unless-stopped
+    volumes:
+    - ./redis_data:/data
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgresql sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgresql
+for i in $(seq 1 30); do
+  docker compose exec -T postgresql sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgresql sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgresql sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_cloudreve_port_http" model="service.template.port">
+        <field name="template_id" ref="template_cloudreve"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">5212</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_cloudreve_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_cloudreve"/>
+        <field name="name">postgres_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_cloudreve_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_cloudreve"/>
+        <field name="name">postgres_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">cloudreve</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_cloudreve_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_cloudreve"/>
+        <field name="name">postgres_db</field>
+        <field name="var_type">string</field>
+        <field name="default_value">cloudreve</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_cloudreve_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_cloudreve"/>
+        <field name="name">cloudreve_data</field>
+        <field name="local_path">./cloudreve_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_cloudreve_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_cloudreve"/>
+        <field name="name">postgres_data</field>
+        <field name="local_path">./postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_cloudreve_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_cloudreve"/>
+        <field name="name">redis_data</field>
+        <field name="local_path">./redis_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+</odoo>

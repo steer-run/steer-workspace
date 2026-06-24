@@ -1,0 +1,97 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'jellyfin' (imagen jellyfin/jellyfin:10) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_jellyfin" model="service.template">
+        <field name="name">jellyfin</field>
+        <field name="code">jellyfin</field>
+        <field name="service_code">jellyfin</field>
+        <field name="version">v10.9.7</field>
+        <field name="description">Jellyfin is a free, self-hosted media server that lets you organize and stream your own movies, TV, music, and photos to any device, with no subscriptions, tracking, or central servers.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Jellyfin is a free, self-hosted media server that lets you organize and stream your own movies, TV, music, and photos to any device, with no subscriptions, tracking, or central servers.</p>
+  <p>Built on .NET (C#), Jellyfin scans your media library, fetches rich metadata and artwork, and serves it to a broad ecosystem of clients across web browsers, mobile, smart TVs, and Kodi. It transcodes on the fly (with hardware acceleration) so content plays smoothly on devices that do not natively support the source format. As a fully FLOSS alternative to Plex and Emby, it keeps all data on infrastructure you control.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Automatic library scanning with metadata, artwork, and chapter detection for movies, series, music, and photos</li>
+    <li>On-the-fly transcoding with hardware acceleration (VAAPI, QSV, NVENC) for cross-device playback</li>
+    <li>Wide client support: web UI, mobile and TV apps, and Kodi integration via a documented API</li>
+    <li>Multi-user accounts with parental controls, per-user libraries, and granular permissions</li>
+    <li>Live TV and DVR support through tuners and M3U/XMLTV sources</li>
+    <li>Extensible via plugins, with no telemetry, premium tiers, or phone-home behavior</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Home users, homelab enthusiasts, and organizations that want full ownership of a private media library and streaming platform without recurring fees or vendor lock-in.</p>
+</div>]]></field>
+        <field name="category">media</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/jellyfin.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="website_url">https://jellyfin.org/</field>
+        <field name="documentation_url">https://jellyfin.org/docs/</field>
+        <field name="source_url">https://github.com/jellyfin/jellyfin</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  jellyfin:
+    image: jellyfin/jellyfin:10
+    volumes:
+    - ./config:/config
+    - ./cache:/cache
+    - ./media:/media
+    restart: unless-stopped
+    environment:
+    - JELLYFIN_PublishedServerUrl=http://{{ jellyfin_host }}
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8096'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_jellyfin_port_http" model="service.template.port">
+        <field name="template_id" ref="template_jellyfin"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8096</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_jellyfin_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_jellyfin"/>
+        <field name="name">config</field>
+        <field name="local_path">./config</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_jellyfin_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_jellyfin"/>
+        <field name="name">cache</field>
+        <field name="local_path">./cache</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_jellyfin_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_jellyfin"/>
+        <field name="name">media</field>
+        <field name="local_path">./media</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+</odoo>

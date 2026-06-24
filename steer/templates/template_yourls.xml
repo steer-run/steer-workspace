@@ -1,0 +1,163 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'yourls-app' (imagen yourls:1.9.2) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_yourls" model="service.template">
+        <field name="name">YOURLS</field>
+        <field name="code">yourls</field>
+        <field name="service_code">yourls</field>
+        <field name="version">1.9.2</field>
+        <field name="description">YOURLS is the self-hosted, de facto standard URL shortener that gives you full ownership of your short links and their data.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">YOURLS is the self-hosted, de facto standard URL shortener that gives you full ownership of your short links and their data.</p>
+  <p>Written in PHP, YOURLS lets you run your own link-shortening service (an alternative to TinyURL or Bitly) on your own server and domain. It offers per-link statistics, a clean admin panel, and a documented API, and it is extended through a mature plugin ecosystem. It suits anyone who wants branded short links without handing analytics and click data to a third party.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Custom and automatic short URLs on your own domain</li>
+    <li>Detailed per-link click statistics (geolocation, referrers, history)</li>
+    <li>Web admin panel plus a programmatic HTTP API</li>
+    <li>Public or private mode for personal or shared use</li>
+    <li>Extensible plugin and filter/action hook system</li>
+    <li>Bookmarklets and bulk operations for fast link creation</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals, businesses, and teams who want branded short links with private, self-owned analytics, and developers who need a scriptable shortener behind their own infrastructure.</p>
+</div>]]></field>
+        <field name="category">productivity</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/yourls.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_url_shortener')])]"/>
+        <field name="website_url">https://yourls.org/</field>
+        <field name="documentation_url">https://yourls.org/#documentation</field>
+        <field name="source_url">https://github.com/YOURLS/YOURLS</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  yourls-app:
+    image: yourls:1.9.2
+    environment:
+      YOURLS_SITE: https://{{ yourls_host }}
+      YOURLS_USER: {{ yourls_admin_user }}
+      YOURLS_PASS: {{ yourls_admin_password }}
+      YOURLS_DB_HOST: yourls-mysql
+      YOURLS_DB_USER: yourls
+      YOURLS_DB_PASS: {{ mysql_password }}
+      YOURLS_DB_NAME: yourls
+    volumes:
+    - ./yourls_data:/var/www/html
+    depends_on:
+      yourls-mysql:
+        condition: service_healthy
+    restart: always
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+  yourls-mysql:
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: {{ mysql_root_password }}
+      MYSQL_DATABASE: yourls
+      MYSQL_USER: yourls
+      MYSQL_PASSWORD: {{ mysql_password }}
+    volumes:
+    - ./yourls_mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+      - CMD
+      - mysqladmin
+      - ping
+      - -h
+      - localhost
+      - -u$$MYSQL_USER
+      - -p$$MYSQL_PASSWORD
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    container_name: '{{ INSTANCE_CODE }}_yourls_mysql'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T yourls-mysql sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d yourls-mysql
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T yourls-mysql sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_yourls_port_http" model="service.template.port">
+        <field name="template_id" ref="template_yourls"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_yourls_var_yourls_admin_user" model="service.template.variable">
+        <field name="template_id" ref="template_yourls"/>
+        <field name="name">yourls_admin_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_yourls_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_yourls"/>
+        <field name="name">yourls-data</field>
+        <field name="local_path">./yourls_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_yourls_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_yourls"/>
+        <field name="name">yourls-mysql-data</field>
+        <field name="local_path">./yourls_mysql_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

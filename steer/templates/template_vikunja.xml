@@ -1,0 +1,193 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'vikunja' (imagen vikunja/vikunja) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_vikunja" model="service.template">
+        <field name="name">Vikunja</field>
+        <field name="code">vikunja</field>
+        <field name="service_code">vikunja</field>
+        <field name="version">0.23.0</field>
+        <field name="description">Vikunja is a self-hosted task and project management platform that keeps your to-dos, plans and team work entirely under your control.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Vikunja is a self-hosted task and project management platform that keeps your to-dos, plans and team work entirely under your control.</p>
+  <p>It scales from a personal to-do list to collaborative team project planning without switching tools. Built on a Go backend with a Vue/TypeScript frontend, it offers multiple ways to visualize the same tasks and a full REST API for integration. It is a popular open-source alternative to Todoist, Trello and Microsoft To-Do.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Multiple task views: list, Kanban board, table and Gantt timeline</li>
+    <li>Nested projects with subtasks, labels, assignees, due dates and priorities</li>
+    <li>Recurring tasks with email reminders and progress tracking</li>
+    <li>Team collaboration: shared projects, task assignment and comments</li>
+    <li>Built-in migration from Todoist, Trello, Microsoft To-Do and others</li>
+    <li>Full REST API and Docker-based self-hosting</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals and teams who want to own their task data, replace SaaS to-do apps with a self-hosted alternative, and manage personal and collaborative projects from a single tool.</p>
+</div>]]></field>
+        <field name="category">productivity</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/vikunja.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_project_management'), ref('agz_infra_suite.tag_collaboration')])]"/>
+        <field name="website_url">https://vikunja.io/</field>
+        <field name="documentation_url">https://vikunja.io/docs/</field>
+        <field name="source_url">https://github.com/go-vikunja/vikunja</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  vikunja:
+    image: vikunja/vikunja
+    user: 0:0
+    environment:
+      VIKUNJA_SERVICE_PUBLICURL: {{ vikunja_service_publicurl }}
+      VIKUNJA_PUBLIC_PORT: ${VIKUNJA_PUBLIC_PORT}
+      VIKUNJA_DATABASE_HOST: {{ vikunja_database_host }}
+      VIKUNJA_DATABASE_PASSWORD: {{ vikunja_database_password }}
+      VIKUNJA_DATABASE_TYPE: {{ vikunja_database_type }}
+      VIKUNJA_DATABASE_USER: {{ vikunja_database_user }}
+      VIKUNJA_DATABASE_DATABASE: {{ vikunja_database_database }}
+      VIKUNJA_SERVICE_JWTSECRET: {{ vikunja_service_jwtsecret }}
+    ports:
+    - '{{ PORT_HTTP }}:3456'
+    volumes:
+    - ./vikunja_files:/app/vikunja/files
+    depends_on:
+      db:
+        condition: service_healthy
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+  db:
+    image: postgres:17
+    environment:
+      POSTGRES_PASSWORD: {{ vikunja_database_password }}
+      POSTGRES_USER: {{ vikunja_database_user }}
+      POSTGRES_DB: {{ vikunja_database_database }}
+    volumes:
+    - ./vikunja_db:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready
+      - -U
+      - {{ vikunja_database_user }}
+      - -d
+      - {{ vikunja_database_database }}
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}_db'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d db
+for i in $(seq 1 30); do
+  docker compose exec -T db sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T db sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_vikunja_port_http" model="service.template.port">
+        <field name="template_id" ref="template_vikunja"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3456</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_vikunja_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_vikunja"/>
+        <field name="name">db_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_vikunja_var_jwt_secret" model="service.template.variable">
+        <field name="template_id" ref="template_vikunja"/>
+        <field name="name">jwt_secret</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_vikunja_var_vikunja_service_publicurl" model="service.template.variable">
+        <field name="template_id" ref="template_vikunja"/>
+        <field name="name">vikunja_service_publicurl</field>
+        <field name="var_type">string</field>
+        <field name="default_value">https://${main_domain}</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_vikunja_var_vikunja_database_host" model="service.template.variable">
+        <field name="template_id" ref="template_vikunja"/>
+        <field name="name">vikunja_database_host</field>
+        <field name="var_type">string</field>
+        <field name="default_value">db</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_vikunja_var_vikunja_database_type" model="service.template.variable">
+        <field name="template_id" ref="template_vikunja"/>
+        <field name="name">vikunja_database_type</field>
+        <field name="var_type">string</field>
+        <field name="default_value">postgres</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_vikunja_var_vikunja_database_user" model="service.template.variable">
+        <field name="template_id" ref="template_vikunja"/>
+        <field name="name">vikunja_database_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">vikunja</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_vikunja_var_vikunja_database_database" model="service.template.variable">
+        <field name="template_id" ref="template_vikunja"/>
+        <field name="name">vikunja_database_database</field>
+        <field name="var_type">string</field>
+        <field name="default_value">vikunja</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_vikunja_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_vikunja"/>
+        <field name="name">vikunja-files</field>
+        <field name="local_path">./vikunja_files</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_vikunja_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_vikunja"/>
+        <field name="name">vikunja-db</field>
+        <field name="local_path">./vikunja_db</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

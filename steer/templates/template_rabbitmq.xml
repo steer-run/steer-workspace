@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_rabbitmq" model="service.template">
+        <field name="name">RabbitMQ</field>
+        <field name="code">rabbitmq</field>
+        <field name="service_code">rabbitmq</field>
+        <field name="version">4.1-management</field>
+        <field name="description">RabbitMQ is a battle-tested open-source message broker that decouples applications through reliable asynchronous messaging.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">RabbitMQ is a battle-tested open-source message broker that decouples applications through reliable asynchronous messaging.</p>
+  <p>Written in Erlang/OTP, RabbitMQ accepts, stores, and routes messages between producers and consumers using flexible exchange and queue topologies. It speaks multiple protocols out of the box and is built for high availability through clustering and quorum queues, making it a default choice for microservices, background job processing, and event-driven architectures. It ships with a web-based management UI, a CLI, and a rich plugin system.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Multi-protocol support: AMQP 0-9-1, AMQP 1.0, MQTT, STOMP and streams</li>
+    <li>Flexible routing via exchanges, bindings and queues (direct, topic, fanout, headers)</li>
+    <li>High availability and durability with clustering and quorum queues</li>
+    <li>Web management UI, HTTP API and CLI tooling for operations and monitoring</li>
+    <li>Fine-grained access control, TLS, and pluggable authentication (incl. x.509)</li>
+    <li>Extensible plugin ecosystem and broad client library support across languages</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams building microservices, event-driven systems, or background/worker pipelines that need reliable, ordered, and durable asynchronous communication between services. Ideal as the messaging backbone for distributed applications and integration workflows.</p>
+</div>]]></field>
+        <field name="category">dev_tools</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/rabbitmq.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow')])]"/>
+        <field name="website_url">https://www.rabbitmq.com/</field>
+        <field name="documentation_url">https://www.rabbitmq.com/documentation.html</field>
+        <field name="source_url">https://github.com/rabbitmq/rabbitmq-server</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  rabbitmq:
+    image: rabbitmq:4.1-management
+    hostname: rabbitmq
+    restart: unless-stopped
+    environment:
+    - RABBITMQ_DEFAULT_USER={{ RABBITMQ_DEFAULT_USER }}
+    - RABBITMQ_DEFAULT_PASS=${RABBITMQ_DEFAULT_PASS}
+    - RABBITMQ_SERVER_ADDITIONAL_ERL_ARGS=-rabbit log_levels [{connection,error},{default,error}] disk_free_limit
+      {{ RABBITMQ_DISK_FREE_LIMIT }}
+    volumes:
+    - ./rabbitmq_data:/var/lib/rabbitmq
+    ports:
+    - '{{ PORT_HTTP }}:15672'
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_rabbitmq_port_http" model="service.template.port">
+        <field name="template_id" ref="template_rabbitmq"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">15672</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_rabbitmq_var_default_user" model="service.template.variable">
+        <field name="template_id" ref="template_rabbitmq"/>
+        <field name="name">RABBITMQ_DEFAULT_USER</field>
+        <field name="var_type">string</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_rabbitmq_var_default_pass" model="service.template.variable">
+        <field name="template_id" ref="template_rabbitmq"/>
+        <field name="name">RABBITMQ_DEFAULT_PASS</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_rabbitmq_var_disk_free_limit" model="service.template.variable">
+        <field name="template_id" ref="template_rabbitmq"/>
+        <field name="name">RABBITMQ_DISK_FREE_LIMIT</field>
+        <field name="var_type">string</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_rabbitmq_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_rabbitmq"/>
+        <field name="name">rabbitmq-data</field>
+        <field name="local_path">./rabbitmq_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

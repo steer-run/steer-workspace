@@ -1,0 +1,330 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================== -->
+    <!-- Template: PostgreSQL Standalone               -->
+    <!-- ============================================== -->
+    <record id="template_postgresql" model="service.template">
+        <field name="name">PostgreSQL Database</field>
+        <field name="code">postgresql</field>
+        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/postgresql.png"/>
+        <field name="description">Base de datos PostgreSQL standalone para desarrollo o servicios externos.</field>
+        <field name="category">database</field>
+        <field name="version">16</field>
+        <field name="service_code">postgresql</field>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_database')])]"/>
+        <field name="is_web_app">False</field>
+        <field name="is_global">True</field>
+        <field name="active">True</field>
+        <field name="requires_database">False</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  postgres:
+    image: postgres:{{ version | default('16') }}
+    container_name: {{ INSTANCE_CODE }}
+    environment:
+      - POSTGRES_USER={{ db_user | default('postgres') }}
+      - POSTGRES_PASSWORD={{ db_password }}
+      - POSTGRES_DB={{ db_name | default('postgres') }}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - ./data:/var/lib/postgresql/data/pgdata
+      - ./initdb:/docker-entrypoint-initdb.d:ro
+    ports:
+      - "{{ PORT_DB }}:5432"
+    restart: unless-stopped
+    networks:
+      - database
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ db_user | default('postgres') }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # Exporter de métricas de PostgreSQL para Prometheus. En la red 'database' para
+  # alcanzar al postgres y en 'agz-proxy-network' para que el Prometheus del stack
+  # lo scrapee por DNS de contenedor (local) o por la VPN (remoto, ver ports).
+  db-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:{{ pg_exporter_version | default('latest') }}
+    container_name: {{ INSTANCE_CODE }}-pgexporter
+    depends_on:
+      postgres:
+        condition: service_healthy
+    environment:
+      - DATA_SOURCE_URI=postgres:5432/postgres?sslmode=disable
+      - DATA_SOURCE_USER={{ db_user | default('postgres') }}
+      - DATA_SOURCE_PASS={{ db_password }}
+    # Métricas publicadas en el host (0.0.0.0). El Prometheus del stack (en otro
+    # servidor) las scrapea por la VPN (vpn_ip:host). Se bindea SIEMPRE a 0.0.0.0 —
+    # NO a la IP de la VPN — para que el exporter arranque aunque la VPN esté offline:
+    # así un problema de VPN/red solo afecta las métricas, nunca al resto del stack.
+    ports:
+      - "{{ PORT_PGMETRICS }}:9187"
+    restart: unless-stopped
+    networks:
+      - database
+      - agz-proxy-network
+
+networks:
+  database:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+# Pre-backup: Genera dump paralelo de PostgreSQL (formato directorio)
+# Variables del sistema: SERVICE_PATH, INSTANCE_CODE, BACKUP_DATA_DIR
+# Variables del servicio: db_user, db_name, db_password, etc.
+# Usa pg_dump con --jobs para backup paralelo, mucho más rápido
+set -e
+cd "$SERVICE_PATH"
+
+# Usar variables del servicio (minúsculas) con defaults
+DB_USER="${db_user:-postgres}"
+DB_NAME="${db_name:-postgres}"
+CONTAINER=$(docker compose ps -q postgres 2>/dev/null | head -1)
+
+echo "Iniciando backup paralelo de PostgreSQL..."
+
+# Limpiar dump anterior en el contenedor
+docker exec $CONTAINER rm -rf /tmp/backup_dump 2>/dev/null || true
+
+# pg_dump paralelo: formato directorio, 4 jobs, sin compresión
+docker exec $CONTAINER pg_dump -U "$DB_USER" "$DB_NAME" \
+    --no-owner --jobs=4 -Fd -x --compress=0 \
+    -f /tmp/backup_dump
+
+# Copiar del contenedor al directorio de datos del backup
+docker cp $CONTAINER:/tmp/backup_dump "$BACKUP_DATA_DIR/"
+
+# Limpiar en el contenedor
+docker exec $CONTAINER rm -rf /tmp/backup_dump
+
+echo "Dump paralelo creado en $BACKUP_DATA_DIR/backup_dump"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+# Post-restore: Restaura dump paralelo de PostgreSQL
+# Variables del sistema: SERVICE_PATH, INSTANCE_CODE, RESTORE_DATA_DIR
+# Variables del servicio: db_user, db_name, db_password, etc.
+# Usa pg_restore con --jobs para restore paralelo
+set -e
+cd "$SERVICE_PATH"
+
+# El dump está en RESTORE_DATA_DIR después de extraer el tar
+if [ -d "$RESTORE_DATA_DIR/backup_dump" ]; then
+    # Usar variables del servicio (minúsculas) con defaults
+    DB_USER="${db_user:-postgres}"
+    DB_NAME="${db_name:-postgres}"
+
+    echo "Iniciando restore paralelo de PostgreSQL..."
+    echo "Usuario BD: $DB_USER, Base de datos: $DB_NAME"
+
+    # 1. Iniciar el contenedor de BD
+    echo "Iniciando contenedor de base de datos..."
+    docker compose up -d postgres
+
+    # 2. Esperar a que PostgreSQL esté listo
+    echo "Esperando que PostgreSQL esté listo..."
+    for i in $(seq 1 30); do
+        if docker compose exec -T postgres pg_isready -U "$DB_USER" 2>/dev/null | grep -q "accepting connections"; then
+            echo "PostgreSQL listo después de $i segundos"
+            break
+        fi
+        sleep 1
+    done
+
+    # 3. Obtener ID del contenedor
+    CONTAINER=$(docker compose ps -q postgres 2>/dev/null | head -1)
+    if [ -z "$CONTAINER" ]; then
+        echo "ERROR: No se encontró el contenedor de base de datos"
+        exit 1
+    fi
+
+    # 4. Copiar dump al contenedor
+    docker cp "$RESTORE_DATA_DIR/backup_dump" $CONTAINER:/tmp/
+
+    # 5. Generar lista ordenada excluyendo MATERIALIZED VIEW DATA (evita errores)
+    docker exec $CONTAINER bash -c "pg_restore -l -Fd /tmp/backup_dump | sed '/MATERIALIZED VIEW DATA/d' > /tmp/backup_dump/pg_restore_ordered.lst"
+
+    # 6. Limpiar la base de datos existente antes de restaurar
+    echo "Limpiando base de datos existente..."
+    docker exec $CONTAINER psql -U "$DB_USER" -d postgres -c "DROP DATABASE IF EXISTS \"$DB_NAME\" WITH (FORCE);"
+    docker exec $CONTAINER psql -U "$DB_USER" -d postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
+
+    # 7. Restore paralelo con 4 jobs
+    echo "Restaurando base de datos..."
+    docker exec $CONTAINER pg_restore \
+        -U "$DB_USER" \
+        --jobs=4 --no-owner --no-acl \
+        -d "$DB_NAME" \
+        -L /tmp/backup_dump/pg_restore_ordered.lst \
+        -Fd /tmp/backup_dump
+
+    RESTORE_EXIT=$?
+
+    # 8. Limpiar en el contenedor
+    docker exec $CONTAINER rm -rf /tmp/backup_dump
+
+    if [ $RESTORE_EXIT -ne 0 ]; then
+        echo "ERROR: pg_restore falló con código $RESTORE_EXIT"
+        exit $RESTORE_EXIT
+    fi
+
+    echo "Base de datos restaurada exitosamente"
+else
+    echo "ADVERTENCIA: No se encontró backup_dump en $RESTORE_DATA_DIR"
+fi
+]]></field>
+    </record>
+
+    <!-- Puertos del template PostgreSQL -->
+    <record id="template_postgresql_port_db" model="service.template.port">
+        <field name="template_id" ref="template_postgresql"/>
+        <field name="code">db</field>
+        <field name="name">PostgreSQL</field>
+        <field name="default_port">5432</field>
+        <field name="sequence">10</field>
+        <field name="expose_to_host" eval="True"/>
+    </record>
+    <!-- Puerto del postgres-exporter: se publica en la IP de VPN del servidor para
+         que el Prometheus del stack lo scrapee en remoto. -->
+    <record id="template_postgresql_port_pgmetrics" model="service.template.port">
+        <field name="template_id" ref="template_postgresql"/>
+        <field name="code">pgmetrics</field>
+        <field name="name">PostgreSQL Exporter (métricas)</field>
+        <field name="default_port">9187</field>
+        <field name="sequence">20</field>
+        <field name="expose_to_host" eval="True"/>
+        <field name="prometheus_scrape" eval="True"/>
+        <field name="prometheus_job">postgres</field>
+        <field name="metrics_container_suffix">-pgexporter</field>
+    </record>
+
+    <!-- Variables del template PostgreSQL -->
+    <record id="template_postgresql_var_version" model="service.template.variable">
+        <field name="template_id" ref="template_postgresql"/>
+        <field name="name">version</field>
+        <field name="display_name">Versión de PostgreSQL</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">16,15,14,13</field>
+        <field name="default_value">16</field>
+        <field name="required">True</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <record id="template_postgresql_var_pg_exporter_version" model="service.template.variable">
+        <field name="template_id" ref="template_postgresql"/>
+        <field name="name">pg_exporter_version</field>
+        <field name="display_name">Versión postgres-exporter</field>
+        <field name="var_type">string</field>
+        <field name="default_value">latest</field>
+        <field name="required">False</field>
+        <field name="sequence">15</field>
+        <field name="help">Versión de quay.io/prometheuscommunity/postgres-exporter (métricas de PostgreSQL).</field>
+    </record>
+
+    <record id="template_postgresql_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_postgresql"/>
+        <field name="name">db_user</field>
+        <field name="display_name">Usuario</field>
+        <field name="var_type">string</field>
+        <field name="default_value">postgres</field>
+        <field name="required">True</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <record id="template_postgresql_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_postgresql"/>
+        <field name="name">db_password</field>
+        <field name="display_name">Contraseña</field>
+        <field name="var_type">password</field>
+        <field name="required">True</field>
+        <field name="sequence">30</field>
+    </record>
+
+    <record id="template_postgresql_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_postgresql"/>
+        <field name="name">db_name</field>
+        <field name="display_name">Nombre de Base de Datos</field>
+        <field name="var_type">string</field>
+        <field name="default_value">postgres</field>
+        <field name="required">False</field>
+        <field name="sequence">40</field>
+    </record>
+
+    <record id="template_postgresql_var_max_connections" model="service.template.variable">
+        <field name="template_id" ref="template_postgresql"/>
+        <field name="name">max_connections</field>
+        <field name="display_name">Conexiones Máximas</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">50,100,200,500</field>
+        <field name="default_value">100</field>
+        <field name="required">False</field>
+        <field name="sequence">50</field>
+        <field name="help">Número máximo de conexiones simultáneas</field>
+    </record>
+
+    <!-- Volúmenes del template PostgreSQL -->
+    <record id="template_postgresql_vol_data" model="service.template.volume">
+        <field name="template_id" ref="template_postgresql"/>
+        <field name="name">Datos PostgreSQL</field>
+        <field name="local_path">./data</field>
+        <field name="owner">999:999</field>
+        <field name="permissions">755</field>
+        <field name="sequence">10</field>
+        <field name="exclude_from_backup" eval="True"/>
+    </record>
+
+    <record id="template_postgresql_vol_initdb" model="service.template.volume">
+        <field name="template_id" ref="template_postgresql"/>
+        <field name="name">Scripts de Inicialización</field>
+        <field name="local_path">./initdb</field>
+        <field name="owner">999:999</field>
+        <field name="permissions">755</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <!-- Archivos de configuración del template PostgreSQL -->
+    <record id="template_postgresql_config_init" model="service.template.config.file">
+        <field name="template_id" ref="template_postgresql"/>
+        <field name="name">Script de Inicialización</field>
+        <field name="filename">init.sql</field>
+        <field name="path">./initdb/</field>
+        <field name="syntax_mode">text</field>
+        <field name="sequence">10</field>
+        <field name="description">Script SQL que se ejecuta al crear el contenedor por primera vez</field>
+        <field name="content_template"><![CDATA[-- Script de inicialización para {{ instance.name }}
+-- Generado: {{ generated_at }}
+-- Este script se ejecuta automáticamente la primera vez que se crea el contenedor
+
+-- Crear extensiones útiles
+CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+CREATE EXTENSION IF NOT EXISTS "pg_trgm";
+
+-- Configurar zona horaria
+SET timezone = 'America/Argentina/Buenos_Aires';
+
+-- Log de inicialización
+DO $$
+BEGIN
+    RAISE NOTICE 'Base de datos inicializada correctamente para {{ instance.name }}';
+END $$;
+]]></field>
+    </record>
+
+
+    <!-- Config Docker por servicio — defaults recomendados (VPS 2-8 GB) -->
+    <!-- ========== PostgreSQL Standalone (template_postgresql) ========== -->
+    <record id="svcfg_postgresql_postgres" model="service.template.service.config">
+        <field name="template_id" ref="template_postgresql"/>
+        <field name="service_name">postgres</field>
+        <field name="sequence">10</field>
+        <field name="memory_limit">1g</field>
+        <field name="cpu_limit">1.0</field>
+        <field name="memory_reservation">512m</field>
+        <field name="log_max_size">50m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+</odoo>

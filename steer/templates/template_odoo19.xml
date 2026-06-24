@@ -1,0 +1,509 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================== -->
+    <!-- Template: Odoo Community (17/18/19)           -->
+    <!-- ============================================== -->
+    <record id="template_odoo19" model="service.template">
+        <field name="name">Odoo Community</field>
+        <field name="code">odoo</field>
+        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/odoo.png"/>
+        <field name="description">Odoo Community Edition (17/18/19) con PostgreSQL. Ideal para ERP y gestión empresarial.</field>
+        <field name="category">business</field>
+        <field name="version">19.0</field>
+        <field name="service_code">odoo</field>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_erp'), ref('agz_infra_suite.tag_crm')])]"/>
+        <field name="is_web_app">True</field>
+        <field name="is_global">True</field>
+        <field name="active">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">curl -f http://localhost:8069/web/health</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  db:
+    image: postgres:{{ postgres_version | default('18') }}
+    container_name: {{ INSTANCE_CODE }}_db
+    # pg_stat_statements: habilita el seguimiento de queries para el análisis de
+    # sentencias lentas (panel "Queries Lentos"). Requiere recrear el contenedor.
+    command: >
+      postgres
+      -c shared_preload_libraries=pg_stat_statements
+      -c pg_stat_statements.track=all
+      -c pg_stat_statements.max=5000
+    environment:
+      - POSTGRES_DB=postgres
+      - POSTGRES_USER={{ db_user | default('odoo') }}
+      - POSTGRES_PASSWORD={{ db_password }}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data/pgdata
+    restart: unless-stopped
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ db_user | default('odoo') }}"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 30s
+
+  odoo:
+    image: odoo:{{ odoo_version | default('19.0') }}
+    container_name: {{ INSTANCE_CODE }}
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "{{ PORT_HTTP }}:8069"
+      - "{{ PORT_LONGPOLLING }}:8072"
+    environment:
+      - HOST=db
+      - USER={{ db_user | default('odoo') }}
+      - PASSWORD={{ db_password }}
+    volumes:
+      - ./odoo-data:/var/lib/odoo
+      - ./config:/etc/odoo
+      - ./repos:/mnt/extra-addons
+    restart: unless-stopped
+    networks:
+      - internal
+      - agz-proxy-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:8069/web/health || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 60s
+
+  db-exporter:
+    image: quay.io/prometheuscommunity/postgres-exporter:{{ pg_exporter_version | default('latest') }}
+    container_name: {{ INSTANCE_CODE }}-pgexporter
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      - DATA_SOURCE_URI=db:5432/postgres?sslmode=disable
+      - DATA_SOURCE_USER={{ db_user | default('odoo') }}
+      - DATA_SOURCE_PASS={{ db_password }}
+    # Métricas publicadas en el host (0.0.0.0). El Prometheus del stack (en otro
+    # servidor) las scrapea por la VPN (vpn_ip:host); el Prometheus local, por DNS
+    # de contenedor en agz-proxy-network. Se bindea SIEMPRE a 0.0.0.0 — NO a la IP
+    # de la VPN — para que el exporter arranque aunque la VPN esté offline: así un
+    # problema de VPN/red solo afecta las métricas, nunca al resto del stack.
+    ports:
+      - "{{ PORT_PGMETRICS }}:9187"
+    restart: unless-stopped
+    networks:
+      - internal
+      - agz-proxy-network
+
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+# Pre-backup: Genera dump paralelo de PostgreSQL para Odoo
+# Variables del sistema: SERVICE_PATH, INSTANCE_CODE, SUBDOMAIN, BACKUP_DATA_DIR
+# Variables del servicio: db_user, db_name, db_password, etc.
+# El filestore (odoo-data/) se incluye automáticamente en el tar del sistema
+set -e
+cd "$SERVICE_PATH"
+
+# Usar variables del servicio (minúsculas) con defaults
+DB_USER="${db_user:-odoo}"
+# La BD que usa el contenedor es la del odoo.conf: db_name explícito, si no el
+# subdominio (db_name = {{ instance.subdomain }}), y como último recurso el code.
+DB_NAME="${db_name:-${SUBDOMAIN:-$INSTANCE_CODE}}"
+CONTAINER=$(docker compose ps -q db 2>/dev/null | head -1)
+
+echo "Iniciando backup paralelo de PostgreSQL (Odoo)..."
+
+# Limpiar dump anterior en el contenedor
+docker exec $CONTAINER rm -rf /tmp/backup_dump 2>/dev/null || true
+
+# pg_dump paralelo: formato directorio, 4 jobs, sin compresión
+docker exec $CONTAINER pg_dump -U "$DB_USER" "$DB_NAME" \
+    --no-owner --jobs=4 -Fd -x --compress=0 \
+    -f /tmp/backup_dump
+
+# Copiar del contenedor al directorio de datos del backup
+docker cp $CONTAINER:/tmp/backup_dump "$BACKUP_DATA_DIR/"
+
+# Limpiar en el contenedor
+docker exec $CONTAINER rm -rf /tmp/backup_dump
+
+echo "Dump paralelo creado en $BACKUP_DATA_DIR/backup_dump"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+# Post-restore: Restaura dump paralelo de PostgreSQL para Odoo
+# Variables del sistema: SERVICE_PATH, INSTANCE_CODE, SUBDOMAIN, RESTORE_DATA_DIR
+# Variables del servicio: db_user, db_name, db_password, etc.
+# El sistema ya extrajo los archivos (incluido filestore)
+set -e
+cd "$SERVICE_PATH"
+
+# El dump está en RESTORE_DATA_DIR después de extraer el tar
+if [ -d "$RESTORE_DATA_DIR/backup_dump" ]; then
+    # Usar variables del servicio (minúsculas) con defaults
+    DB_USER="${db_user:-odoo}"
+    # Mismo criterio que el backup y el odoo.conf: la BD destino es db_name si está,
+    # si no el subdominio de ESTA instancia (clave en restauración cruzada), luego code.
+    DB_NAME="${db_name:-${SUBDOMAIN:-$INSTANCE_CODE}}"
+
+    echo "Iniciando restore paralelo de PostgreSQL (Odoo)..."
+    echo "Usuario BD: $DB_USER, Base de datos: $DB_NAME"
+
+    # 1. Iniciar SOLO el contenedor de BD (sin Odoo para evitar conexiones)
+    echo "Iniciando contenedor de base de datos..."
+    docker compose up -d db
+
+    # 2. Esperar a que PostgreSQL esté listo
+    echo "Esperando que PostgreSQL esté listo..."
+    for i in $(seq 1 30); do
+        if docker compose exec -T db pg_isready -U "$DB_USER" 2>/dev/null | grep -q "accepting connections"; then
+            echo "PostgreSQL listo después de $i segundos"
+            break
+        fi
+        sleep 1
+    done
+
+    # 3. Obtener ID del contenedor
+    CONTAINER=$(docker compose ps -q db 2>/dev/null | head -1)
+    if [ -z "$CONTAINER" ]; then
+        echo "ERROR: No se encontró el contenedor de base de datos"
+        exit 1
+    fi
+
+    # 4. Copiar dump al contenedor
+    docker cp "$RESTORE_DATA_DIR/backup_dump" $CONTAINER:/tmp/
+
+    # 5. Generar lista ordenada excluyendo MATERIALIZED VIEW DATA
+    docker exec $CONTAINER bash -c "pg_restore -l -Fd /tmp/backup_dump | sed '/MATERIALIZED VIEW DATA/d' > /tmp/backup_dump/pg_restore_ordered.lst"
+
+    # 6. Limpiar la base de datos existente antes de restaurar
+    echo "Limpiando base de datos existente..."
+    # DROP con FORCE (PostgreSQL 13+) - no hay conexiones porque Odoo no está corriendo
+    docker exec $CONTAINER psql -U "$DB_USER" -d postgres -c "DROP DATABASE IF EXISTS \"$DB_NAME\" WITH (FORCE);"
+    docker exec $CONTAINER psql -U "$DB_USER" -d postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
+
+    # 7. Restore paralelo con 4 jobs
+    echo "Restaurando base de datos..."
+    docker exec $CONTAINER pg_restore \
+        -U "$DB_USER" \
+        --jobs=4 --no-owner --no-acl \
+        -d "$DB_NAME" \
+        -L /tmp/backup_dump/pg_restore_ordered.lst \
+        -Fd /tmp/backup_dump
+
+    RESTORE_EXIT=$?
+
+    # 8. Limpiar en el contenedor
+    docker exec $CONTAINER rm -rf /tmp/backup_dump
+
+    if [ $RESTORE_EXIT -ne 0 ]; then
+        echo "ERROR: pg_restore falló con código $RESTORE_EXIT"
+        exit $RESTORE_EXIT
+    fi
+
+    # 9. Verificar que la BD tiene datos
+    TABLE_COUNT=$(docker exec $CONTAINER psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ')
+    echo "Tablas restauradas: $TABLE_COUNT"
+
+    if [ "$TABLE_COUNT" = "0" ] || [ -z "$TABLE_COUNT" ]; then
+        echo "ERROR: La base de datos está vacía después del restore"
+        exit 1
+    fi
+
+    echo "Base de datos restaurada exitosamente"
+
+    # 10. Alinear el filestore con el nombre de la BD destino. Odoo guarda los
+    #     adjuntos en archivo bajo odoo-data/filestore/<db_name>/. En restauración
+    #     CRUZADA (o si cambió el subdominio) el filestore viene con el nombre de la
+    #     BD ORIGEN, pero Odoo lo busca bajo la BD destino → sin esto se "pierden"
+    #     los adjuntos. Idempotente en restauración normal (cur == DB_NAME → no-op).
+    FS_DIR="$SERVICE_PATH/odoo-data/filestore"
+    # Guarda: DB_NAME no-vacío antes del rm -rf (evita borrar todo el filestore).
+    if [ -d "$FS_DIR" ] && [ -n "$DB_NAME" ]; then
+        for d in "$FS_DIR"/*/; do
+            [ -d "$d" ] || continue
+            cur=$(basename "$d")
+            if [ "$cur" != "$DB_NAME" ]; then
+                echo "Alineando filestore: $cur -> $DB_NAME"
+                rm -rf "$FS_DIR/$DB_NAME"
+                mv "$d" "$FS_DIR/$DB_NAME"
+            fi
+        done
+    fi
+else
+    echo "ADVERTENCIA: No se encontró backup_dump en $RESTORE_DATA_DIR"
+fi
+]]></field>
+    </record>
+
+    <!-- Puertos del template Odoo 19 -->
+    <record id="template_odoo19_port_http" model="service.template.port">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="code">http</field>
+        <field name="name">HTTP (Odoo)</field>
+        <field name="default_port">8069</field>
+        <field name="sequence">10</field>
+        <field name="traefik_routed" eval="True"/>
+    </record>
+
+    <record id="template_odoo19_port_longpolling" model="service.template.port">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="code">longpolling</field>
+        <field name="name">Longpolling/Websocket</field>
+        <field name="default_port">8072</field>
+        <field name="sequence">20</field>
+        <field name="traefik_routed" eval="True"/>
+        <field name="traefik_path_prefix">/websocket</field>
+    </record>
+    <!-- Puerto del exporter de PostgreSQL (postgres-exporter). expose_to_host: se
+         publica en la IP de VPN del servidor para que el Prometheus del stack lo
+         scrapee en remoto. El puerto host real se auto-asigna por instancia. -->
+    <record id="template_odoo19_port_pgmetrics" model="service.template.port">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="code">pgmetrics</field>
+        <field name="name">PostgreSQL Exporter (métricas)</field>
+        <field name="default_port">9187</field>
+        <field name="sequence">30</field>
+        <field name="expose_to_host" eval="True"/>
+        <field name="prometheus_scrape" eval="True"/>
+        <field name="prometheus_job">postgres</field>
+        <field name="metrics_container_suffix">-pgexporter</field>
+    </record>
+
+    <!-- Variables del template Odoo 19 -->
+    <record id="template_odoo19_var_odoo_version" model="service.template.variable">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">odoo_version</field>
+        <field name="display_name">Versión de Odoo</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">19.0,18.0,17.0</field>
+        <field name="default_value">19.0</field>
+        <field name="required">True</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <record id="template_odoo19_var_postgres_version" model="service.template.variable">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">postgres_version</field>
+        <field name="display_name">Versión de PostgreSQL</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">18,17,16,15</field>
+        <field name="default_value">18</field>
+        <field name="required">True</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <record id="template_odoo19_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">db_user</field>
+        <field name="display_name">Usuario de Base de Datos</field>
+        <field name="var_type">string</field>
+        <field name="default_value">odoo</field>
+        <field name="required">True</field>
+        <field name="sequence">30</field>
+    </record>
+
+    <record id="template_odoo19_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">db_password</field>
+        <field name="display_name">Contraseña de Base de Datos</field>
+        <field name="var_type">password</field>
+        <field name="required">True</field>
+        <field name="sequence">40</field>
+        <field name="help">Contraseña para el usuario de PostgreSQL</field>
+    </record>
+
+    <record id="template_odoo19_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">db_name</field>
+        <field name="display_name">Nombre de Base de Datos</field>
+        <field name="var_type">string</field>
+        <field name="required">False</field>
+        <field name="sequence">45</field>
+        <field name="help">Nombre de la base de datos Odoo. Si no se especifica, usa el código del servicio.</field>
+    </record>
+
+    <record id="template_odoo19_var_workers" model="service.template.variable">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">workers</field>
+        <field name="display_name">Workers</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">0,1,2,4,6,8</field>
+        <field name="default_value">2</field>
+        <field name="required">False</field>
+        <field name="sequence">50</field>
+        <field name="help">Número de workers. >=1 = modo prefork (recomendado para producción; websocket vía gevent en 8072). 0 = modo threaded (websocket en el puerto HTTP). El routing de /websocket se ajusta automáticamente según este valor.</field>
+    </record>
+
+    <record id="template_odoo19_var_admin_passwd" model="service.template.variable">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">admin_passwd</field>
+        <field name="display_name">Master Password</field>
+        <field name="var_type">password</field>
+        <field name="required">False</field>
+        <field name="sequence">60</field>
+        <field name="help">Contraseña maestra para gestión de bases de datos</field>
+    </record>
+
+    <record id="template_odoo19_var_pg_exporter_version" model="service.template.variable">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">pg_exporter_version</field>
+        <field name="display_name">Versión postgres_exporter</field>
+        <field name="var_type">string</field>
+        <field name="default_value">latest</field>
+        <field name="required">False</field>
+        <field name="sequence">70</field>
+        <field name="help">Versión de quay.io/prometheuscommunity/postgres-exporter (métricas de PostgreSQL).</field>
+    </record>
+
+    <!-- Volúmenes del template Odoo 19 -->
+    <record id="template_odoo19_vol_postgres" model="service.template.volume">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">Datos PostgreSQL</field>
+        <field name="local_path">./postgres-data</field>
+        <field name="owner">999:999</field>
+        <field name="permissions">755</field>
+        <field name="sequence">10</field>
+        <field name="exclude_from_backup" eval="True"/>
+    </record>
+
+    <record id="template_odoo19_vol_odoo_data" model="service.template.volume">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">Datos Odoo</field>
+        <field name="local_path">./odoo-data</field>
+        <field name="owner">100:101</field>
+        <field name="permissions">775</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <record id="template_odoo19_vol_config" model="service.template.volume">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">Configuración Odoo</field>
+        <field name="local_path">./config</field>
+        <field name="owner">100:101</field>
+        <field name="permissions">775</field>
+        <field name="sequence">30</field>
+    </record>
+
+    <record id="template_odoo19_vol_addons" model="service.template.volume">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">Addons Extra</field>
+        <field name="local_path">./repos</field>
+        <field name="owner">100:101</field>
+        <field name="permissions">775</field>
+        <field name="sequence">40</field>
+    </record>
+
+    <!-- Archivos de configuración del template Odoo 19 -->
+    <record id="template_odoo19_config_odoo" model="service.template.config.file">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">Configuración de Odoo</field>
+        <field name="filename">odoo.conf</field>
+        <field name="path">./config/</field>
+        <field name="syntax_mode">ini</field>
+        <field name="sequence">10</field>
+        <field name="description">Archivo de configuración principal de Odoo</field>
+        <field name="content_template"><![CDATA[# Configuración generada para {{ instance.name }}
+# {{ generated_at }}
+
+[options]
+; Conexión a base de datos
+db_host = db
+db_port = 5432
+db_user = {{ db_user | default('odoo') }}
+db_password = {{ db_password }}
+db_name = {{ db_name | default(instance.subdomain or instance.code, true) }}
+
+; Rutas
+data_dir = /var/lib/odoo
+addons_path = /usr/lib/python3/dist-packages/odoo/addons{% if REPO_SUBDIRS %}{% for dir in REPO_SUBDIRS %},/mnt/extra-addons/{{ dir }}{% endfor %}{% else %},/mnt/extra-addons{% endif %}
+
+; Servidor HTTP
+http_port = 8069
+http_interface = 0.0.0.0
+gevent_port = 8072
+proxy_mode = True
+
+; Workers (ajustar según recursos del servidor)
+; >=1 (prefork): un proceso gevent sirve el websocket en gevent_port (8072).
+; 0 (threaded): el websocket /websocket se sirve en el puerto HTTP (8069), sin
+;   proceso gevent. El routing de Traefik para /websocket se ajusta solo según
+;   este valor.
+workers = {{ workers | default('2') }}
+max_cron_threads = 1
+
+; Límites de recursos
+limit_memory_hard = 2684354560
+limit_memory_soft = 2147483648
+limit_request = 8192
+limit_time_cpu = 600
+limit_time_real = 1200
+
+; Logging
+log_level = warn
+log_handler = :WARNING
+
+; Seguridad
+list_db = False
+admin_passwd = {{ admin_passwd }}
+]]></field>
+    </record>
+
+    <!-- Acción: Actualizar Odoo (-u módulos) -->
+    <record id="template_odoo19_action_update_modules" model="service.template.action">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="name">Actualizar Odoo</field>
+        <field name="code">update_modules</field>
+        <field name="sequence">10</field>
+        <field name="icon">fa-arrow-up</field>
+        <field name="button_class">btn-primary</field>
+        <field name="target_service">odoo</field>
+        <field name="stop_service_before">True</field>
+        <field name="start_service_after">True</field>
+        <field name="pull_repositories">True</field>
+        <field name="backup_before">production</field>
+        <field name="timeout">3600</field>
+        <field name="available_states">running,stopped,error</field>
+        <field name="requires_confirmation">True</field>
+        <field name="confirmation_message">Se hará git pull de los repositorios, un backup previo (obligatorio en producción), luego se detendrá Odoo, se actualizarán TODOS los módulos (update all, --stop-after-init) y se volverá a iniciar. ¿Continuar?</field>
+        <field name="requires_input" eval="False"/>
+        <field name="description">Actualiza todos los módulos de Odoo (update all). El código nuevo llega por el git pull de los addons (configurable arriba).</field>
+        <!-- La BD que usa el contenedor es el subdominio (odoo.conf fija db_name = subdomain). -->
+        <field name="command"><![CDATA[docker compose run --rm odoo \
+  odoo -c /etc/odoo/odoo.conf -d {{ instance.subdomain }} \
+  -u all --stop-after-init --workers=0 --no-http]]></field>
+    </record>
+
+
+    <!-- Config Docker por servicio — defaults recomendados (VPS 2-8 GB) -->
+    <!-- ========== Odoo Community (template_odoo19) ========== -->
+    <record id="svcfg_odoo19_db" model="service.template.service.config">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="service_name">db</field>
+        <field name="sequence">10</field>
+        <field name="memory_limit">1g</field>
+        <field name="cpu_limit">1.0</field>
+        <field name="memory_reservation">512m</field>
+        <field name="log_max_size">50m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+    <record id="svcfg_odoo19_odoo" model="service.template.service.config">
+        <field name="template_id" ref="template_odoo19"/>
+        <field name="service_name">odoo</field>
+        <field name="sequence">20</field>
+        <field name="memory_limit">1536m</field>
+        <field name="cpu_limit">1.5</field>
+        <field name="memory_reservation">768m</field>
+        <field name="log_max_size">50m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+</odoo>

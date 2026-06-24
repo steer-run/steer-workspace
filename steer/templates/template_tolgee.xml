@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'app' (imagen tolgee/tolgee:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_tolgee" model="service.template">
+        <field name="name">Tolgee</field>
+        <field name="code">tolgee</field>
+        <field name="service_code">tolgee</field>
+        <field name="version">latest</field>
+        <field name="description">Tolgee is a developer- and translator-friendly localization platform that lets teams translate apps in-context, directly in the running UI.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Tolgee is a developer- and translator-friendly localization platform that lets teams translate apps in-context, directly in the running UI.</p>
+  <p>It manages translation keys across web, mobile and backend projects and serves as a self-hosted, open-source alternative to Crowdin, Phrase and Lokalise. Developers integrate it through native SDKs and a CLI, while translators edit strings in place via ALT/Option-click, even in deployed environments through a browser plugin. Machine translation, translation memory and AI-assisted auto-translation speed up the workflow without locking teams into a proprietary cloud.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>In-context editing of translations directly in the live application UI</li>
+    <li>SDKs and CLI for React, Vue, Angular, Svelte, Next.js and more, plus a REST API</li>
+    <li>Machine translation via DeepL, Google Translate and AWS Translate using your own API keys</li>
+    <li>Translation memory and AI auto-translation for consistent, faster localization</li>
+    <li>Automatic screenshots with highlighted phrases to give translators visual context</li>
+    <li>Activity logs, review workflows and an MCP server for AI-assistant integration</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Engineering and localization teams that want to own their translation infrastructure: software products needing continuous i18n/l10n, agencies managing multilingual apps, and organizations seeking a self-hosted alternative to SaaS localization tools.</p>
+</div>]]></field>
+        <field name="category">dev_tools</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/tolgee.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_documentation')])]"/>
+        <field name="website_url">https://tolgee.io</field>
+        <field name="documentation_url">https://tolgee.io/platform</field>
+        <field name="source_url">https://github.com/tolgee/tolgee-platform</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  app:
+    image: tolgee/tolgee:latest
+    volumes:
+    - ./data:/data
+    - ./config.yaml:/config.yaml
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    environment:
+      TOLGEE_FRONT_END_URL: ${TOLGEE_HOST}
+      TOLGEE_AUTHENTICATION_ENABLED: {{ tolgee_authentication_enabled }}
+      TOLGEE_AUTHENTICATION_INITIAL_PASSWORD: {{ tolgee_authentication_initial_password }}
+      TOLGEE_AUTHENTICATION_INITIAL_USERNAME: {{ tolgee_authentication_initial_username }}
+      TOLGEE_AUTHENTICATION_JWT_SECRET: {{ tolgee_authentication_jwt_secret }}
+      TOLGEE_MACHINE_TRANSLATION_GOOGLE_API_KEY: {{ tolgee_machine_translation_google_api_key }}
+      TOLGEE_SMTP_AUTH: {{ tolgee_smtp_auth }}
+      TOLGEE_SMTP_FROM: {{ tolgee_smtp_from }}
+      TOLGEE_SMTP_HOST: {{ tolgee_smtp_host }}
+      TOLGEE_SMTP_PASSWORD: {{ tolgee_smtp_password }}
+      TOLGEE_SMTP_PORT: {{ tolgee_smtp_port }}
+      TOLGEE_SMTP_SSL_ENABLED: {{ tolgee_smtp_ssl_enabled }}
+      TOLGEE_SMTP_USERNAME: {{ tolgee_smtp_username }}
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_tolgee_port_http" model="service.template.port">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_tolgee_var_jwt_secret" model="service.template.variable">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="name">jwt_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_tolgee_var_tolgee_authentication_enabled" model="service.template.variable">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="name">tolgee_authentication_enabled</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_tolgee_var_tolgee_authentication_initial_password" model="service.template.variable">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="name">tolgee_authentication_initial_password</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_tolgee_var_tolgee_authentication_initial_username" model="service.template.variable">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="name">tolgee_authentication_initial_username</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_tolgee_var_tolgee_machine_translation_google_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="name">tolgee_machine_translation_google_api_key</field>
+        <field name="var_type">string</field>
+        <field name="default_value">my_google_api_key</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_tolgee_var_tolgee_smtp_auth" model="service.template.variable">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="name">tolgee_smtp_auth</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_tolgee_var_tolgee_smtp_from" model="service.template.variable">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="name">tolgee_smtp_from</field>
+        <field name="var_type">string</field>
+        <field name="default_value">Tolgee &lt;no-reply@mydomain.com&gt;</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_tolgee_var_tolgee_smtp_host" model="service.template.variable">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="name">tolgee_smtp_host</field>
+        <field name="var_type">string</field>
+        <field name="default_value">email-smtp.regional-region.amazonaws.com</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_tolgee_var_tolgee_smtp_password" model="service.template.variable">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="name">tolgee_smtp_password</field>
+        <field name="var_type">string</field>
+        <field name="default_value">omg/my/password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_tolgee_var_tolgee_smtp_port" model="service.template.variable">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="name">tolgee_smtp_port</field>
+        <field name="var_type">string</field>
+        <field name="default_value">465</field>
+        <field name="sequence">100</field>
+    </record>
+    <record id="template_tolgee_var_tolgee_smtp_ssl_enabled" model="service.template.variable">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="name">tolgee_smtp_ssl_enabled</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="sequence">110</field>
+    </record>
+    <record id="template_tolgee_var_tolgee_smtp_username" model="service.template.variable">
+        <field name="template_id" ref="template_tolgee"/>
+        <field name="name">tolgee_smtp_username</field>
+        <field name="var_type">string</field>
+        <field name="default_value">user@company.com</field>
+        <field name="sequence">120</field>
+    </record>
+</odoo>

@@ -1,0 +1,131 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'app': wopi_server): revisar backup/red/init.
+           - Owner UID:GID de 'app' (imagen machines/filestash:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_filestash" model="service.template">
+        <field name="name">Filestash</field>
+        <field name="code">filestash</field>
+        <field name="service_code">filestash</field>
+        <field name="version">latest</field>
+        <field name="description">Filestash is a storage-agnostic web file manager that puts a single Dropbox-like interface in front of any backend you already run.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Filestash is a storage-agnostic web file manager that puts a single Dropbox-like interface in front of any backend you already run.</p>
+  <p>Built around a universal data access layer, Filestash connects to dozens of storage systems &mdash; S3, SFTP, FTP, SMB, NFS, WebDAV, Azure Blob, Backblaze, Git, LDAP and many more &mdash; without needing FUSE. Its modular plugin architecture lets you swap or extend storage, authentication, authorization, search and UI behaviour, making it a fit for teams that must wire an existing identity provider and permission model onto heterogeneous data sources.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>20+ pluggable storage backends accessed through one consistent web client</li>
+    <li>Identity-aware access with LDAP, SAML, OIDC and authentication chaining (including 2FA)</li>
+    <li>Plugin system to customize authorization, search, thumbnailing and middleware</li>
+    <li>In-browser viewers and editors for documents, images, media and code</li>
+    <li>Additional gateways and protocols (SFTP, S3, FTP, WebDAV) on top of the same backends</li>
+    <li>Self-hosted under AGPL-3.0, keeping files and credentials on your own infrastructure</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Organizations that need to expose existing storage (S3 buckets, SFTP/SMB/NFS shares, object stores) to end users through a friendly, permission-controlled web UI tied to their own identity provider &mdash; from universities and enterprises to teams replacing ad-hoc file-sharing tools.</p>
+</div>]]></field>
+        <field name="category">storage</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/filestash.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_identity')])]"/>
+        <field name="website_url">https://www.filestash.app/</field>
+        <field name="documentation_url">https://www.filestash.app/docs/</field>
+        <field name="source_url">https://github.com/mickael-kerjean/filestash</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  app:
+    image: machines/filestash:latest
+    restart: always
+    environment:
+    - APPLICATION_URL={{ application_url }}
+    - CANARY={{ canary }}
+    - OFFICE_URL={{ office_url }}
+    - OFFICE_FILESTASH_URL={{ office_filestash_url }}
+    - OFFICE_REWRITE_URL={{ office_rewrite_url }}
+    ports:
+    - '{{ PORT_HTTP }}:8334'
+    volumes:
+    - ./filestash:/app/data/state/
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+  wopi_server:
+    image: collabora/code:24.04.10.2.1
+    restart: always
+    environment:
+    - extra_params=--o:ssl.enable=false
+    - aliasgroup1=https://.*:443
+    command:
+    - /bin/bash
+    - -c
+    - 'curl -o /usr/share/coolwsd/browser/dist/branding-desktop.css https://gist.githubusercontent.com/mickael-kerjean/bc1f57cd312cf04731d30185cc4e7ba2/raw/d706dcdf23c21441e5af289d871b33defc2770ea/destop.css
+
+      /bin/su -s /bin/bash -c ''/start-collabora-online.sh'' cool
+
+      '
+    user: root
+    ports:
+    - 9980
+    container_name: '{{ INSTANCE_CODE }}_wopi_server'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_filestash_port_http" model="service.template.port">
+        <field name="template_id" ref="template_filestash"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8334</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_filestash_var_canary" model="service.template.variable">
+        <field name="template_id" ref="template_filestash"/>
+        <field name="name">canary</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_filestash_var_office_url" model="service.template.variable">
+        <field name="template_id" ref="template_filestash"/>
+        <field name="name">office_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">http://wopi_server:9980</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_filestash_var_office_filestash_url" model="service.template.variable">
+        <field name="template_id" ref="template_filestash"/>
+        <field name="name">office_filestash_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">http://app:8334</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_filestash_var_office_rewrite_url" model="service.template.variable">
+        <field name="template_id" ref="template_filestash"/>
+        <field name="name">office_rewrite_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">http://127.0.0.1:9980</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_filestash_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_filestash"/>
+        <field name="name">filestash</field>
+        <field name="local_path">./filestash</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

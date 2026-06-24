@@ -1,0 +1,95 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'qdrant' (imagen qdrant/qdrant:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_qdrant" model="service.template">
+        <field name="name">Qdrant</field>
+        <field name="code">qdrant</field>
+        <field name="service_code">qdrant</field>
+        <field name="version">latest</field>
+        <field name="description">Qdrant is a high-performance, Rust-based vector database and search engine for similarity search over embeddings.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Qdrant is a high-performance, Rust-based vector database and search engine for similarity search over embeddings.</p>
+  <p>It stores high-dimensional vectors alongside rich JSON payloads and retrieves the nearest matches at scale, powering semantic search, recommendations and retrieval-augmented generation (RAG) for AI applications. Built for production reliability, it exposes both REST and gRPC APIs, ships with a web UI, and offers official clients for Python, Go, Rust, JavaScript, .NET and Java.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Dense, sparse and multi-vector search with hybrid retrieval</li>
+    <li>Advanced filtering on structured JSON payloads alongside vector queries</li>
+    <li>Vector quantization that sharply reduces memory footprint and cost</li>
+    <li>Distributed deployment with sharding and replication for horizontal scale</li>
+    <li>REST and gRPC APIs plus a built-in web dashboard</li>
+    <li>API-key, JWT, TLS and role-based access control for secured deployments</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams building semantic search, recommendation engines and RAG pipelines who need a fast, self-hostable vector store that scales from a single container to a distributed cluster.</p>
+</div>]]></field>
+        <field name="category">database</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/qdrant.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="website_url">https://qdrant.tech/</field>
+        <field name="documentation_url">https://qdrant.tech/documentation/</field>
+        <field name="source_url">https://github.com/qdrant/qdrant</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  qdrant:
+    image: qdrant/qdrant:latest
+    environment:
+    - SERVICE_FQDN_QDRANT_6333
+    - QDRANT__SERVICE__API_KEY={{ qdrant_api_key }}
+    expose:
+    - '6333'
+    volumes:
+    - ./qdrant_data:/qdrant/storage
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - bash -c ':> /dev/tcp/127.0.0.1/6333' || exit 1
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:6333'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_qdrant_port_http" model="service.template.port">
+        <field name="template_id" ref="template_qdrant"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">6333</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_qdrant_var_qdrant_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_qdrant"/>
+        <field name="name">qdrant_api_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_qdrant_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_qdrant"/>
+        <field name="name">qdrant_data</field>
+        <field name="local_path">./qdrant_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

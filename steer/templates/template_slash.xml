@@ -1,0 +1,148 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'slash-app' (imagen yourselfhosted/slash:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_slash" model="service.template">
+        <field name="name">Slash</field>
+        <field name="code">slash</field>
+        <field name="service_code">slash</field>
+        <field name="version">latest</field>
+        <field name="description">Slash is a self-hosted platform that turns long, unwieldy URLs into short, human-readable shortcuts you and your team can find and share instantly.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Slash is a self-hosted platform that turns long, unwieldy URLs into short, human-readable shortcuts you and your team can find and share instantly.</p>
+  <p>Slash lets you create memorable links such as <code>s/shortcut</code> in place of complex URLs, then organize them with tags and group them into shareable collections (<code>c/collection</code>). Built for teams that lose time hunting for the right link across emails, chats and docs, it centralizes frequently used links in one searchable place. A backend in Go with a React/TypeScript frontend keeps the deployment lightweight, and a browser extension lets you jump straight to a shortcut from the address bar.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Customizable, human-readable short links (<code>s/shortcut</code>) for any URL</li>
+    <li>Tagging and searchable organization of all your links</li>
+    <li>Collections to group and share sets of shortcuts publicly or with teammates</li>
+    <li>Visibility controls: keep links private, team-only, or public</li>
+    <li>Link traffic and source analytics</li>
+    <li>Browser extension (Chromium and Firefox) plus single-command Docker deployment</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams and individuals who want to own a private link shortener and shortcut directory, replacing scattered links and SaaS go/ services with a self-hosted, taggable, shareable catalog of frequently used URLs.</p>
+</div>]]></field>
+        <field name="category">productivity</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/slash.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_bookmarks')])]"/>
+        <field name="website_url">https://github.com/yourselfhosted/slash#readme</field>
+        <field name="documentation_url">https://github.com/yourselfhosted/slash/wiki</field>
+        <field name="source_url">https://github.com/yourselfhosted/slash</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  slash-app:
+    image: yourselfhosted/slash:latest
+    volumes:
+    - ./slash_app_data:/var/opt/slash
+    environment:
+    - SLASH_DRIVER=postgres
+    - SLASH_DSN=postgresql://{{ db_user }}:{{ db_password }}@slash-postgres:5432/{{ db_name }}?sslmode=disable
+    depends_on:
+      slash-postgres:
+        condition: service_healthy
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:5231'
+    networks:
+    - internal
+    - agz-proxy-network
+  slash-postgres:
+    image: postgres:16-alpine
+    volumes:
+    - ./slash_postgres_data:/var/lib/postgresql/data
+    environment:
+    - POSTGRES_USER={{ db_user }}
+    - POSTGRES_PASSWORD={{ db_password }}
+    - POSTGRES_DB={{ db_name }}
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U {{ db_user }} -d {{ db_name }}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}_slash_postgres'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T slash-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d slash-postgres
+for i in $(seq 1 30); do
+  docker compose exec -T slash-postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T slash-postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T slash-postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_slash_port_http" model="service.template.port">
+        <field name="template_id" ref="template_slash"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">5231</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_slash_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_slash"/>
+        <field name="name">db_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">slash</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_slash_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_slash"/>
+        <field name="name">db_name</field>
+        <field name="var_type">string</field>
+        <field name="default_value">slash</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_slash_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_slash"/>
+        <field name="name">slash-app-data</field>
+        <field name="local_path">./slash_app_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_slash_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_slash"/>
+        <field name="name">slash-postgres-data</field>
+        <field name="local_path">./slash_postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

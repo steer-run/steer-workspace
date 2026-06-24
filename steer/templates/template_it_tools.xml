@@ -1,0 +1,58 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_it_tools" model="service.template">
+        <field name="name">IT Tools</field>
+        <field name="code">it_tools</field>
+        <field name="service_code">it_tools</field>
+        <field name="version">latest</field>
+        <field name="description">A collection of handy online it-tools for developers.</field>
+        <field name="category">dev_tools</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/it_tools.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_self_hosted')])]"/>
+        <field name="website_url">https://it-tools.tech</field>
+        <field name="documentation_url">https://it-tools.tech/docs</field>
+        <field name="source_url">https://github.com/CorentinTh/it-tools</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  it-tools:
+    image: corentinth/it-tools:latest
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://127.0.0.1:80
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_it_tools_port_http" model="service.template.port">
+        <field name="template_id" ref="template_it_tools"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

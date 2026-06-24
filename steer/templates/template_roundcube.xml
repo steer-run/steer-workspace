@@ -1,0 +1,86 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'roundcubemail' (imagen roundcube/roundcubemail:1.6.9-apache) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_roundcube" model="service.template">
+        <field name="name">Roundcube</field>
+        <field name="code">roundcube</field>
+        <field name="service_code">roundcube</field>
+        <field name="version">1.6.9</field>
+        <field name="description">Roundcube is a browser-based IMAP webmail client that gives any mail server a fast, modern, application-like interface.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Roundcube is a browser-based IMAP webmail client that gives any mail server a fast, modern, application-like interface.</p>
+  <p>Written in PHP and skinnable to fit any brand, Roundcube connects to your existing IMAP/SMTP infrastructure and serves a full email experience to users from a web browser. It is one of the most widely deployed open-source webmail solutions, shipped as the default interface in many hosting control panels and mail-server stacks, and is suited to anyone running their own mail who wants webmail access without a heavy groupware platform.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Full IMAP/SMTP webmail with folder management, search, threading and drag-and-drop</li>
+    <li>Rich MIME composer with HTML editing, attachments, spell-check and Markdown rendering</li>
+    <li>Address book with groups, plus LDAP and CardDAV contact integration</li>
+    <li>OAuth2/OIDC authentication with discovery and single-logout support</li>
+    <li>Skinnable, responsive interface and an extensive third-party plugin ecosystem</li>
+    <li>Multilingual UI, per-user preferences and configurable spam/identity handling</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Self-hosters, hosting providers and organizations that run their own IMAP mail server and want a reliable, lightweight webmail front end for end users without deploying a full collaboration suite.</p>
+</div>]]></field>
+        <field name="category">mail</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/roundcube.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_email'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_productivity')])]"/>
+        <field name="website_url">https://roundcube.net/</field>
+        <field name="documentation_url">https://roundcube.net/about/</field>
+        <field name="source_url">https://github.com/roundcube/roundcubemail</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  roundcubemail:
+    image: roundcube/roundcubemail:1.6.9-apache
+    volumes:
+    - ./www:/var/www/html
+    - ./db/sqlite:/var/roundcube/db
+    environment:
+    - ROUNDCUBEMAIL_DB_TYPE=sqlite
+    - ROUNDCUBEMAIL_SKIN=elastic
+    - ROUNDCUBEMAIL_DEFAULT_HOST={{ default_host }}
+    - ROUNDCUBEMAIL_SMTP_SERVER={{ smtp_server }}
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_roundcube_port_http" model="service.template.port">
+        <field name="template_id" ref="template_roundcube"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_roundcube_var_default_host" model="service.template.variable">
+        <field name="template_id" ref="template_roundcube"/>
+        <field name="name">default_host</field>
+        <field name="var_type">string</field>
+        <field name="default_value">tls://mail.example.com</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_roundcube_var_smtp_server" model="service.template.variable">
+        <field name="template_id" ref="template_roundcube"/>
+        <field name="name">smtp_server</field>
+        <field name="var_type">string</field>
+        <field name="default_value">tls://mail.example.com</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

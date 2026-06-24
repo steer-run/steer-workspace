@@ -1,0 +1,107 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_neko" model="service.template">
+        <field name="name">Neko</field>
+        <field name="code">neko</field>
+        <field name="service_code">neko</field>
+        <field name="version">latest</field>
+        <field name="description">Neko is a self-hosted virtual browser and Linux desktop that runs in Docker and streams to multiple users in real time over WebRTC.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Neko is a self-hosted virtual browser and Linux desktop that runs in Docker and streams to multiple users in real time over WebRTC.</p>
+  <p>Neko renders a full browser or desktop environment inside a container and broadcasts it to any number of viewers, who can take turns controlling it from their own browser with synchronized audio and video. Beyond browsing it can run almost any Linux application or a complete desktop, making it a flexible base for watch parties, shared sessions, embedded browsers and isolated, disposable browsing.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Low-latency WebRTC streaming of a browser or full Linux desktop to many simultaneous users</li>
+    <li>Shared, multi-user control with audio and video sync for collaborative sessions</li>
+    <li>Multiple browser images (Firefox, Chromium, Brave, Tor, and more) and desktop environments (XFCE, KDE)</li>
+    <li>Disposable, isolated browsing that keeps the real workstation clean and private</li>
+    <li>Optional RTMP broadcasting to platforms like Twitch and YouTube, including unattended 24/7 streams</li>
+    <li>Automation-friendly: run Playwright or Puppeteer inside the session and observe or intervene live</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams and communities that need shared remote browsing or desktops: watch parties, interactive presentations and demos, remote support and teaching, embedded or kiosk browsers, secure throwaway browsing, and browser automation that a human can supervise.</p>
+</div>]]></field>
+        <field name="category">collaboration</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/neko.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_networking')])]"/>
+        <field name="website_url">https://github.com/m1k1o/neko</field>
+        <field name="documentation_url">https://github.com/m1k1o/neko</field>
+        <field name="source_url">https://github.com/m1k1o/neko</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  neko:
+    image: ghcr.io/m1k1o/neko/firefox:latest
+    restart: unless-stopped
+    shm_size: 2gb
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_neko_port_http" model="service.template.port">
+        <field name="template_id" ref="template_neko"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_neko_var_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_neko"/>
+        <field name="name">admin_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_neko_var_user_password" model="service.template.variable">
+        <field name="template_id" ref="template_neko"/>
+        <field name="name">user_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_neko_var_neko_member_provider" model="service.template.variable">
+        <field name="template_id" ref="template_neko"/>
+        <field name="name">neko_member_provider</field>
+        <field name="var_type">string</field>
+        <field name="default_value">multiuser</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_neko_var_neko_desktop_screen" model="service.template.variable">
+        <field name="template_id" ref="template_neko"/>
+        <field name="name">neko_desktop_screen</field>
+        <field name="var_type">string</field>
+        <field name="default_value">1920x1080@30</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_neko_var_neko_webrtc_epr" model="service.template.variable">
+        <field name="template_id" ref="template_neko"/>
+        <field name="name">neko_webrtc_epr</field>
+        <field name="var_type">string</field>
+        <field name="default_value">52000-52100</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_neko_var_neko_webrtc_icelite" model="service.template.variable">
+        <field name="template_id" ref="template_neko"/>
+        <field name="name">neko_webrtc_icelite</field>
+        <field name="var_type">string</field>
+        <field name="default_value">1</field>
+        <field name="sequence">60</field>
+    </record>
+</odoo>

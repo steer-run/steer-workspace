@@ -1,0 +1,262 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'server': worker): revisar backup/red/init.
+           - Owner UID:GID de 'server' (imagen ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2025.6.3}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'worker' (imagen ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2025.6.3}) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_authentik" model="service.template">
+        <field name="name">Authentik</field>
+        <field name="code">authentik</field>
+        <field name="service_code">authentik</field>
+        <field name="version">2025.6.3</field>
+        <field name="description">authentik is a self-hosted, open-source identity provider that delivers single sign-on, multi-factor authentication and access control across every modern protocol.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">authentik is a self-hosted, open-source identity provider that delivers single sign-on, multi-factor authentication and access control across every modern protocol.</p>
+  <p>It acts as the central authentication layer for your applications, supporting SAML 2.0, OAuth2/OIDC, LDAP, RADIUS and SCIM, plus a reverse-proxy outpost for apps that lack native SSO. A flexible flow-and-policy engine lets you model login, enrollment and MFA journeys, while blueprints let you version your entire identity configuration as YAML in Git. It is commonly deployed as a fully self-hosted alternative to Okta, Auth0, Entra ID and Ping Identity.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>SAML 2.0, OAuth2/OIDC, LDAP, RADIUS and SCIM provider support from a single platform</li>
+    <li>Multi-factor and passwordless authentication with TOTP, WebAuthn and FIDO2 passkeys</li>
+    <li>Customizable flow engine and granular policies based on user attributes, time, location and risk</li>
+    <li>Forward-auth / reverse-proxy outpost to add SSO to applications without native support</li>
+    <li>Federation with external OAuth/SAML sources, social logins and directory sync (Entra ID, Google Workspace)</li>
+    <li>Roles, groups with multi-parent inheritance, self-service portal and YAML blueprints for GitOps</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams and organizations that want full control over authentication and identity on their own infrastructure, consolidating SSO, MFA and user provisioning for internal tools and customer-facing apps without relying on a cloud identity vendor.</p>
+</div>]]></field>
+        <field name="category">security</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/authentik.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_identity'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_proxy')])]"/>
+        <field name="website_url">https://goauthentik.io/</field>
+        <field name="documentation_url">https://goauthentik.io/docs/</field>
+        <field name="source_url">https://github.com/goauthentik/authentik</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  postgresql:
+    image: docker.io/library/postgres:16-alpine
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+    - ./database:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: {{ pg_pass }}
+      POSTGRES_USER: {{ pg_user }}
+      POSTGRES_DB: {{ pg_db }}
+    expose:
+    - 5432
+    container_name: '{{ INSTANCE_CODE }}_postgresql'
+    networks:
+    - internal
+  redis:
+    image: docker.io/library/redis:alpine
+    command: --save 60 1 --loglevel warning
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - redis-cli ping | grep PONG
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s
+    volumes:
+    - ./redis:/data
+    expose:
+    - 6379
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    networks:
+    - internal
+  server:
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2025.6.3}
+    restart: unless-stopped
+    command: server
+    environment:
+      AUTHENTIK_SECRET_KEY: {{ authentik_secret_key }}
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__USER: {{ pg_user }}
+      AUTHENTIK_POSTGRESQL__NAME: {{ pg_db }}
+      AUTHENTIK_POSTGRESQL__PASSWORD: {{ pg_pass }}
+    volumes:
+    - ./media:/media
+    - ./custom_templates:/templates
+    expose:
+    - 9000
+    - 9443
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:9000'
+    networks:
+    - internal
+    - agz-proxy-network
+  worker:
+    image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2025.6.3}
+    restart: unless-stopped
+    command: worker
+    environment:
+      AUTHENTIK_SECRET_KEY: {{ authentik_secret_key }}
+      AUTHENTIK_REDIS__HOST: redis
+      AUTHENTIK_POSTGRESQL__HOST: postgresql
+      AUTHENTIK_POSTGRESQL__USER: {{ pg_user }}
+      AUTHENTIK_POSTGRESQL__NAME: {{ pg_db }}
+      AUTHENTIK_POSTGRESQL__PASSWORD: {{ pg_pass }}
+    user: root
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    - ./media:/media
+    - ./certs:/certs
+    - ./custom_templates:/templates
+    depends_on:
+      postgresql:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    container_name: '{{ INSTANCE_CODE }}_worker'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR.
+# Si POSTGRES_USER/POSTGRES_DB vienen vacíos (la imagen usa 'postgres' por defecto),
+# caemos a 'postgres': con $POSTGRES_USER vacío pg_dump intentaría el rol "root" del SO
+# y fallaría con «role "root" does not exist».
+docker compose exec -T postgresql sh -c 'pg_dump -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-${POSTGRES_USER:-postgres}}" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura (mismo default a 'postgres')
+docker compose up -d postgresql
+for i in $(seq 1 30); do
+  docker compose exec -T postgresql sh -c 'pg_isready -U "${POSTGRES_USER:-postgres}"' && break
+  sleep 2
+done
+docker compose exec -T postgresql sh -c 'pg_restore -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-${POSTGRES_USER:-postgres}}" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgresql sh -c "psql -U \${POSTGRES_USER:-postgres} -d \${POSTGRES_DB:-postgres} -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_authentik_port_http" model="service.template.port">
+        <field name="template_id" ref="template_authentik"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">9000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_authentik_var_pg_user" model="service.template.variable">
+        <field name="template_id" ref="template_authentik"/>
+        <field name="name">pg_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">authentik</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_authentik_var_pg_db" model="service.template.variable">
+        <field name="template_id" ref="template_authentik"/>
+        <field name="name">pg_db</field>
+        <field name="var_type">string</field>
+        <field name="default_value">authentik</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_authentik_var_pg_pass" model="service.template.variable">
+        <field name="template_id" ref="template_authentik"/>
+        <field name="name">pg_pass</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_authentik_var_authentik_secret_key" model="service.template.variable">
+        <field name="template_id" ref="template_authentik"/>
+        <field name="name">authentik_secret_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_authentik_var_authentik_image" model="service.template.variable">
+        <field name="template_id" ref="template_authentik"/>
+        <field name="name">authentik_image</field>
+        <field name="var_type">string</field>
+        <field name="default_value">ghcr.io/goauthentik/server</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_authentik_var_authentik_tag" model="service.template.variable">
+        <field name="template_id" ref="template_authentik"/>
+        <field name="name">authentik_tag</field>
+        <field name="var_type">string</field>
+        <field name="default_value">2025.6.3</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_authentik_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_authentik"/>
+        <field name="name">database</field>
+        <field name="local_path">./database</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_authentik_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_authentik"/>
+        <field name="name">redis</field>
+        <field name="local_path">./redis</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_authentik_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_authentik"/>
+        <field name="name">media</field>
+        <field name="local_path">./media</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_authentik_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_authentik"/>
+        <field name="name">custom-templates</field>
+        <field name="local_path">./custom_templates</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_authentik_vol_4" model="service.template.volume">
+        <field name="template_id" ref="template_authentik"/>
+        <field name="name">certs</field>
+        <field name="local_path">./certs</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">50</field>
+    </record>
+</odoo>

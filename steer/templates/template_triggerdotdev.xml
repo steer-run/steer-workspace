@@ -1,0 +1,351 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'webapp': docker-provider, coordinator, electric): revisar backup/red/init.
+           - Owner UID:GID de 'docker-provider' (imagen ghcr.io/triggerdotdev/provider/docker:${TRIGGER_IMAGE_TAG:-v3}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'coordinator' (imagen ghcr.io/triggerdotdev/coordinator:${TRIGGER_IMAGE_TAG:-v3}) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_triggerdotdev" model="service.template">
+        <field name="name">Trigger.dev</field>
+        <field name="code">triggerdotdev</field>
+        <field name="service_code">triggerdotdev</field>
+        <field name="version">v3</field>
+        <field name="description">Trigger.dev is an open-source platform for writing reliable, long-running background jobs and AI workflows as plain TypeScript code.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Trigger.dev is an open-source platform for writing reliable, long-running background jobs and AI workflows as plain TypeScript code.</p>
+  <p>It lets developers define durable tasks that run with no timeouts, automatic retries, queues, idempotency and full observability, executing each run in isolated Docker containers. The same codebase powers both the managed cloud and the self-hosted deployment, so running it on your own infrastructure gives you the complete feature set with no run limits. It is aimed at engineering teams that need dependable background processing, scheduled jobs and AI agent orchestration without managing serverless timeout constraints.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Long-running tasks with no execution timeouts, written in standard async TypeScript</li>
+    <li>Durable execution with automatic retries, queues, concurrency control and idempotency</li>
+    <li>Real-time run subscriptions, response streaming, tracing and per-run logs</li>
+    <li>Cron and scheduled triggers, batch triggering and configurable machine resources</li>
+    <li>Custom runtimes with system packages (browsers, Python, FFmpeg) for AI and media tasks</li>
+    <li>Self-host via Docker Compose or Kubernetes (Helm) with Postgres, Redis and optional ClickHouse</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Development teams building event-driven applications, scheduled jobs, durable workflows and AI agents that need reliable, observable background execution under their own control.</p>
+</div>]]></field>
+        <field name="category">dev_tools</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/triggerdotdev.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="website_url">https://trigger.dev/</field>
+        <field name="documentation_url">https://trigger.dev/docs</field>
+        <field name="source_url">https://github.com/triggerdotdev/trigger.dev</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  webapp:
+    image: ghcr.io/triggerdotdev/trigger.dev:${TRIGGER_IMAGE_TAG:-v3}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    env_file:
+    - .env
+    environment:
+      LOGIN_ORIGIN: ${TRIGGER_PROTOCOL:-http}://${TRIGGER_DOMAIN:-localhost:3040}
+      APP_ORIGIN: ${TRIGGER_PROTOCOL:-http}://${TRIGGER_DOMAIN:-localhost:3040}
+      DEV_OTEL_EXPORTER_OTLP_ENDPOINT: ${TRIGGER_PROTOCOL:-http}://${TRIGGER_DOMAIN:-localhost:3040}/otel
+      ELECTRIC_ORIGIN: http://electric:3000
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    depends_on:
+    - postgres
+    - redis
+    networks:
+    - internal
+    - agz-proxy-network
+    container_name: '{{ INSTANCE_CODE }}'
+  postgres:
+    image: postgres:${POSTGRES_IMAGE_TAG:-16}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    volumes:
+    - ./postgres_data:/var/lib/postgresql/data/
+    env_file:
+    - .env
+    networks:
+    - internal
+    ports:
+    - 5432
+    command:
+    - -c
+    - wal_level=logical
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+  redis:
+    image: redis:${REDIS_IMAGE_TAG:-7}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    volumes:
+    - ./redis_data:/data
+    networks:
+    - internal
+    ports:
+    - 6379
+    container_name: '{{ INSTANCE_CODE }}_redis'
+  docker-provider:
+    image: ghcr.io/triggerdotdev/provider/docker:${TRIGGER_IMAGE_TAG:-v3}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    user: root
+    networks:
+    - internal
+    depends_on:
+    - webapp
+    ports:
+    - 9020
+    env_file:
+    - .env
+    environment:
+      PLATFORM_HOST: webapp
+      PLATFORM_WS_PORT: 3030
+      SECURE_CONNECTION: 'false'
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${TRIGGER_PROTOCOL:-http}://${TRIGGER_DOMAIN:-localhost:3040}/otel
+      PLATFORM_SECRET: $PROVIDER_SECRET
+    container_name: '{{ INSTANCE_CODE }}_docker_provider'
+  coordinator:
+    image: ghcr.io/triggerdotdev/coordinator:${TRIGGER_IMAGE_TAG:-v3}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    volumes:
+    - /var/run/docker.sock:/var/run/docker.sock
+    user: root
+    networks:
+    - internal
+    depends_on:
+    - webapp
+    ports:
+    - 9020
+    env_file:
+    - .env
+    environment:
+      PLATFORM_HOST: webapp
+      PLATFORM_WS_PORT: 3030
+      SECURE_CONNECTION: 'false'
+      OTEL_EXPORTER_OTLP_ENDPOINT: ${TRIGGER_PROTOCOL:-http}://${TRIGGER_DOMAIN:-localhost:3040}/otel
+      PLATFORM_SECRET: $COORDINATOR_SECRET
+    container_name: '{{ INSTANCE_CODE }}_coordinator'
+  electric:
+    image: electricsql/electric:${ELECTRIC_IMAGE_TAG:-latest}
+    restart: ${RESTART_POLICY:-unless-stopped}
+    environment:
+      DATABASE_URL: {{ database_url }}?sslmode=disable
+    networks:
+    - internal
+    depends_on:
+    - postgres
+    ports:
+    - 3000
+    container_name: '{{ INSTANCE_CODE }}_electric'
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_triggerdotdev_port_http" model="service.template.port">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_triggerdotdev_var_magic_link_secret" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">magic_link_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_triggerdotdev_var_session_secret" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">session_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_triggerdotdev_var_encryption_key" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">encryption_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_triggerdotdev_var_provider_secret" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">PROVIDER_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_triggerdotdev_var_coordinator_secret" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">COORDINATOR_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_triggerdotdev_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">db_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_triggerdotdev_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">db_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">triggerdotdev</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_triggerdotdev_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">db_name</field>
+        <field name="var_type">string</field>
+        <field name="default_value">triggerdotdev</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_triggerdotdev_var_node_env" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">node_env</field>
+        <field name="var_type">string</field>
+        <field name="default_value">production</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_triggerdotdev_var_runtime_platform" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">runtime_platform</field>
+        <field name="var_type">string</field>
+        <field name="default_value">docker-compose</field>
+        <field name="sequence">100</field>
+    </record>
+    <record id="template_triggerdotdev_var_v3_enabled" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">v3_enabled</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="sequence">110</field>
+    </record>
+    <record id="template_triggerdotdev_var_trigger_protocol" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">trigger_protocol</field>
+        <field name="var_type">string</field>
+        <field name="default_value">http</field>
+        <field name="sequence">120</field>
+    </record>
+    <record id="template_triggerdotdev_var_database_url" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">database_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">postgresql://${db_user}:${db_password}@postgres:5432/${db_name}</field>
+        <field name="sequence">130</field>
+    </record>
+    <record id="template_triggerdotdev_var_internal_otel_trace_disabled" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">internal_otel_trace_disabled</field>
+        <field name="var_type">string</field>
+        <field name="default_value">1</field>
+        <field name="sequence">140</field>
+    </record>
+    <record id="template_triggerdotdev_var_internal_otel_trace_logging_enabled" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">internal_otel_trace_logging_enabled</field>
+        <field name="var_type">string</field>
+        <field name="default_value">0</field>
+        <field name="sequence">150</field>
+    </record>
+    <record id="template_triggerdotdev_var_default_org_execution_concurrency_limit" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">default_org_execution_concurrency_limit</field>
+        <field name="var_type">string</field>
+        <field name="default_value">300</field>
+        <field name="sequence">160</field>
+    </record>
+    <record id="template_triggerdotdev_var_default_env_execution_concurrency_limit" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">default_env_execution_concurrency_limit</field>
+        <field name="var_type">string</field>
+        <field name="default_value">100</field>
+        <field name="sequence">170</field>
+    </record>
+    <record id="template_triggerdotdev_var_redis_host" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">redis_host</field>
+        <field name="var_type">string</field>
+        <field name="default_value">redis</field>
+        <field name="sequence">180</field>
+    </record>
+    <record id="template_triggerdotdev_var_redis_port" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">redis_port</field>
+        <field name="var_type">string</field>
+        <field name="default_value">6379</field>
+        <field name="sequence">190</field>
+    </record>
+    <record id="template_triggerdotdev_var_redis_tls_disabled" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">redis_tls_disabled</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="sequence">200</field>
+    </record>
+    <record id="template_triggerdotdev_var_http_server_port" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">http_server_port</field>
+        <field name="var_type">string</field>
+        <field name="default_value">9020</field>
+        <field name="sequence">210</field>
+    </record>
+    <record id="template_triggerdotdev_var_coordinator_host" model="service.template.variable">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">coordinator_host</field>
+        <field name="var_type">string</field>
+        <field name="default_value">127.0.0.1</field>
+        <field name="sequence">220</field>
+    </record>
+    <record id="template_triggerdotdev_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">postgres-data</field>
+        <field name="local_path">./postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_triggerdotdev_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_triggerdotdev"/>
+        <field name="name">redis-data</field>
+        <field name="local_path">./redis_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

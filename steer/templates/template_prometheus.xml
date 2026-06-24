@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+           - Tiene 1 mount(s) de config: revisar rutas y montaje en el compose.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_prometheus" model="service.template">
+        <field name="name">Prometheus</field>
+        <field name="code">prometheus</field>
+        <field name="service_code">prometheus</field>
+        <field name="version">latest</field>
+        <field name="description">Prometheus is the de-facto standard open-source monitoring system and time-series database for cloud-native infrastructure.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Prometheus is the de-facto standard open-source monitoring system and time-series database for cloud-native infrastructure.</p>
+  <p>It scrapes metrics from instrumented services and exporters over HTTP at regular intervals, stores them in a built-in multi-dimensional time-series database, and lets you query and alert on them with its powerful PromQL language. A CNCF graduated project, it runs as a single self-contained server with no external dependencies, making it reliable even when other systems are down. It is most often paired with Grafana for dashboards and Alertmanager for notification routing.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Multi-dimensional time-series data model with key/value labels</li>
+    <li>PromQL, a flexible query language for slicing, aggregation and computation</li>
+    <li>Pull-based metric collection over HTTP with service discovery and static targets</li>
+    <li>Rule evaluation for recording rules and threshold-based alerting</li>
+    <li>Standalone, self-contained server nodes that operate independently of network storage</li>
+    <li>Vast ecosystem of exporters and native integrations (Kubernetes, databases, hardware, apps)</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>DevOps and SRE teams that need reliable metrics-based monitoring and alerting for servers, containers and microservices, especially Kubernetes and cloud-native environments.</p>
+</div>]]></field>
+        <field name="category">monitoring</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/prometheus.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="website_url">https://prometheus.io/</field>
+        <field name="documentation_url">https://prometheus.io/docs/introduction/overview/</field>
+        <field name="source_url">https://github.com/prometheus/prometheus</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  prometheus:
+    image: prom/prometheus:latest
+    restart: unless-stopped
+    command:
+    - --config.file=/etc/prometheus/prometheus.yml
+    - --storage.tsdb.path=/prometheus
+    - --web.console.libraries=/usr/share/prometheus/console_libraries
+    - --web.console.templates=/usr/share/prometheus/consoles
+    - --web.enable-lifecycle
+    volumes:
+    - ../files/prometheus.yml:/etc/prometheus/prometheus.yml
+    - ./prometheus_data:/prometheus
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:9090'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_prometheus_port_http" model="service.template.port">
+        <field name="template_id" ref="template_prometheus"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">9090</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_prometheus_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_prometheus"/>
+        <field name="name">prometheus-data</field>
+        <field name="local_path">./prometheus_data</field>
+        <field name="owner">65534:65534</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_prometheus_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_prometheus"/>
+        <field name="name">prometheus.yml</field>
+        <field name="filename">prometheus.yml</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[# Prometheus Configuration
+# https://prometheus.io/docs/prometheus/latest/configuration/configuration/
+
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+  external_labels:
+    monitor: 'dokploy-prometheus'
+
+# Alertmanager configuration (optional)
+# alerting:
+#   alertmanagers:
+#     - static_configs:
+#         - targets:
+#           - 'alertmanager:9093'
+
+# Load rules once and periodically evaluate them
+# rule_files:
+#   - "alerts.yml"
+
+# Scrape configurations
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+
+  # Example: Add your own targets here
+  # - job_name: 'node_exporter'
+  #   static_configs:
+  #     - targets: ['node-exporter:9100']
+  
+  # - job_name: 'docker'
+  #   static_configs:
+  #     - targets: ['docker-host:9323']
+]]></field>
+    </record>
+</odoo>

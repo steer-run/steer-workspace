@@ -1,0 +1,127 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'formbricks': postgres): revisar backup/red/init.
+           - Owner UID:GID de 'postgres' (imagen pgvector/pgvector:pg17) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'formbricks' (imagen ghcr.io/formbricks/formbricks:v3.1.5) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_formbricks" model="service.template">
+        <field name="name">Formbricks</field>
+        <field name="code">formbricks</field>
+        <field name="service_code">formbricks</field>
+        <field name="version">v3.1.3</field>
+        <field name="description">Formbricks is an open-source experience management platform for building surveys and forms and collecting user feedback across every touchpoint.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Formbricks is an open-source experience management platform for building surveys and forms and collecting user feedback across every touchpoint.</p>
+  <p>Positioned as an open-source alternative to Qualtrics and Typeform, Formbricks lets product, research and marketing teams design link, email, website and in-app surveys with a no-code editor and template library. It can trigger surveys based on user behavior, target specific audiences without code changes, and aggregate responses into actionable insights. Built on a privacy-first design, it can be fully self-hosted via Docker for complete data sovereignty.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>No-code survey editor with link, email, website and in-app survey types</li>
+    <li>Behavioral triggering on page views, clicks and custom events</li>
+    <li>Audience targeting and user attributes without changing application code</li>
+    <li>Built-in analytics with aggregated, intuitive result reporting</li>
+    <li>Integrations and SDKs for Slack, Notion, Zapier, n8n and open APIs</li>
+    <li>Self-hostable via Docker with Kubernetes and Redis support for scale</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Product, UX research, growth and marketing teams that need privacy-compliant feedback collection and want to keep survey data on their own infrastructure.</p>
+</div>]]></field>
+        <field name="category">analytics</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/formbricks.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_forms')])]"/>
+        <field name="website_url">https://formbricks.com/</field>
+        <field name="documentation_url">https://formbricks.com/docs</field>
+        <field name="source_url">https://github.com/formbricks/formbricks</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  postgres:
+    restart: always
+    image: pgvector/pgvector:pg17
+    volumes:
+    - ./postgres:/var/lib/postgresql/data
+    environment:
+    - POSTGRES_PASSWORD=postgres
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    networks:
+    - internal
+  formbricks:
+    environment:
+      WEBAPP_URL: ${WEBAPP_URL}
+      NEXTAUTH_URL: ${NEXTAUTH_URL}
+      DATABASE_URL: postgresql://postgres:postgres@postgres:5432/formbricks?schema=public
+      NEXTAUTH_SECRET: ${NEXTAUTH_SECRET}
+      ENCRYPTION_KEY: ${ENCRYPTION_KEY}
+      CRON_SECRET: ${CRON_SECRET}
+      EMAIL_VERIFICATION_DISABLED: 1
+      PASSWORD_RESET_DISABLED: 1
+      S3_FORCE_PATH_STYLE: 0
+    restart: always
+    image: ghcr.io/formbricks/formbricks:v3.1.5
+    depends_on:
+    - postgres
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    volumes:
+    - ../files/uploads:/home/nextjs/apps/web/uploads/
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_formbricks_port_http" model="service.template.port">
+        <field name="template_id" ref="template_formbricks"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_formbricks_var_secret_base" model="service.template.variable">
+        <field name="template_id" ref="template_formbricks"/>
+        <field name="name">secret_base</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_formbricks_var_encryption_key" model="service.template.variable">
+        <field name="template_id" ref="template_formbricks"/>
+        <field name="name">ENCRYPTION_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_formbricks_var_cron_secret" model="service.template.variable">
+        <field name="template_id" ref="template_formbricks"/>
+        <field name="name">CRON_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_formbricks_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_formbricks"/>
+        <field name="name">postgres</field>
+        <field name="local_path">./postgres</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_formbricks_var_nextauth_secret" model="service.template.variable">
+        <field name="template_id" ref="template_formbricks"/>
+        <field name="name">NEXTAUTH_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+</odoo>

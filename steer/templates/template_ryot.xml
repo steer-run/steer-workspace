@@ -1,0 +1,128 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="template_ryot" model="service.template">
+        <field name="name">Ryot</field>
+        <field name="code">ryot</field>
+        <field name="service_code">ryot</field>
+        <field name="version">v7.10</field>
+        <field name="description">Ryot (Roll Your Own Tracker) is a self-hosted, all-in-one platform for tracking everything you consume and accomplish, from the books you read to the workouts you complete.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Ryot (Roll Your Own Tracker) is a self-hosted, all-in-one platform for tracking everything you consume and accomplish, from the books you read to the workouts you complete.</p>
+  <p>Ryot unifies media consumption and fitness tracking in a single, lightweight application with a clean interface and rich statistics. It covers books, movies, TV shows, video games, anime, manga, comics, podcasts, music and audiobooks, alongside workouts and body measurements. Built with Rust and TypeScript, it is notably memory-efficient and runs comfortably on resource-constrained hardware while integrating with services like Jellyfin, Plex, Kodi, Trakt and Goodreads.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Track many media types: books, shows, movies, games, anime, manga, comics, music, podcasts and audiobooks</li>
+    <li>Built-in fitness and health tracking for workouts and body measurements</li>
+    <li>Importers and live integrations (Jellyfin, Plex, Kodi, Trakt, Goodreads, Komga and more)</li>
+    <li>Insightful dashboards, summaries and progress statistics with smart collections</li>
+    <li>OpenID Connect (OIDC) authentication and a GraphQL API for automation</li>
+    <li>Lightweight footprint, Progressive Web App support and Docker Compose deployment</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Self-hosting enthusiasts and privacy-conscious users who want a single, data-owned place to log and visualize their media consumption and fitness activity, replacing scattered tracking services and SaaS apps.</p>
+</div>]]></field>
+        <field name="category">media</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/ryot.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="website_url">https://ryot.io/</field>
+        <field name="documentation_url">https://docs.ryot.io/</field>
+        <field name="source_url">https://github.com/IgnisDa/ryot</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  ryot-app:
+    image: ignisda/ryot:v7.10
+    environment:
+    - DATABASE_URL=postgres://postgres:{{ postgres_password }}@ryot-db:5432/postgres
+    - SERVER_ADMIN_ACCESS_TOKEN={{ admin_access_token }}
+    - TZ=UTC
+    depends_on:
+      ryot-db:
+        condition: service_healthy
+    restart: always
+    pull_policy: always
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8000'
+    networks:
+    - internal
+    - agz-proxy-network
+  ryot-db:
+    image: postgres:16-alpine
+    volumes:
+    - ./ryot_postgres_data:/var/lib/postgresql/data
+    environment:
+    - POSTGRES_PASSWORD={{ postgres_password }}
+    - POSTGRES_USER=postgres
+    - POSTGRES_DB=postgres
+    - TZ=UTC
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U postgres
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}_ryot_db'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T ryot-db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d ryot-db
+for i in $(seq 1 30); do
+  docker compose exec -T ryot-db sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T ryot-db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T ryot-db sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_ryot_port_http" model="service.template.port">
+        <field name="template_id" ref="template_ryot"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_ryot_var_admin_access_token" model="service.template.variable">
+        <field name="template_id" ref="template_ryot"/>
+        <field name="name">admin_access_token</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_ryot_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_ryot"/>
+        <field name="name">ryot-postgres-data</field>
+        <field name="local_path">./ryot_postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

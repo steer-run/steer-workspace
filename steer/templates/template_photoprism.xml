@@ -1,0 +1,201 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'photoprism' (imagen photoprism/photoprism:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_photoprism" model="service.template">
+        <field name="name">Photoprism</field>
+        <field name="code">photoprism</field>
+        <field name="service_code">photoprism</field>
+        <field name="version">latest</field>
+        <field name="description">PhotoPrism is a self-hosted, AI-powered photo and video manager that keeps your entire library private on your own server.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">PhotoPrism is a self-hosted, AI-powered photo and video manager that keeps your entire library private on your own server.</p>
+  <p>It indexes large collections of photos and videos and makes them searchable through automatic, on-device labeling, face recognition, and location-based browsing. Built in Go with a Vue progressive web app, it targets photographers, families, and power users who want cloud-grade organization and search without uploading anything to a third party.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Automatic content labeling and face recognition that run locally for full privacy</li>
+    <li>Powerful search by content, people, places, dates, colors, and metadata</li>
+    <li>RAW image, video, live photo, and PDF support with metadata editing</li>
+    <li>World maps with privacy-preserving geocoding to browse photos by location</li>
+    <li>Progressive web app plus WebDAV access for syncing and direct file management</li>
+    <li>Multi-architecture Docker images for AMD, Intel, and ARM (Raspberry Pi, Apple Silicon)</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals, families, and photographers who want to self-host and organize large photo and video libraries with AI-assisted search while keeping their data fully under their own control.</p>
+</div>]]></field>
+        <field name="category">media</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/photoprism.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_photos')])]"/>
+        <field name="website_url">https://www.photoprism.app/</field>
+        <field name="documentation_url">https://docs.photoprism.app/</field>
+        <field name="source_url">https://github.com/photoprism/photoprism</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  photoprism:
+    image: photoprism/photoprism:latest
+    stop_grace_period: 10s
+    depends_on:
+    - mariadb
+    security_opt:
+    - seccomp:unconfined
+    - apparmor:unconfined
+    environment:
+      PHOTOPRISM_ADMIN_USER: admin
+      PHOTOPRISM_ADMIN_PASSWORD: {{ admin_password }}
+      PHOTOPRISM_AUTH_MODE: password
+      PHOTOPRISM_SITE_URL: http://localhost:2342/
+      PHOTOPRISM_DISABLE_TLS: 'false'
+      PHOTOPRISM_DEFAULT_TLS: 'false'
+      PHOTOPRISM_ORIGINALS_LIMIT: 5000
+      PHOTOPRISM_HTTP_COMPRESSION: gzip
+      PHOTOPRISM_LOG_LEVEL: info
+      PHOTOPRISM_READONLY: 'false'
+      PHOTOPRISM_EXPERIMENTAL: 'false'
+      PHOTOPRISM_DISABLE_CHOWN: 'false'
+      PHOTOPRISM_DISABLE_WEBDAV: 'false'
+      PHOTOPRISM_DISABLE_SETTINGS: 'false'
+      PHOTOPRISM_DISABLE_TENSORFLOW: 'false'
+      PHOTOPRISM_DISABLE_FACES: 'false'
+      PHOTOPRISM_DISABLE_CLASSIFICATION: 'false'
+      PHOTOPRISM_DISABLE_VECTORS: 'false'
+      PHOTOPRISM_DISABLE_RAW: 'false'
+      PHOTOPRISM_RAW_PRESETS: 'false'
+      PHOTOPRISM_SIDECAR_YAML: 'true'
+      PHOTOPRISM_BACKUP_ALBUMS: 'true'
+      PHOTOPRISM_BACKUP_DATABASE: 'true'
+      PHOTOPRISM_BACKUP_SCHEDULE: daily
+      PHOTOPRISM_INDEX_SCHEDULE: ''
+      PHOTOPRISM_AUTO_INDEX: 300
+      PHOTOPRISM_AUTO_IMPORT: -1
+      PHOTOPRISM_DETECT_NSFW: 'false'
+      PHOTOPRISM_UPLOAD_NSFW: 'true'
+      PHOTOPRISM_DATABASE_DRIVER: mysql
+      PHOTOPRISM_DATABASE_SERVER: mariadb:3306
+      PHOTOPRISM_DATABASE_NAME: photoprism
+      PHOTOPRISM_DATABASE_USER: photoprism
+      PHOTOPRISM_DATABASE_PASSWORD: insecure
+      PHOTOPRISM_SITE_CAPTION: AI-Powered Photos App
+      PHOTOPRISM_SITE_DESCRIPTION: ''
+      PHOTOPRISM_SITE_AUTHOR: ''
+    working_dir: /photoprism
+    volumes:
+    - ./pictures:/photoprism/originals
+    - ./storage_data:/photoprism/storage
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:2342'
+    networks:
+    - internal
+    - agz-proxy-network
+  mariadb:
+    image: mariadb:11
+    restart: unless-stopped
+    stop_grace_period: 5s
+    security_opt:
+    - seccomp:unconfined
+    - apparmor:unconfined
+    volumes:
+    - ./db_data:/var/lib/mysql
+    environment:
+      MARIADB_AUTO_UPGRADE: '1'
+      MARIADB_INITDB_SKIP_TZINFO: '1'
+      MARIADB_DATABASE: photoprism
+      MARIADB_USER: photoprism
+      MARIADB_PASSWORD: insecure
+      MARIADB_ROOT_PASSWORD: insecure
+    container_name: '{{ INSTANCE_CODE }}_mariadb'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T mariadb sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d mariadb
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T mariadb sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_photoprism_port_http" model="service.template.port">
+        <field name="template_id" ref="template_photoprism"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">2342</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_photoprism_var_base_url" model="service.template.variable">
+        <field name="template_id" ref="template_photoprism"/>
+        <field name="name">base_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">http://${main_domain}</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_photoprism_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_photoprism"/>
+        <field name="name">pictures</field>
+        <field name="local_path">./pictures</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_photoprism_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_photoprism"/>
+        <field name="name">storage-data</field>
+        <field name="local_path">./storage_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_photoprism_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_photoprism"/>
+        <field name="name">db-data</field>
+        <field name="local_path">./db_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">30</field>
+    </record>
+</odoo>

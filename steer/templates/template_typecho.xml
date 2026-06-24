@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'typecho' (imagen 80x86/typecho:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_typecho" model="service.template">
+        <field name="name">Typecho</field>
+        <field name="code">typecho</field>
+        <field name="service_code">typecho</field>
+        <field name="version">stable</field>
+        <field name="description">Typecho is a lightweight, self-hosted PHP blogging platform that delivers a complete CMS in a remarkably small footprint.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Typecho is a lightweight, self-hosted PHP blogging platform that delivers a complete CMS in a remarkably small footprint.</p>
+  <p>Built around clean, minimal code and native Markdown support, Typecho gives writers and developers a fast, hackable blog engine without the bloat of larger platforms. It runs on common LAMP/LEMP stacks, supports multiple databases, and offers a full plugin and theme system for extending the site. It is well suited to people who want a simple, performant blog they fully control.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Native Markdown writing and clean, fast publishing workflow</li>
+    <li>Multi-database support: MySQL/MariaDB, SQLite and PostgreSQL</li>
+    <li>Extensible plugin and theme architecture with a mature ecosystem</li>
+    <li>Very low resource usage thanks to a compact, efficient codebase</li>
+    <li>Custom fields, pages and post types for flexible content</li>
+    <li>Simple installation on standard PHP hosting and easy migration</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals, developers and small teams who want a fast, minimal, fully self-hosted blog or content site with low server requirements and a clean publishing experience.</p>
+</div>]]></field>
+        <field name="category">cms</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/typecho.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_cms'), ref('agz_infra_suite.tag_blog'), ref('agz_infra_suite.tag_database')])]"/>
+        <field name="website_url">https://typecho.org/</field>
+        <field name="documentation_url">http://docs.typecho.org</field>
+        <field name="source_url">https://github.com/typecho/typecho</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  typecho:
+    image: 80x86/typecho:latest
+    restart: unless-stopped
+    environment:
+      PHP_TZ: Asia/Shanghai
+      PHP_MAX_EXECUTION_TIME: 600
+    volumes:
+    - ./typecho_data:/data
+    depends_on:
+    - db
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+  db:
+    image: mysql:5.7
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: typecho
+      MYSQL_USER: typecho
+      MYSQL_PASSWORD: typecho_password
+      MYSQL_ROOT_PASSWORD: root_password
+    volumes:
+    - ./db_data:/var/lib/mysql
+    container_name: '{{ INSTANCE_CODE }}_db'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T db sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d db
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T db sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_typecho_port_http" model="service.template.port">
+        <field name="template_id" ref="template_typecho"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_typecho_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_typecho"/>
+        <field name="name">db_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_typecho_var_root_password" model="service.template.variable">
+        <field name="template_id" ref="template_typecho"/>
+        <field name="name">root_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_typecho_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_typecho"/>
+        <field name="name">typecho_data</field>
+        <field name="local_path">./typecho_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_typecho_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_typecho"/>
+        <field name="name">db_data</field>
+        <field name="local_path">./db_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

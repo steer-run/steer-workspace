@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="template_phpmyadmin" model="service.template">
+        <field name="name">Phpmyadmin</field>
+        <field name="code">phpmyadmin</field>
+        <field name="service_code">phpmyadmin</field>
+        <field name="version">5.2.1</field>
+        <field name="description">phpMyAdmin is the de facto web-based administration tool for MySQL and MariaDB databases.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">phpMyAdmin is the de facto web-based administration tool for MySQL and MariaDB databases.</p>
+  <p>It provides a full browser interface to manage databases without touching the command line: run SQL queries, browse and edit data, design table structures, and administer users and permissions. Written in PHP and translated into dozens of languages, it is bundled by default in most LAMP stacks and shared-hosting panels, making it the most widely deployed database GUI for the MySQL family.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Browse, search, insert, edit and delete table data through the web UI</li>
+    <li>SQL editor with syntax highlighting plus visual query building</li>
+    <li>Create and manage databases, tables, indexes, views, triggers and stored routines</li>
+    <li>Import and export in SQL, CSV, XML, JSON and other formats</li>
+    <li>User and privilege administration for MySQL/MariaDB accounts</li>
+    <li>Designer view for visualizing and editing table relationships</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Developers, DBAs and sysadmins who need a no-install, point-and-click interface to inspect and maintain MySQL or MariaDB databases. Best deployed behind authentication and a reverse proxy rather than exposed directly to the internet.</p>
+</div>]]></field>
+        <field name="category">database</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/phpmyadmin.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="website_url">https://www.phpmyadmin.net/</field>
+        <field name="documentation_url">https://www.phpmyadmin.net/docs/</field>
+        <field name="source_url">https://github.com/phpmyadmin/phpmyadmin</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  db:
+    image: mysql:5.7
+    environment:
+      MYSQL_ROOT_PASSWORD: {{ mysql_root_password }}
+      MYSQL_DATABASE: tu_base_de_datos
+      MYSQL_USER: {{ mysql_user }}
+      MYSQL_PASSWORD: {{ mysql_password }}
+    volumes:
+    - ./db_data:/var/lib/mysql
+    container_name: '{{ INSTANCE_CODE }}_db'
+    restart: unless-stopped
+    networks:
+    - internal
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin:5.2.1
+    environment:
+      PMA_HOST: db
+      PMA_USER: {{ mysql_user }}
+      PMA_PASSWORD: {{ mysql_password }}
+      PMA_ARBITRARY: 1
+    depends_on:
+    - db
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T db sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d db
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T db sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_phpmyadmin_port_http" model="service.template.port">
+        <field name="template_id" ref="template_phpmyadmin"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_phpmyadmin_var_root_password" model="service.template.variable">
+        <field name="template_id" ref="template_phpmyadmin"/>
+        <field name="name">root_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_phpmyadmin_var_user_password" model="service.template.variable">
+        <field name="template_id" ref="template_phpmyadmin"/>
+        <field name="name">user_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_phpmyadmin_var_mysql_database" model="service.template.variable">
+        <field name="template_id" ref="template_phpmyadmin"/>
+        <field name="name">mysql_database</field>
+        <field name="var_type">string</field>
+        <field name="default_value">mysql</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_phpmyadmin_var_mysql_user" model="service.template.variable">
+        <field name="template_id" ref="template_phpmyadmin"/>
+        <field name="name">mysql_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">phpmyadmin</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_phpmyadmin_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_phpmyadmin"/>
+        <field name="name">db_data</field>
+        <field name="local_path">./db_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

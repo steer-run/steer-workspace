@@ -1,0 +1,153 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'calibre-web' (imagen lscr.io/linuxserver/calibre-web:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+           - Tiene 1 mount(s) de config: revisar rutas y montaje en el compose.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_calibre_web" model="service.template">
+        <field name="name">Calibre-Web</field>
+        <field name="code">calibre_web</field>
+        <field name="service_code">calibre_web</field>
+        <field name="version">latest</field>
+        <field name="description">Calibre-Web is a self-hosted web frontend that turns an existing Calibre eBook library into a clean, browser-accessible reading and management portal.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Calibre-Web is a self-hosted web frontend that turns an existing Calibre eBook library into a clean, browser-accessible reading and management portal.</p>
+  <p>It serves a valid Calibre database (metadata.db) through a modern web interface, letting you browse, search, read, and download books from any device without the Calibre desktop app. Built with Python and Flask, it is the de-facto standard for sharing a Calibre collection over the web, with multi-user support and broad e-reader compatibility. Note that in the stock edition, metadata and cover edits update the web library view but do not necessarily rewrite the underlying eBook files.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>In-browser EPUB, PDF and comic reader with search and filtering by author, series, tag or language</li>
+    <li>OPDS catalog feed compatible with KOReader, Moon+ Reader and other e-reader apps</li>
+    <li>Native Kobo sync, Send-to-Kindle, and optional on-the-fly format conversion</li>
+    <li>Metadata and cover editing with online provider lookup</li>
+    <li>Multi-user accounts, per-user shelves, and granular permissions</li>
+    <li>LDAP and OAuth authentication, plus self-update and Docker-friendly deployment</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Home-lab users, families and small teams who want to host their personal Calibre eBook collection and access it from phones, tablets and e-readers through a unified web interface.</p>
+</div>]]></field>
+        <field name="category">media</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/calibre_web.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_file_sharing')])]"/>
+        <field name="website_url">https://github.com/janeczku/calibre-web</field>
+        <field name="documentation_url">https://github.com/janeczku/calibre-web/wiki</field>
+        <field name="source_url">https://github.com/janeczku/calibre-web</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  calibre-web:
+    image: lscr.io/linuxserver/calibre-web:latest
+    restart: unless-stopped
+    environment:
+    - PUID=1000
+    - PGID=1000
+    - TZ=Etc/UTC
+    - OAUTHLIB_RELAX_TOKEN_SCOPE=1
+    volumes:
+    - ./calibre_config:/config
+    - ./calibre_books:/books
+    - ../files/startup-scripts:/custom-cont-init.d:ro
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8083'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_calibre_web_port_http" model="service.template.port">
+        <field name="template_id" ref="template_calibre_web"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8083</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_calibre_web_var_puid" model="service.template.variable">
+        <field name="template_id" ref="template_calibre_web"/>
+        <field name="name">puid</field>
+        <field name="var_type">string</field>
+        <field name="default_value">1000</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_calibre_web_var_pgid" model="service.template.variable">
+        <field name="template_id" ref="template_calibre_web"/>
+        <field name="name">pgid</field>
+        <field name="var_type">string</field>
+        <field name="default_value">1000</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_calibre_web_var_tz" model="service.template.variable">
+        <field name="template_id" ref="template_calibre_web"/>
+        <field name="name">tz</field>
+        <field name="var_type">string</field>
+        <field name="default_value">Etc/UTC</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_calibre_web_var_docker_mods" model="service.template.variable">
+        <field name="template_id" ref="template_calibre_web"/>
+        <field name="name">docker_mods</field>
+        <field name="var_type">string</field>
+        <field name="default_value">linuxserver/mods:universal-calibre</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_calibre_web_var_oauthlib_relax_token_scope" model="service.template.variable">
+        <field name="template_id" ref="template_calibre_web"/>
+        <field name="name">oauthlib_relax_token_scope</field>
+        <field name="var_type">string</field>
+        <field name="default_value">1</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_calibre_web_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_calibre_web"/>
+        <field name="name">calibre-config</field>
+        <field name="local_path">./calibre_config</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_calibre_web_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_calibre_web"/>
+        <field name="name">calibre-books</field>
+        <field name="local_path">./calibre_books</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_calibre_web_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_calibre_web"/>
+        <field name="name">metadata-db-generator.sh</field>
+        <field name="filename">metadata-db-generator.sh</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[#!/bin/bash
+
+FILE=/books/metadata.db
+PUID=1000
+PGID=1000
+
+if test -f "$FILE"; then
+    echo "$FILE already exists, skipping generation."
+else
+    echo "$FILE does not exists, downloading..."
+    # download empty database from the calibre-web repo
+    curl -L -O --output-dir /books https://github.com/janeczku/calibre-web/raw/refs/heads/master/library/metadata.db
+    echo "$FILE downloaded, setting permissions..."
+    chmod a+w $FILE
+    # this is needed for uploads, you can remove it if you don't want to allow uploads
+    chown $PUID:$PGID /books
+    echo "Permissions fixed, use /books as library path"
+fi
+]]></field>
+    </record>
+</odoo>

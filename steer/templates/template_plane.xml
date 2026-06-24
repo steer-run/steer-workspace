@@ -1,0 +1,347 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'proxy': web, space, admin, live, api, worker, beat-worker, migrator, plane-redis, plane-mq, plane-minio): revisar backup/red/init.
+           - Owner UID:GID de 'api' (imagen makeplane/plane-backend:${APP_RELEASE:-v0.27.1}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'worker' (imagen makeplane/plane-backend:${APP_RELEASE:-v0.27.1}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'beat-worker' (imagen makeplane/plane-backend:${APP_RELEASE:-v0.27.1}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'migrator' (imagen makeplane/plane-backend:${APP_RELEASE:-v0.27.1}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'plane-redis' (imagen valkey/valkey:7.2.5-alpine) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'plane-minio' (imagen minio/minio:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_plane" model="service.template">
+        <field name="name">Plane</field>
+        <field name="code">plane</field>
+        <field name="service_code">plane</field>
+        <field name="version">v0.27.1</field>
+        <field name="description">Plane is a modern, open-source project management platform and a self-hosted alternative to Jira, Linear, Monday, and ClickUp.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Plane is a modern, open-source project management platform and a self-hosted alternative to Jira, Linear, Monday, and ClickUp.</p>
+  <p>It unifies issue tracking, sprint planning, product roadmaps, and documentation in a single workspace. Built for software and product teams, Plane combines flexible work-item management with cycles (sprints), modules (epics), pages with AI-assisted writing, and analytics. The AGPL Community Edition is fully self-hostable with no limits on users or projects, giving teams complete ownership of their data.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Work items with rich text, file attachments, custom properties, and filtered views</li>
+    <li>Cycles (sprints) with burn-down charts and module-based epic organization</li>
+    <li>Pages and wiki for notes and documentation, with AI-assisted writing</li>
+    <li>Roadmaps, real-time analytics, and triage/intake workflows</li>
+    <li>Multiple views: list, kanban board, calendar, and gantt/timeline</li>
+    <li>Self-hostable via Docker, Podman, or Kubernetes with full instance admin controls</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Software, product, and engineering teams that want a self-hosted, data-owned alternative to commercial project trackers, plus organizations needing project management, sprints, and documentation in one privacy-respecting workspace.</p>
+</div>]]></field>
+        <field name="category">productivity</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/plane.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_project_management'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_documentation'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="website_url">https://plane.so</field>
+        <field name="documentation_url">https://docs.plane.so/</field>
+        <field name="source_url">https://github.com/makeplane/plane</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  web:
+    image: makeplane/plane-frontend:${APP_RELEASE:-v0.27.1}
+    command: node web/server.js web
+    depends_on:
+    - api
+    - worker
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}_web'
+    restart: unless-stopped
+    networks:
+    - internal
+  space:
+    image: makeplane/plane-space:${APP_RELEASE:-v0.27.1}
+    command: node space/server.js space
+    depends_on:
+    - api
+    - worker
+    - web
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}_space'
+    restart: unless-stopped
+    networks:
+    - internal
+  admin:
+    image: makeplane/plane-admin:${APP_RELEASE:-v0.27.1}
+    command: node admin/server.js admin
+    depends_on:
+    - api
+    - web
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}_admin'
+    restart: unless-stopped
+    networks:
+    - internal
+  live:
+    image: makeplane/plane-live:${APP_RELEASE:-v0.27.1}
+    command: node live/dist/server.js live
+    depends_on:
+    - api
+    - web
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}_live'
+    restart: unless-stopped
+    networks:
+    - internal
+  api:
+    image: makeplane/plane-backend:${APP_RELEASE:-v0.27.1}
+    command: ./bin/docker-entrypoint-api.sh
+    volumes:
+    - ./logs_api:/code/plane/logs
+    depends_on:
+    - plane-db
+    - plane-redis
+    - plane-mq
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}_api'
+    restart: unless-stopped
+    networks:
+    - internal
+  worker:
+    image: makeplane/plane-backend:${APP_RELEASE:-v0.27.1}
+    command: ./bin/docker-entrypoint-worker.sh
+    volumes:
+    - ./logs_worker:/code/plane/logs
+    depends_on:
+    - api
+    - plane-db
+    - plane-redis
+    - plane-mq
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}_worker'
+    restart: unless-stopped
+    networks:
+    - internal
+  beat-worker:
+    image: makeplane/plane-backend:${APP_RELEASE:-v0.27.1}
+    command: ./bin/docker-entrypoint-beat.sh
+    volumes:
+    - ./logs_beat_worker:/code/plane/logs
+    depends_on:
+    - api
+    - plane-db
+    - plane-redis
+    - plane-mq
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}_beat_worker'
+    restart: unless-stopped
+    networks:
+    - internal
+  migrator:
+    image: makeplane/plane-backend:${APP_RELEASE:-v0.27.1}
+    command: ./bin/docker-entrypoint-migrator.sh
+    volumes:
+    - ./logs_migrator:/code/plane/logs
+    depends_on:
+    - plane-db
+    - plane-redis
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}_migrator'
+    restart: unless-stopped
+    networks:
+    - internal
+  plane-db:
+    image: postgres:17-alpine
+    command: postgres -c 'max_connections=1000'
+    volumes:
+    - ./pgdata:/var/lib/postgresql/data
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}_plane_db'
+    restart: unless-stopped
+    networks:
+    - internal
+  plane-redis:
+    image: valkey/valkey:7.2.5-alpine
+    volumes:
+    - ./redisdata:/data
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}_plane_redis'
+    restart: unless-stopped
+    networks:
+    - internal
+  plane-mq:
+    image: rabbitmq:3.13.6-management-alpine
+    volumes:
+    - ./rabbitmq_data:/var/lib/rabbitmq
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}_plane_mq'
+    restart: unless-stopped
+    networks:
+    - internal
+  plane-minio:
+    image: minio/minio:latest
+    command: server /export --console-address ":9090"
+    volumes:
+    - ./uploads:/export
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}_plane_minio'
+    restart: unless-stopped
+    networks:
+    - internal
+  proxy:
+    image: makeplane/plane-proxy:${APP_RELEASE:-v0.27.1}
+    depends_on:
+    - web
+    - api
+    - space
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T plane-db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d plane-db
+for i in $(seq 1 30); do
+  docker compose exec -T plane-db sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T plane-db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T plane-db sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_plane_port_http" model="service.template.port">
+        <field name="template_id" ref="template_plane"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_plane_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_plane"/>
+        <field name="name">db_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_plane_var_minio_password" model="service.template.variable">
+        <field name="template_id" ref="template_plane"/>
+        <field name="name">minio_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_plane_var_rabbitmq_pass" model="service.template.variable">
+        <field name="template_id" ref="template_plane"/>
+        <field name="name">rabbitmq_pass</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_plane_var_secret_key" model="service.template.variable">
+        <field name="template_id" ref="template_plane"/>
+        <field name="name">secret_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_plane_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_plane"/>
+        <field name="name">logs_api</field>
+        <field name="local_path">./logs_api</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_plane_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_plane"/>
+        <field name="name">logs_worker</field>
+        <field name="local_path">./logs_worker</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_plane_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_plane"/>
+        <field name="name">logs_beat-worker</field>
+        <field name="local_path">./logs_beat_worker</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_plane_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_plane"/>
+        <field name="name">logs_migrator</field>
+        <field name="local_path">./logs_migrator</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_plane_vol_4" model="service.template.volume">
+        <field name="template_id" ref="template_plane"/>
+        <field name="name">pgdata</field>
+        <field name="local_path">./pgdata</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_plane_vol_5" model="service.template.volume">
+        <field name="template_id" ref="template_plane"/>
+        <field name="name">redisdata</field>
+        <field name="local_path">./redisdata</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_plane_vol_6" model="service.template.volume">
+        <field name="template_id" ref="template_plane"/>
+        <field name="name">rabbitmq_data</field>
+        <field name="local_path">./rabbitmq_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_plane_vol_7" model="service.template.volume">
+        <field name="template_id" ref="template_plane"/>
+        <field name="name">uploads</field>
+        <field name="local_path">./uploads</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">80</field>
+    </record>
+</odoo>

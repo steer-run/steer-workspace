@@ -1,0 +1,230 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'app': minio, chrome): revisar backup/red/init.
+           - Owner UID:GID de 'minio' (imagen minio/minio:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_reactive_resume" model="service.template">
+        <field name="name">Reactive Resume</field>
+        <field name="code">reactive_resume</field>
+        <field name="service_code">reactive_resume</field>
+        <field name="version">latest</field>
+        <field name="description">Reactive Resume is a privacy-first, open-source resume builder that lets you create, manage, and share professional resumes without giving up control of your data.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Reactive Resume is a privacy-first, open-source resume builder that lets you create, manage, and share professional resumes without giving up control of your data.</p>
+  <p>It provides a real-time editor with dozens of templates, drag-and-drop section layouts, and one-click PDF export, all without requiring an account for basic use. Designed for individuals who value privacy, it ships with no tracking or analytics by default and can be fully self-hosted in minutes via Docker, giving you complete ownership of your information. Optional AI assistance helps refine your writing.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Real-time WYSIWYG editor with dozens of customizable templates</li>
+    <li>Drag-and-drop section reordering and flexible page layouts</li>
+    <li>Client-side PDF export and shareable public resume links with view tracking</li>
+    <li>Privacy by design: no tracking or analytics, full data export</li>
+    <li>Secure accounts with passkeys and two-factor authentication</li>
+    <li>Multi-language interface and optional AI writing assistance</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Job seekers, freelancers, and privacy-conscious users who want to build and maintain polished resumes on their own infrastructure, as well as teams or career-services providers looking to offer a self-hosted resume platform.</p>
+</div>]]></field>
+        <field name="category">productivity</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/reactive_resume.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="website_url">https://rxresu.me/</field>
+        <field name="documentation_url">https://docs.rxresu.me/</field>
+        <field name="source_url">https://github.com/AmruthPillai/Reactive-Resume</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  postgres:
+    image: postgres:16-alpine
+    volumes:
+    - ./postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: postgres
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U postgres -d postgres
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    restart: unless-stopped
+    networks:
+    - internal
+  minio:
+    image: minio/minio:latest
+    command: server /data
+    volumes:
+    - ./minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${MINIO_ROOT_USER}
+      MINIO_ROOT_PASSWORD: ${MINIO_ROOT_PASSWORD}
+    container_name: '{{ INSTANCE_CODE }}_minio'
+    restart: unless-stopped
+    networks:
+    - internal
+  chrome:
+    image: ghcr.io/browserless/chromium:v2.18.0
+    extra_hosts:
+    - host.docker.internal:host-gateway
+    environment:
+      TIMEOUT: 10000
+      CONCURRENT: 10
+      TOKEN: ${CHROME_TOKEN}
+      EXIT_ON_HEALTH_FAILURE: 'true'
+      PRE_REQUEST_HEALTH_CHECK: 'true'
+    container_name: '{{ INSTANCE_CODE }}_chrome'
+    restart: unless-stopped
+    networks:
+    - internal
+  app:
+    image: amruthpillai/reactive-resume:latest
+    depends_on:
+    - postgres
+    - minio
+    - chrome
+    environment:
+      PORT: 3000
+      NODE_ENV: production
+      PUBLIC_URL: https://{{ instance.full_domain }}
+      STORAGE_URL: https://{{ instance.full_domain }}/default
+      CHROME_TOKEN: ${CHROME_TOKEN}
+      CHROME_URL: ws://chrome:3000
+      DATABASE_URL: postgresql://postgres:${POSTGRES_PASSWORD}@postgres:5432/postgres
+      ACCESS_TOKEN_SECRET: ${ACCESS_TOKEN_SECRET}
+      REFRESH_TOKEN_SECRET: ${REFRESH_TOKEN_SECRET}
+      MAIL_FROM: {{ MAIL_FROM }}
+      STORAGE_ENDPOINT: minio
+      STORAGE_PORT: 9000
+      STORAGE_REGION: us-east-1
+      STORAGE_BUCKET: default
+      STORAGE_ACCESS_KEY: ${MINIO_ROOT_USER}
+      STORAGE_SECRET_KEY: ${MINIO_ROOT_PASSWORD}
+      STORAGE_USE_SSL: 'false'
+      STORAGE_SKIP_BUCKET_CHECK: 'false'
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_reactive_resume_port_http" model="service.template.port">
+        <field name="template_id" ref="template_reactive_resume"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_reactive_resume_var_postgres_password" model="service.template.variable">
+        <field name="template_id" ref="template_reactive_resume"/>
+        <field name="name">POSTGRES_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_reactive_resume_var_minio_user" model="service.template.variable">
+        <field name="template_id" ref="template_reactive_resume"/>
+        <field name="name">minio_user</field>
+        <field name="var_type">string</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_reactive_resume_var_minio_password" model="service.template.variable">
+        <field name="template_id" ref="template_reactive_resume"/>
+        <field name="name">minio_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_reactive_resume_var_chrome_token" model="service.template.variable">
+        <field name="template_id" ref="template_reactive_resume"/>
+        <field name="name">CHROME_TOKEN</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_reactive_resume_var_access_token_secret" model="service.template.variable">
+        <field name="template_id" ref="template_reactive_resume"/>
+        <field name="name">ACCESS_TOKEN_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_reactive_resume_var_refresh_token_secret" model="service.template.variable">
+        <field name="template_id" ref="template_reactive_resume"/>
+        <field name="name">REFRESH_TOKEN_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_reactive_resume_var_mail_from" model="service.template.variable">
+        <field name="template_id" ref="template_reactive_resume"/>
+        <field name="name">MAIL_FROM</field>
+        <field name="var_type">string</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_reactive_resume_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_reactive_resume"/>
+        <field name="name">postgres_data</field>
+        <field name="local_path">./postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_reactive_resume_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_reactive_resume"/>
+        <field name="name">minio_data</field>
+        <field name="local_path">./minio_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_reactive_resume_var_minio_root_password" model="service.template.variable">
+        <field name="template_id" ref="template_reactive_resume"/>
+        <field name="name">MINIO_ROOT_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">80</field>
+    </record>
+</odoo>

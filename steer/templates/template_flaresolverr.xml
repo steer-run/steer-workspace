@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_flaresolverr" model="service.template">
+        <field name="name">FlareSolverr</field>
+        <field name="code">flaresolverr</field>
+        <field name="service_code">flaresolverr</field>
+        <field name="version">latest</field>
+        <field name="description">FlareSolverr is a proxy server that transparently solves Cloudflare and DDoS-GUARD anti-bot challenges so your clients can reach protected sites.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">FlareSolverr is a proxy server that transparently solves Cloudflare and DDoS-GUARD anti-bot challenges so your clients can reach protected sites.</p>
+  <p>It runs a real headless Chrome browser (Selenium with undetected-chromedriver), navigates to the target URL, waits for the JavaScript challenge to clear, and returns the resulting HTML together with the validated cookies and user-agent. Other tools then reuse those cookies to access the site directly. It is the de-facto Cloudflare-bypass companion for indexer and scraper stacks such as Prowlarr, Jackett, Sonarr and Radarr, and exposes a simple HTTP API that is easy to integrate.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Solves Cloudflare "I'm Under Attack" / "Just a moment" interstitials and DDoS-GUARD challenges</li>
+    <li>Simple JSON HTTP API (request.get / request.post) returning HTML, cookies and user-agent</li>
+    <li>Persistent browser sessions to avoid re-solving challenges and reduce overhead</li>
+    <li>Upstream proxy support, so requests can be routed through your own proxies</li>
+    <li>Drop-in integration with the *arr indexer ecosystem (Prowlarr, Jackett) and custom scrapers</li>
+    <li>Lightweight container deployment with Docker / Docker Compose</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Self-hosters running indexers or scrapers that hit Cloudflare-protected sites, and developers who need a programmatic way to fetch pages behind anti-bot interstitials. Best deployed on a trusted internal network rather than exposed publicly.</p>
+</div>]]></field>
+        <field name="category">networking</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/flaresolverr.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_proxy'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_web_scraping')])]"/>
+        <field name="website_url">https://github.com/FlareSolverr/FlareSolverr</field>
+        <field name="documentation_url">https://github.com/FlareSolverr/FlareSolverr</field>
+        <field name="source_url">https://github.com/FlareSolverr/FlareSolverr</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  flaresolverr:
+    image: ghcr.io/flaresolverr/flaresolverr:latest
+    ports:
+    - '{{ PORT_HTTP }}:8191'
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_flaresolverr_port_http" model="service.template.port">
+        <field name="template_id" ref="template_flaresolverr"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8191</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_flaresolverr_var_log_level" model="service.template.variable">
+        <field name="template_id" ref="template_flaresolverr"/>
+        <field name="name">log_level</field>
+        <field name="var_type">string</field>
+        <field name="default_value">info</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_flaresolverr_var_log_html" model="service.template.variable">
+        <field name="template_id" ref="template_flaresolverr"/>
+        <field name="name">log_html</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_flaresolverr_var_captcha_solver" model="service.template.variable">
+        <field name="template_id" ref="template_flaresolverr"/>
+        <field name="name">captcha_solver</field>
+        <field name="var_type">string</field>
+        <field name="default_value">none</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_flaresolverr_var_tz" model="service.template.variable">
+        <field name="template_id" ref="template_flaresolverr"/>
+        <field name="name">tz</field>
+        <field name="var_type">string</field>
+        <field name="default_value">Europe/London</field>
+        <field name="sequence">40</field>
+    </record>
+</odoo>

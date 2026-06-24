@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'influxdb' (imagen influxdb:2.7.10) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_influxdb" model="service.template">
+        <field name="name">InfluxDB</field>
+        <field name="code">influxdb</field>
+        <field name="service_code">influxdb</field>
+        <field name="version">2.7.10</field>
+        <field name="description">InfluxDB is a purpose-built, high-performance time-series database for collecting, storing, querying and visualizing metrics, events and real-time data.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">InfluxDB is a purpose-built, high-performance time-series database for collecting, storing, querying and visualizing metrics, events and real-time data.</p>
+  <p>It is optimized for high-volume, timestamped data such as infrastructure metrics, application telemetry, IoT sensor streams and financial ticks. The current open-source generation (InfluxDB 3 Core) is a single-node engine written in Rust on top of Apache Arrow, DataFusion and Parquet, with a diskless architecture that can back its storage onto local disk or object storage (S3, GCS, Azure Blob). It serves both SQL and InfluxQL, and the still-maintained 2.x line adds the Flux language. InfluxDB is the heart of the widely used TIG stack (Telegraf for collection, InfluxDB for storage, Grafana for dashboards).</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>High-speed ingest with sub-10ms queries on recent data and support for unlimited cardinality</li>
+    <li>Columnar engine built on Apache Arrow, DataFusion and Parquet for efficient compression and analytics</li>
+    <li>Object-storage-backed, diskless design that scales compute and storage independently</li>
+    <li>Native SQL and InfluxQL querying (plus Flux in the 2.x line)</li>
+    <li>First-class integration with Telegraf agents and Grafana dashboards (the TIG stack)</li>
+    <li>Scoped API tokens, retention/downsampling controls and a broad client/integration ecosystem</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams that need to store and analyze large volumes of timestamped data: infrastructure and application monitoring, observability pipelines, IoT and edge telemetry, and real-time operational analytics.</p>
+</div>]]></field>
+        <field name="category">database</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/influxdb.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_analytics')])]"/>
+        <field name="website_url">https://www.influxdata.com/</field>
+        <field name="documentation_url">https://docs.influxdata.com/influxdb/v2/</field>
+        <field name="source_url">https://github.com/influxdata/influxdb</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  influxdb:
+    image: influxdb:2.7.10
+    restart: unless-stopped
+    volumes:
+    - ./influxdb2_data:/var/lib/influxdb2
+    - ./influxdb2_config:/etc/influxdb2
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8086'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_influxdb_port_http" model="service.template.port">
+        <field name="template_id" ref="template_influxdb"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8086</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_influxdb_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_influxdb"/>
+        <field name="name">influxdb2-data</field>
+        <field name="local_path">./influxdb2_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_influxdb_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_influxdb"/>
+        <field name="name">influxdb2-config</field>
+        <field name="local_path">./influxdb2_config</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

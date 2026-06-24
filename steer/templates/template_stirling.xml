@@ -1,0 +1,115 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'stirling-pdf' (imagen docker.stirlingpdf.com/stirlingtools/stirling-pdf:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_stirling" model="service.template">
+        <field name="name">Stirling PDF</field>
+        <field name="code">stirling</field>
+        <field name="service_code">stirling</field>
+        <field name="version">0.30.1</field>
+        <field name="description">Stirling PDF is a privacy-first, self-hosted toolkit that handles every common PDF operation entirely on your own server.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Stirling PDF is a privacy-first, self-hosted toolkit that handles every common PDF operation entirely on your own server.</p>
+  <p>It packs 50+ tools to merge, split, convert, OCR, compress, edit, sign and redact PDFs through a clean browser interface, with no documents ever leaving your infrastructure. Files are processed locally and removed after each operation, making it a drop-in replacement for online services like iLovePDF or Smallpdf for individuals and organizations that need to keep documents private. It also exposes a REST API and no-code automation pipelines for bulk processing.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>50+ PDF tools: merge, split, convert, OCR, compress, edit, rotate and reorder pages</li>
+    <li>Digital signing, certificate-based signatures and redaction</li>
+    <li>No-code automation workflows plus a REST API for nearly every tool</li>
+    <li>Browser UI, native desktop apps and a self-hosted server, all available offline</li>
+    <li>Local in-memory processing with files deleted after each operation</li>
+    <li>Multilingual interface (40+ languages) and enterprise options like SSO and audit logging</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Privacy-conscious individuals, teams and organizations that want a complete on-premises PDF suite, replacing cloud PDF services and enabling automated document workflows without sending files to third parties.</p>
+</div>]]></field>
+        <field name="category">productivity</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/stirling.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_automation')])]"/>
+        <field name="website_url">https://www.stirlingpdf.com/</field>
+        <field name="documentation_url">https://docs.stirlingpdf.com/</field>
+        <field name="source_url">https://github.com/Stirling-Tools/Stirling-PDF</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  stirling-pdf:
+    image: docker.stirlingpdf.com/stirlingtools/stirling-pdf:latest
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    volumes:
+    - ./stirling_pdf_trainingdata:/usr/share/tessdata
+    - ./stirling_pdf_extraconfigs:/configs
+    - ./stirling_pdf_customfiles:/customFiles/
+    - ./stirling_pdf_logs:/logs/
+    - ./stirling_pdf_pipeline:/pipeline/
+    environment:
+    - DOCKER_ENABLE_SECURITY=false
+    - LANGS=en_GB
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_stirling_port_http" model="service.template.port">
+        <field name="template_id" ref="template_stirling"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_stirling_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_stirling"/>
+        <field name="name">stirling_pdf_trainingdata</field>
+        <field name="local_path">./stirling_pdf_trainingdata</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_stirling_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_stirling"/>
+        <field name="name">stirling_pdf_extraconfigs</field>
+        <field name="local_path">./stirling_pdf_extraconfigs</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_stirling_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_stirling"/>
+        <field name="name">stirling_pdf_customfiles</field>
+        <field name="local_path">./stirling_pdf_customfiles</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_stirling_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_stirling"/>
+        <field name="name">stirling_pdf_logs</field>
+        <field name="local_path">./stirling_pdf_logs</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_stirling_vol_4" model="service.template.volume">
+        <field name="template_id" ref="template_stirling"/>
+        <field name="name">stirling_pdf_pipeline</field>
+        <field name="local_path">./stirling_pdf_pipeline</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">50</field>
+    </record>
+</odoo>

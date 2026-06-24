@@ -1,0 +1,98 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="template_ghost" model="service.template">
+        <field name="name">Ghost</field>
+        <field name="code">ghost</field>
+        <field name="service_code">ghost</field>
+        <field name="version">6.0.0</field>
+        <field name="description">Ghost is a free and open source, professional publishing platform built on a modern Node.js technology stack.</field>
+        <field name="category">cms</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/ghost.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_cms'), ref('agz_infra_suite.tag_self_hosted')])]"/>
+        <field name="website_url">https://ghost.org/</field>
+        <field name="documentation_url">https://ghost.org/docs/</field>
+        <field name="source_url">https://github.com/TryGhost/Ghost</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  ghost:
+    image: ghost:6-alpine
+    restart: always
+    environment:
+      database__client: mysql
+      database__connection__host: db
+      database__connection__user: root
+      database__connection__password: example
+      database__connection__database: ghost
+      url: http://${GHOST_HOST}
+    volumes:
+    - ./ghost:/var/lib/ghost/content
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:2368'
+    networks:
+    - internal
+    - agz-proxy-network
+  db:
+    image: mysql:8.0
+    restart: always
+    environment:
+      MYSQL_ROOT_PASSWORD: example
+    volumes:
+    - ./db:/var/lib/mysql
+    container_name: '{{ INSTANCE_CODE }}_db'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+# Dump consistente de MySQL/MariaDB (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T db sh -c 'exec mysqldump -uroot -p"$MYSQL_ROOT_PASSWORD" --single-transaction --all-databases' \
+  > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+docker compose up -d db
+for i in $(seq 1 30); do
+  docker compose exec -T db sh -c 'mysqladmin ping -uroot -p"$MYSQL_ROOT_PASSWORD" --silent' && break
+  sleep 2
+done
+docker compose exec -T db sh -c 'exec mysql -uroot -p"$MYSQL_ROOT_PASSWORD"' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_ghost_port_http" model="service.template.port">
+        <field name="template_id" ref="template_ghost"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">2368</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_ghost_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_ghost"/>
+        <field name="name">ghost</field>
+        <field name="local_path">./ghost</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_ghost_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_ghost"/>
+        <field name="name">db</field>
+        <field name="local_path">./db</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

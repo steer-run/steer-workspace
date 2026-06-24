@@ -1,0 +1,235 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'superset' (imagen amancevice/superset:6.0.0) desconocido → DEFAULT 1000:1000, verificar.
+           - Tiene 1 mount(s) de config: revisar rutas y montaje en el compose.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_superset" model="service.template">
+        <field name="name">Superset (Unofficial)</field>
+        <field name="code">superset</field>
+        <field name="service_code">superset</field>
+        <field name="version">6.0.0</field>
+        <field name="description">Apache Superset is a modern, enterprise-ready data exploration and visualization platform that turns any SQL data source into interactive dashboards.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Apache Superset is a modern, enterprise-ready data exploration and visualization platform that turns any SQL data source into interactive dashboards.</p>
+  <p>Maintained by the Apache Software Foundation, Superset lets analysts and data teams build charts and dashboards with no code while also offering a full SQL editor for power users. It connects to virtually any SQL-speaking database or data engine through SQLAlchemy and is proven at massive scale by companies such as Airbnb, Dropbox and Netflix, making it a credible open-source alternative to proprietary BI suites.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>No-code chart builder with 40+ visualization types and a plugin architecture for custom charts</li>
+    <li>SQL Lab IDE for ad-hoc queries, metadata browsing and Jinja templating</li>
+    <li>Connects to 40+ databases and data engines (PostgreSQL, MySQL, BigQuery, Snowflake, Trino, Presto and more)</li>
+    <li>Interactive dashboards with cross-filters, drill-down and a reusable semantic layer of datasets and metrics</li>
+    <li>Configurable caching layer plus async queries for performance at scale</li>
+    <li>Granular role-based access control, multiple authentication backends and a REST API</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Data teams, analysts and organizations that want a self-hosted, open-source business intelligence and dashboarding platform to explore SQL data and share insights without per-seat licensing.</p>
+</div>]]></field>
+        <field name="category">analytics</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/superset.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="website_url">https://superset.apache.org</field>
+        <field name="documentation_url">https://superset.apache.org/docs/intro</field>
+        <field name="source_url">https://github.com/amancevice/docker-superset</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  superset:
+    image: amancevice/superset:6.0.0
+    restart: unless-stopped
+    depends_on:
+    - superset_postgres
+    - superset_redis
+    volumes:
+    - ../files/superset/superset_config.py:/etc/superset/superset_config.py
+    environment:
+      SECRET_KEY: {{ secret_key }}
+      MAPBOX_API_KEY: {{ mapbox_api_key }}
+      POSTGRES_USER: {{ postgres_user }}
+      POSTGRES_PASSWORD: {{ postgres_password }}
+      POSTGRES_DB: {{ postgres_db }}
+      REDIS_PASSWORD: {{ redis_password }}
+      POSTGRES_HOST: superset_postgres
+      REDIS_HOST: superset_redis
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8088'
+    networks:
+    - internal
+    - agz-proxy-network
+  superset_postgres:
+    image: postgres:18
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: {{ postgres_user }}
+      POSTGRES_PASSWORD: {{ postgres_password }}
+      POSTGRES_DB: {{ postgres_db }}
+    volumes:
+    - ./superset_postgres_data:/var/lib/postgresql
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U ${{ postgres_user }} -d ${{ postgres_db }}
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}_superset_postgres'
+    networks:
+    - internal
+  superset_redis:
+    image: redis:8
+    restart: unless-stopped
+    volumes:
+    - ./superset_redis_data:/data
+    command: redis-server --requirepass {{ redis_password }}
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - redis-cli -a ${{ redis_password }} ping
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}_superset_redis'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T superset_postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d superset_postgres
+for i in $(seq 1 30); do
+  docker compose exec -T superset_postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T superset_postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T superset_postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_superset_port_http" model="service.template.port">
+        <field name="template_id" ref="template_superset"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8088</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_superset_var_secret_key" model="service.template.variable">
+        <field name="template_id" ref="template_superset"/>
+        <field name="name">secret_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_superset_var_postgres_password" model="service.template.variable">
+        <field name="template_id" ref="template_superset"/>
+        <field name="name">postgres_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_superset_var_redis_password" model="service.template.variable">
+        <field name="template_id" ref="template_superset"/>
+        <field name="name">redis_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_superset_var_mapbox_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_superset"/>
+        <field name="name">mapbox_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_superset_var_postgres_db" model="service.template.variable">
+        <field name="template_id" ref="template_superset"/>
+        <field name="name">postgres_db</field>
+        <field name="var_type">string</field>
+        <field name="default_value">superset</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_superset_var_postgres_user" model="service.template.variable">
+        <field name="template_id" ref="template_superset"/>
+        <field name="name">postgres_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">superset</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_superset_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_superset"/>
+        <field name="name">superset_postgres_data</field>
+        <field name="local_path">./superset_postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_superset_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_superset"/>
+        <field name="name">superset_redis_data</field>
+        <field name="local_path">./superset_redis_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_superset_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_superset"/>
+        <field name="name">superset_config.py</field>
+        <field name="filename">superset_config.py</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA["""
+For more configuration options, see:
+- https://superset.apache.org/docs/configuration/configuring-superset
+"""
+
+import os
+
+SECRET_KEY = os.getenv("SECRET_KEY")
+MAPBOX_API_KEY = os.getenv("MAPBOX_API_KEY", "")
+
+CACHE_CONFIG = {
+  "CACHE_TYPE": "RedisCache",
+  "CACHE_DEFAULT_TIMEOUT": 300,
+  "CACHE_KEY_PREFIX": "superset_",
+  "CACHE_REDIS_HOST": "redis",
+  "CACHE_REDIS_PORT": 6379,
+  "CACHE_REDIS_DB": 1,
+  "CACHE_REDIS_URL": f"redis://:{os.getenv('REDIS_PASSWORD')}@{os.getenv('REDIS_HOST')}:6379/1",
+}
+
+FILTER_STATE_CACHE_CONFIG = {**CACHE_CONFIG, "CACHE_KEY_PREFIX": "superset_filter_"}
+EXPLORE_FORM_DATA_CACHE_CONFIG = {**CACHE_CONFIG, "CACHE_KEY_PREFIX": "superset_explore_form_"}
+
+SQLALCHEMY_TRACK_MODIFICATIONS = True
+SQLALCHEMY_DATABASE_URI = f"postgresql+psycopg2://{os.getenv('POSTGRES_USER')}:{os.getenv('POSTGRES_PASSWORD')}@{os.getenv('POSTGRES_HOST')}:5432/{os.getenv('POSTGRES_DB')}"
+
+# Uncomment if you want to load example data (using "superset load_examples") at the
+# same location as your metadata postgresql instance. Otherwise, the default sqlite
+# will be used, which will not persist in volume when restarting superset by default.
+#SQLALCHEMY_EXAMPLES_URI = SQLALCHEMY_DATABASE_URI 
+]]></field>
+    </record>
+</odoo>

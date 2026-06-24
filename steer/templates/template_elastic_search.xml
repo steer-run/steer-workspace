@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'kibana': elasticsearch): revisar backup/red/init.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_elastic_search" model="service.template">
+        <field name="name">Elasticsearch</field>
+        <field name="code">elastic_search</field>
+        <field name="service_code">elastic_search</field>
+        <field name="version">8.10.2</field>
+        <field name="description">Elasticsearch is a distributed, RESTful search and analytics engine that stores, searches and analyzes large volumes of data in near real time.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Elasticsearch is a distributed, RESTful search and analytics engine that stores, searches and analyzes large volumes of data in near real time.</p>
+  <p>Built on Apache Lucene, it is the heart of the Elastic (ELK) Stack and powers full-text search, structured queries, aggregations and vector similarity search over text, logs, metrics and embeddings. Its horizontally scalable, sharded architecture lets a single cluster grow from a laptop to thousands of nodes, making it a common foundation for log analytics, observability, application search and AI retrieval workloads.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Fast full-text search with relevance ranking, fuzzy matching and rich query DSL</li>
+    <li>Native vector database with kNN search for semantic and AI/RAG use cases</li>
+    <li>Real-time aggregations and analytics over structured and unstructured data</li>
+    <li>Distributed, sharded and replicated design for horizontal scaling and high availability</li>
+    <li>Built-in security: TLS, authentication, role-based access control and audit logging</li>
+    <li>REST API plus official clients and broad integration with the ELK Stack (Kibana, Beats, Logstash)</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams that need a scalable engine for log and observability analytics, site or application search, or semantic/vector retrieval for AI applications, and that want to self-host the data store behind those workloads.</p>
+</div>]]></field>
+        <field name="category">database</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/elastic_search.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_logging'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_monitoring')])]"/>
+        <field name="website_url">https://www.elastic.co/elasticsearch/</field>
+        <field name="documentation_url">https://docs.elastic.co/elasticsearch/</field>
+        <field name="source_url">https://github.com/elastic/elasticsearch</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  elasticsearch:
+    image: docker.elastic.co/elasticsearch/elasticsearch:8.10.2
+    container_name: '{{ INSTANCE_CODE }}_elasticsearch'
+    environment:
+    - discovery.type=single-node
+    - xpack.security.enabled=false
+    - bootstrap.memory_lock=true
+    - ES_JAVA_OPTS=-Xms512m -Xmx512m
+    ulimits:
+      memlock:
+        soft: -1
+        hard: -1
+    ports:
+    - '9200'
+    volumes:
+    - ./es_data:/usr/share/elasticsearch/data
+    restart: unless-stopped
+    networks:
+    - internal
+  kibana:
+    image: docker.elastic.co/kibana/kibana:8.10.2
+    container_name: '{{ INSTANCE_CODE }}'
+    environment:
+    - ELASTICSEARCH_HOSTS=http://elasticsearch:9200
+    ports:
+    - '{{ PORT_HTTP }}:5601'
+    depends_on:
+    - elasticsearch
+    restart: unless-stopped
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_elastic_search_port_http" model="service.template.port">
+        <field name="template_id" ref="template_elastic_search"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">5601</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_elastic_search_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_elastic_search"/>
+        <field name="name">es_data</field>
+        <field name="local_path">./es_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

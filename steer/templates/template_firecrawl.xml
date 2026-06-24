@@ -1,0 +1,267 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'api': playwright-service, worker, extract-worker, nuq-postgres): revisar backup/red/init.
+           - Owner UID:GID de 'nuq-postgres' (imagen None) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_firecrawl" model="service.template">
+        <field name="name">Firecrawl</field>
+        <field name="code">firecrawl</field>
+        <field name="service_code">firecrawl</field>
+        <field name="version">latest</field>
+        <field name="description">Firecrawl turns any website into clean, LLM-ready data through a single API for scraping, crawling, and searching the web.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Firecrawl turns any website into clean, LLM-ready data through a single API for scraping, crawling, and searching the web.</p>
+  <p>It takes a URL and returns clean Markdown, HTML, screenshots, or structured JSON, and can crawl every accessible subpage of a site to deliver consistent data for each one. Built for developers and AI applications that need reliable web content for retrieval, indexing, and extraction pipelines, it handles dynamic JavaScript pages, page interactions, and bulk processing. The self-hosted edition runs on Docker with PostgreSQL and Redis, giving teams full control over where their data is processed.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Scrape any URL into Markdown, HTML, screenshots, or structured JSON</li>
+    <li>Crawl entire sites and map all discoverable URLs</li>
+    <li>Renders dynamic JavaScript pages and executes page actions (click, scroll, type)</li>
+    <li>Batch scraping and queue-based job management for processing at scale</li>
+    <li>Optional AI-powered extraction into structured schemas via an LLM (OpenAI, Ollama)</li>
+    <li>Official SDKs for Python, Node.js, Go, Rust, Java, and Elixir</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Developers, data engineers, and AI teams building RAG pipelines, search indexes, or data extraction workflows that need clean, structured web content. Self-hosting suits organizations with strict data-residency or security requirements that need scraping to stay inside their own infrastructure.</p>
+</div>]]></field>
+        <field name="category">dev_tools</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/firecrawl.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_web_scraping')])]"/>
+        <field name="website_url">https://firecrawl.dev</field>
+        <field name="documentation_url">https://github.com/firecrawl/firecrawl</field>
+        <field name="source_url">https://github.com/firecrawl/firecrawl</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  playwright-service:
+    image: ghcr.io/firecrawl/playwright-service:latest
+    shm_size: 1g
+    restart: unless-stopped
+    environment:
+      PORT: 3000
+      PROXY_SERVER: ${PROXY_SERVER:-}
+      PROXY_USERNAME: ${PROXY_USERNAME:-}
+      PROXY_PASSWORD: ${PROXY_PASSWORD:-}
+      BLOCK_MEDIA: ${BLOCK_MEDIA:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,redis,nuq-postgres,playwright-service,host.docker.internal}
+    container_name: '{{ INSTANCE_CODE }}_playwright_service'
+    networks:
+    - internal
+  api:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    ulimits: &id001
+      nofile:
+        soft: 65535
+        hard: 65535
+    extra_hosts: &id002
+    - host.docker.internal:host-gateway
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:3002'
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_RATE_LIMIT_URL: ${REDIS_RATE_LIMIT_URL:-redis://redis:6379}
+      PLAYWRIGHT_MICROSERVICE_URL: ${PLAYWRIGHT_MICROSERVICE_URL:-http://playwright-service:3000/scrape}
+      NUQ_DATABASE_URL: ${NUQ_DATABASE_URL:-postgres://postgres:postgres@nuq-postgres:5432/postgres}
+      USE_DB_AUTHENTICATION: ${USE_DB_AUTHENTICATION:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      MODEL_NAME: ${MODEL_NAME:-}
+      MODEL_EMBEDDING_NAME: ${MODEL_EMBEDDING_NAME:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      BULL_AUTH_KEY: ${BULL_AUTH_KEY:-}
+      TEST_API_KEY: ${TEST_API_KEY:-}
+      POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
+      POSTHOG_HOST: ${POSTHOG_HOST:-}
+      SUPABASE_ANON_TOKEN: ${SUPABASE_ANON_TOKEN:-}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_TOKEN: ${SUPABASE_SERVICE_TOKEN:-}
+      SELF_HOSTED_WEBHOOK_URL: ${SELF_HOSTED_WEBHOOK_URL:-}
+      SERPER_API_KEY: ${SERPER_API_KEY:-}
+      SEARCHAPI_API_KEY: ${SEARCHAPI_API_KEY:-}
+      LOGGING_LEVEL: ${LOGGING_LEVEL:-INFO}
+      PROXY_SERVER: ${PROXY_SERVER:-}
+      PROXY_USERNAME: ${PROXY_USERNAME:-}
+      PROXY_PASSWORD: ${PROXY_PASSWORD:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,redis,nuq-postgres,playwright-service,host.docker.internal}
+      SEARXNG_ENDPOINT: ${SEARXNG_ENDPOINT:-}
+      SEARXNG_ENGINES: ${SEARXNG_ENGINES:-}
+      SEARXNG_CATEGORIES: ${SEARXNG_CATEGORIES:-}
+      HOST: 0.0.0.0
+      PORT: 3002
+      WORKER_PORT: 3005
+      ENV: local
+    depends_on:
+      redis:
+        condition: service_started
+      playwright-service:
+        condition: service_started
+      nuq-postgres:
+        condition: service_healthy
+    command: node --import ./dist/src/otel.js dist/src/index.js
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+  worker:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    ulimits: *id001
+    extra_hosts: *id002
+    restart: unless-stopped
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_RATE_LIMIT_URL: ${REDIS_RATE_LIMIT_URL:-redis://redis:6379}
+      PLAYWRIGHT_MICROSERVICE_URL: ${PLAYWRIGHT_MICROSERVICE_URL:-http://playwright-service:3000/scrape}
+      NUQ_DATABASE_URL: ${NUQ_DATABASE_URL:-postgres://postgres:postgres@nuq-postgres:5432/postgres}
+      USE_DB_AUTHENTICATION: ${USE_DB_AUTHENTICATION:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      MODEL_NAME: ${MODEL_NAME:-}
+      MODEL_EMBEDDING_NAME: ${MODEL_EMBEDDING_NAME:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      BULL_AUTH_KEY: ${BULL_AUTH_KEY:-}
+      TEST_API_KEY: ${TEST_API_KEY:-}
+      POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
+      POSTHOG_HOST: ${POSTHOG_HOST:-}
+      SUPABASE_ANON_TOKEN: ${SUPABASE_ANON_TOKEN:-}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_TOKEN: ${SUPABASE_SERVICE_TOKEN:-}
+      SELF_HOSTED_WEBHOOK_URL: ${SELF_HOSTED_WEBHOOK_URL:-}
+      SERPER_API_KEY: ${SERPER_API_KEY:-}
+      SEARCHAPI_API_KEY: ${SEARCHAPI_API_KEY:-}
+      LOGGING_LEVEL: ${LOGGING_LEVEL:-INFO}
+      PROXY_SERVER: ${PROXY_SERVER:-}
+      PROXY_USERNAME: ${PROXY_USERNAME:-}
+      PROXY_PASSWORD: ${PROXY_PASSWORD:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,redis,nuq-postgres,playwright-service,host.docker.internal}
+      SEARXNG_ENDPOINT: ${SEARXNG_ENDPOINT:-}
+      SEARXNG_ENGINES: ${SEARXNG_ENGINES:-}
+      SEARXNG_CATEGORIES: ${SEARXNG_CATEGORIES:-}
+      HOST: 0.0.0.0
+      PORT: 3005
+      ENV: local
+    depends_on:
+      redis:
+        condition: service_started
+      nuq-postgres:
+        condition: service_healthy
+    command: node --import ./dist/src/otel.js dist/src/services/queue-worker.js
+    container_name: '{{ INSTANCE_CODE }}_worker'
+    networks:
+    - internal
+  extract-worker:
+    image: ghcr.io/firecrawl/firecrawl:latest
+    ulimits: *id001
+    extra_hosts: *id002
+    restart: unless-stopped
+    environment:
+      REDIS_URL: ${REDIS_URL:-redis://redis:6379}
+      REDIS_RATE_LIMIT_URL: ${REDIS_RATE_LIMIT_URL:-redis://redis:6379}
+      PLAYWRIGHT_MICROSERVICE_URL: ${PLAYWRIGHT_MICROSERVICE_URL:-http://playwright-service:3000/scrape}
+      NUQ_DATABASE_URL: ${NUQ_DATABASE_URL:-postgres://postgres:postgres@nuq-postgres:5432/postgres}
+      USE_DB_AUTHENTICATION: ${USE_DB_AUTHENTICATION:-}
+      OPENAI_API_KEY: ${OPENAI_API_KEY:-}
+      OPENAI_BASE_URL: ${OPENAI_BASE_URL:-}
+      MODEL_NAME: ${MODEL_NAME:-}
+      MODEL_EMBEDDING_NAME: ${MODEL_EMBEDDING_NAME:-}
+      OLLAMA_BASE_URL: ${OLLAMA_BASE_URL:-}
+      SLACK_WEBHOOK_URL: ${SLACK_WEBHOOK_URL:-}
+      BULL_AUTH_KEY: ${BULL_AUTH_KEY:-}
+      TEST_API_KEY: ${TEST_API_KEY:-}
+      POSTHOG_API_KEY: ${POSTHOG_API_KEY:-}
+      POSTHOG_HOST: ${POSTHOG_HOST:-}
+      SUPABASE_ANON_TOKEN: ${SUPABASE_ANON_TOKEN:-}
+      SUPABASE_URL: ${SUPABASE_URL:-}
+      SUPABASE_SERVICE_TOKEN: ${SUPABASE_SERVICE_TOKEN:-}
+      SELF_HOSTED_WEBHOOK_URL: ${SELF_HOSTED_WEBHOOK_URL:-}
+      SERPER_API_KEY: ${SERPER_API_KEY:-}
+      SEARCHAPI_API_KEY: ${SEARCHAPI_API_KEY:-}
+      LOGGING_LEVEL: ${LOGGING_LEVEL:-INFO}
+      PROXY_SERVER: ${PROXY_SERVER:-}
+      PROXY_USERNAME: ${PROXY_USERNAME:-}
+      PROXY_PASSWORD: ${PROXY_PASSWORD:-}
+      NO_PROXY: ${NO_PROXY:-localhost,127.0.0.1,redis,nuq-postgres,playwright-service,host.docker.internal}
+      SEARXNG_ENDPOINT: ${SEARXNG_ENDPOINT:-}
+      SEARXNG_ENGINES: ${SEARXNG_ENGINES:-}
+      SEARXNG_CATEGORIES: ${SEARXNG_CATEGORIES:-}
+      HOST: 0.0.0.0
+      PORT: 3004
+      ENV: local
+    depends_on:
+      redis:
+        condition: service_started
+      nuq-postgres:
+        condition: service_healthy
+    command: node --import ./dist/src/otel.js dist/src/services/extract-worker.js
+    container_name: '{{ INSTANCE_CODE }}_extract_worker'
+    networks:
+    - internal
+  redis:
+    image: redis:alpine
+    command: redis-server --bind 0.0.0.0
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    restart: unless-stopped
+    networks:
+    - internal
+  nuq-postgres:
+    build:
+      context: https://github.com/firecrawl/firecrawl.git#main:apps/nuq-postgres
+      dockerfile: Dockerfile
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: postgres
+    volumes:
+    - ./nuq_pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      start_period: 30s
+      interval: 10s
+      timeout: 5s
+      retries: 10
+    container_name: '{{ INSTANCE_CODE }}_nuq_postgres'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_firecrawl_port_http" model="service.template.port">
+        <field name="template_id" ref="template_firecrawl"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3002</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_firecrawl_var_bull_auth_key" model="service.template.variable">
+        <field name="template_id" ref="template_firecrawl"/>
+        <field name="name">bull_auth_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_firecrawl_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_firecrawl"/>
+        <field name="name">nuq_pg_data</field>
+        <field name="local_path">./nuq_pg_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

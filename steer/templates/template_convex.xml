@@ -1,0 +1,109 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'dashboard': backend): revisar backup/red/init.
+           - Owner UID:GID de 'backend' (imagen ghcr.io/get-convex/convex-backend:5cdea511cd6527a95dd24152ea0d3c3bb2ab379f) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_convex" model="service.template">
+        <field name="name">Convex</field>
+        <field name="code">convex</field>
+        <field name="service_code">convex</field>
+        <field name="version">latest</field>
+        <field name="description">Convex is an open-source reactive database and TypeScript backend platform that keeps your application data in sync in real time, with no manual cache invalidation.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Convex is an open-source reactive database and TypeScript backend platform that keeps your application data in sync in real time, with no manual cache invalidation.</p>
+  <p>Convex combines a transactional document database, server-side functions written in pure TypeScript, and real-time client libraries into a single backend. Queries automatically re-run and push updates to connected clients whenever underlying data changes, giving live-updating apps strong consistency without bespoke websocket or polling code. The backend is written in Rust and ships as ready-made Docker images for self-hosting, backed by SQLite, PostgreSQL, or MySQL.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Reactive queries that re-run and push live updates automatically with ACID guarantees</li>
+    <li>Server functions (queries, mutations, actions) and schemas authored in pure TypeScript</li>
+    <li>Self-hostable backend and dashboard via Docker, on SQLite, PostgreSQL, or MySQL</li>
+    <li>Built-in file storage, full-text and vector search, scheduled functions, and cron jobs</li>
+    <li>Framework-agnostic clients for React, Next.js, React Native, Vue, Svelte, plus Python and Rust</li>
+    <li>Optional S3-compatible object storage for exports, snapshots, and search indexes</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Full-stack and AI/agent developers building live-updating, real-time applications who want a single TypeScript backend with database, business logic, and sync, and the option to self-host for control, compliance, or to avoid vendor lock-in.</p>
+</div>]]></field>
+        <field name="category">database</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/convex.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_search')])]"/>
+        <field name="website_url">https://www.convex.dev/</field>
+        <field name="documentation_url">https://www.convex.dev/docs</field>
+        <field name="source_url">https://github.com/get-convex/convex</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  backend:
+    image: ghcr.io/get-convex/convex-backend:5cdea511cd6527a95dd24152ea0d3c3bb2ab379f
+    expose:
+    - '3210'
+    - '3211'
+    volumes:
+    - ./data:/convex/data
+    environment:
+    - INSTANCE_NAME=${INSTANCE_NAME:-}
+    - INSTANCE_SECRET=${INSTANCE_SECRET:-}
+    - CONVEX_RELEASE_VERSION_DEV=${CONVEX_RELEASE_VERSION_DEV:-}
+    - ACTIONS_USER_TIMEOUT_SECS=${ACTIONS_USER_TIMEOUT_SECS:-}
+    - CONVEX_CLOUD_ORIGIN=${CONVEX_CLOUD_ORIGIN:-http://127.0.0.1:3210}
+    - CONVEX_SITE_ORIGIN=${CONVEX_SITE_ORIGIN:-http://127.0.0.1:3211}
+    - DATABASE_URL=${DATABASE_URL:-}
+    - DISABLE_BEACON=${DISABLE_BEACON:-FALSE}
+    - REDACT_LOGS_TO_CLIENT=${REDACT_LOGS_TO_CLIENT:-}
+    - RUST_LOG=${RUST_LOG:-info}
+    - RUST_BACKTRACE=${RUST_BACKTRACE:-}
+    healthcheck:
+      test: curl -f http://localhost:3210/version
+      interval: 5s
+      start_period: 5s
+    container_name: '{{ INSTANCE_CODE }}_backend'
+    restart: unless-stopped
+    networks:
+    - internal
+  dashboard:
+    image: ghcr.io/get-convex/convex-dashboard:5cdea511cd6527a95dd24152ea0d3c3bb2ab379f
+    expose:
+    - '6791'
+    environment:
+    - NEXT_PUBLIC_DEPLOYMENT_URL=${NEXT_PUBLIC_DEPLOYMENT_URL:-http://127.0.0.1:3210}
+    depends_on:
+      backend:
+        condition: service_healthy
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:6791'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_convex_port_http" model="service.template.port">
+        <field name="template_id" ref="template_convex"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">6791</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_convex_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_convex"/>
+        <field name="name">data</field>
+        <field name="local_path">./data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

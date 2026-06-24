@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'flagsmith': flagsmith-task-processor): revisar backup/red/init.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_flagsmith" model="service.template">
+        <field name="name">Flagsmith</field>
+        <field name="code">flagsmith</field>
+        <field name="service_code">flagsmith</field>
+        <field name="version">2.177.1</field>
+        <field name="description">Flagsmith is an open-source feature flag and remote configuration platform that lets teams ship, control, and roll back features without redeploying code.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Flagsmith is an open-source feature flag and remote configuration platform that lets teams ship, control, and roll back features without redeploying code.</p>
+  <p>It wraps sections of your application in feature flags that you toggle per environment, user, or segment from a central dashboard. Teams use it to decouple deployment from release, run staged rollouts and A/B tests, and manage remote config across web, mobile, and server-side applications. It ships with 15+ official SDKs and a documented REST API, and can be self-hosted for full control over data and security policies.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Boolean feature flags and typed remote config values managed per environment</li>
+    <li>User and segment targeting with attribute-based rules and percentage rollouts</li>
+    <li>Multivariate flags for A/B/n testing and gradual feature exposure</li>
+    <li>Server-side and edge flag evaluation with official SDKs for 15+ languages and frameworks</li>
+    <li>REST API and webhooks for automation and CI/CD integration</li>
+    <li>Self-hosting via Docker Compose with full control over data residency and security</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Engineering and product teams that want trunk-based development, safe progressive rollouts, and centralized remote configuration, and organizations with data-sensitivity or compliance needs that require keeping feature-flag infrastructure on-premises or in their own cloud.</p>
+</div>]]></field>
+        <field name="category">dev_tools</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/flagsmith.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_analytics')])]"/>
+        <field name="website_url">https://www.flagsmith.com/</field>
+        <field name="documentation_url">https://docs.flagsmith.com/</field>
+        <field name="source_url">https://github.com/Flagsmith/flagsmith</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  postgres:
+    image: postgres:15.5-alpine
+    environment:
+      POSTGRES_PASSWORD: ${DATABASE_PASSWORD}
+      POSTGRES_DB: flagsmith
+    volumes:
+    - ./pgdata:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -d flagsmith -U postgres
+      interval: 2s
+      timeout: 2s
+      retries: 20
+      start_period: 20s
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    restart: unless-stopped
+    networks:
+    - internal
+  flagsmith:
+    image: docker.flagsmith.com/flagsmith/flagsmith:2.177.1
+    environment:
+      DATABASE_URL: postgresql://postgres:${DATABASE_PASSWORD}@postgres:5432/flagsmith
+      USE_POSTGRES_FOR_ANALYTICS: 'true'
+      ENVIRONMENT: production
+      DJANGO_ALLOWED_HOSTS: '*'
+      FLAGSMITH_DOMAIN: ${FLAGSMITH_DOMAIN:-localhost:8000}
+      DJANGO_SECRET_KEY: ${DJANGO_SECRET_KEY}
+      TASK_RUN_METHOD: TASK_PROCESSOR
+      PROMETHEUS_ENABLED: 'true'
+    ports:
+    - '{{ PORT_HTTP }}:8000'
+    depends_on:
+      postgres:
+        condition: service_healthy
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    networks:
+    - internal
+    - agz-proxy-network
+  flagsmith-task-processor:
+    image: docker.flagsmith.com/flagsmith/flagsmith:2.177.1
+    environment:
+      DATABASE_URL: postgresql://postgres:${DATABASE_PASSWORD}@postgres:5432/flagsmith
+      USE_POSTGRES_FOR_ANALYTICS: 'true'
+      DJANGO_ALLOWED_HOSTS: '*'
+      PROMETHEUS_ENABLED: 'true'
+    ports:
+    - 8000
+    depends_on:
+    - flagsmith
+    command: run-task-processor
+    container_name: '{{ INSTANCE_CODE }}_flagsmith_task_processor'
+    restart: unless-stopped
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR.
+# Si POSTGRES_USER/POSTGRES_DB vienen vacíos (la imagen usa 'postgres' por defecto),
+# caemos a 'postgres': con $POSTGRES_USER vacío pg_dump intentaría el rol "root" del SO
+# y fallaría con «role "root" does not exist».
+docker compose exec -T postgres sh -c 'pg_dump -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-${POSTGRES_USER:-postgres}}" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura (mismo default a 'postgres')
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "${POSTGRES_USER:-postgres}"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "${POSTGRES_USER:-postgres}" -d "${POSTGRES_DB:-${POSTGRES_USER:-postgres}}" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \${POSTGRES_USER:-postgres} -d \${POSTGRES_DB:-postgres} -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_flagsmith_port_http" model="service.template.port">
+        <field name="template_id" ref="template_flagsmith"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_flagsmith_var_django_secret_key" model="service.template.variable">
+        <field name="template_id" ref="template_flagsmith"/>
+        <field name="name">DJANGO_SECRET_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_flagsmith_var_database_password" model="service.template.variable">
+        <field name="template_id" ref="template_flagsmith"/>
+        <field name="name">DATABASE_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_flagsmith_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_flagsmith"/>
+        <field name="name">pgdata</field>
+        <field name="local_path">./pgdata</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

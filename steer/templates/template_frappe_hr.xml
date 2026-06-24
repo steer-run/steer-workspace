@@ -1,0 +1,518 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'frontend': backend, queue-default, queue-long, queue-short, scheduler, websocket, configurator, create-site, migration): revisar backup/red/init.
+           - Owner UID:GID de 'backend' (imagen ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'frontend' (imagen ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'queue-default' (imagen ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'queue-long' (imagen ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'queue-short' (imagen ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'scheduler' (imagen ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'websocket' (imagen ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'configurator' (imagen ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'create-site' (imagen ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'migration' (imagen ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_frappe_hr" model="service.template">
+        <field name="name">Frappe HR</field>
+        <field name="code">frappe_hr</field>
+        <field name="service_code">frappe_hr</field>
+        <field name="version">version-15</field>
+        <field name="description">Frappe HR is a complete, open-source HR and payroll platform that manages the full employee lifecycle from a single source of truth.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Frappe HR is a complete, open-source HR and payroll platform that manages the full employee lifecycle from a single source of truth.</p>
+  <p>Built on the Frappe Framework and grown out of the ERPNext ecosystem, it covers onboarding, leave and attendance, expenses, performance, recruitment and payroll in one integrated system. Its payroll engine generates double-entry accounting records, so HR and finance stay aligned, and a regional override pattern lets jurisdiction-specific tax and compliance logic be added without forking the core. A companion mobile app handles check-in, leave requests and approvals on the go.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Employee lifecycle: onboarding, promotions, transfers and exit management</li>
+    <li>Leave policies, regional holidays and geolocation-based attendance and check-in</li>
+    <li>Payroll with salary structures, income tax slabs, off-cycle payments and accounting integration</li>
+    <li>Expense claims, advances and multi-level approval workflows</li>
+    <li>Performance management with goals, OKRs, 360-degree reviews and appraisal cycles</li>
+    <li>Recruitment, shift and roster planning, plus a native mobile app</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Startups and small-to-mid-sized businesses that want a self-hosted, customizable HRMS with built-in payroll, and organizations already using ERPNext that need HR and finance to share one data model.</p>
+</div>]]></field>
+        <field name="category">business</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/frappe_hr.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_erp'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_finance'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_hr')])]"/>
+        <field name="website_url">https://frappe.io/hr</field>
+        <field name="documentation_url">https://docs.frappe.io/hr</field>
+        <field name="source_url">https://github.com/frappe/hrms</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  backend:
+    image: ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}
+    pull_policy: ${PULL_POLICY:-always}
+    deploy: &id001
+      restart_policy:
+        condition: always
+    volumes:
+    - ./sites:/home/frappe/frappe-bench/sites
+    networks:
+    - internal
+    healthcheck:
+      test:
+      - CMD
+      - wait-for-it
+      - 0.0.0.0:8000
+      interval: 2s
+      timeout: 10s
+      retries: 30
+    container_name: '{{ INSTANCE_CODE }}_backend'
+    restart: unless-stopped
+  frontend:
+    image: ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}
+    pull_policy: ${PULL_POLICY:-always}
+    deploy: *id001
+    command:
+    - nginx-entrypoint.sh
+    depends_on:
+      backend:
+        condition: service_started
+        required: true
+      websocket:
+        condition: service_started
+        required: true
+    environment:
+      BACKEND: backend:8000
+      FRAPPE_SITE_NAME_HEADER: ${FRAPPE_SITE_NAME_HEADER:-$$host}
+      SOCKETIO: websocket:9000
+      UPSTREAM_REAL_IP_ADDRESS: 127.0.0.1
+      UPSTREAM_REAL_IP_HEADER: X-Forwarded-For
+      UPSTREAM_REAL_IP_RECURSIVE: 'off'
+    volumes:
+    - ./sites:/home/frappe/frappe-bench/sites
+    networks:
+    - internal
+    - agz-proxy-network
+    healthcheck:
+      test:
+      - CMD
+      - wait-for-it
+      - 0.0.0.0:8080
+      interval: 2s
+      timeout: 30s
+      retries: 30
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+  queue-default:
+    image: ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}
+    pull_policy: ${PULL_POLICY:-always}
+    deploy: *id001
+    command:
+    - bench
+    - worker
+    - --queue
+    - default
+    volumes:
+    - ./sites:/home/frappe/frappe-bench/sites
+    networks:
+    - internal
+    healthcheck:
+      test:
+      - CMD
+      - wait-for-it
+      - redis-queue:6379
+      interval: 2s
+      timeout: 10s
+      retries: 30
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+        required: true
+    container_name: '{{ INSTANCE_CODE }}_queue_default'
+    restart: unless-stopped
+  queue-long:
+    image: ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}
+    pull_policy: ${PULL_POLICY:-always}
+    deploy: *id001
+    command:
+    - bench
+    - worker
+    - --queue
+    - long
+    volumes:
+    - ./sites:/home/frappe/frappe-bench/sites
+    networks:
+    - internal
+    healthcheck:
+      test:
+      - CMD
+      - wait-for-it
+      - redis-queue:6379
+      interval: 2s
+      timeout: 10s
+      retries: 30
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+        required: true
+    container_name: '{{ INSTANCE_CODE }}_queue_long'
+    restart: unless-stopped
+  queue-short:
+    image: ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}
+    pull_policy: ${PULL_POLICY:-always}
+    deploy: *id001
+    command:
+    - bench
+    - worker
+    - --queue
+    - short
+    volumes:
+    - ./sites:/home/frappe/frappe-bench/sites
+    networks:
+    - internal
+    healthcheck:
+      test:
+      - CMD
+      - wait-for-it
+      - redis-queue:6379
+      interval: 2s
+      timeout: 10s
+      retries: 30
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+        required: true
+    container_name: '{{ INSTANCE_CODE }}_queue_short'
+    restart: unless-stopped
+  scheduler:
+    image: ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}
+    pull_policy: ${PULL_POLICY:-always}
+    deploy: *id001
+    healthcheck:
+      test:
+      - CMD
+      - wait-for-it
+      - redis-queue:6379
+      interval: 2s
+      timeout: 10s
+      retries: 30
+    command:
+    - bench
+    - schedule
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+        required: true
+    volumes:
+    - ./sites:/home/frappe/frappe-bench/sites
+    networks:
+    - internal
+    container_name: '{{ INSTANCE_CODE }}_scheduler'
+    restart: unless-stopped
+  websocket:
+    image: ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}
+    pull_policy: ${PULL_POLICY:-always}
+    deploy: *id001
+    healthcheck:
+      test:
+      - CMD
+      - wait-for-it
+      - 0.0.0.0:9000
+      interval: 2s
+      timeout: 10s
+      retries: 30
+    command:
+    - node
+    - /home/frappe/frappe-bench/apps/frappe/socketio.js
+    depends_on:
+      configurator:
+        condition: service_completed_successfully
+        required: true
+    volumes:
+    - ./sites:/home/frappe/frappe-bench/sites
+    networks:
+    - internal
+    container_name: '{{ INSTANCE_CODE }}_websocket'
+    restart: unless-stopped
+  configurator:
+    image: ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}
+    pull_policy: ${PULL_POLICY:-always}
+    deploy:
+      mode: replicated
+      replicas: ${CONFIGURE:-0}
+      restart_policy:
+        condition: none
+    entrypoint:
+    - bash
+    - -c
+    command:
+    - '[[ $${REGENERATE_APPS_TXT} == "1" ]] && ls -1 apps > sites/apps.txt; [[ -n `grep -hs ^ sites/common_site_config.json
+      | jq -r ".db_host // empty"` ]] && exit 0; bench set-config -g db_host $$DB_HOST; bench set-config
+      -gp db_port $$DB_PORT; bench set-config -g redis_cache "redis://$$REDIS_CACHE"; bench set-config
+      -g redis_queue "redis://$$REDIS_QUEUE"; bench set-config -g redis_socketio "redis://$$REDIS_QUEUE";
+      bench set-config -gp socketio_port $$SOCKETIO_PORT;
+
+      '
+    environment:
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: '3306'
+      REDIS_CACHE: redis-cache:6379
+      REDIS_QUEUE: redis-queue:6379
+      SOCKETIO_PORT: '9000'
+      REGENERATE_APPS_TXT: ${REGENERATE_APPS_TXT:-0}
+    volumes:
+    - ./sites:/home/frappe/frappe-bench/sites
+    networks:
+    - internal
+    container_name: '{{ INSTANCE_CODE }}_configurator'
+    restart: unless-stopped
+  create-site:
+    image: ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}
+    pull_policy: ${PULL_POLICY:-always}
+    deploy:
+      mode: replicated
+      replicas: ${CREATE_SITE:-0}
+      restart_policy:
+        condition: none
+    entrypoint:
+    - bash
+    - -c
+    command:
+    - "wait-for-it -t 120 $$DB_HOST:$$DB_PORT; wait-for-it -t 120 redis-cache:6379; wait-for-it -t 120\
+      \ redis-queue:6379; export start=`date +%s`; until [[ -n `grep -hs ^ sites/common_site_config.json\
+      \ | jq -r \".db_host // empty\"` ]] && \\\n  [[ -n `grep -hs ^ sites/common_site_config.json | jq\
+      \ -r \".redis_cache // empty\"` ]] && \\\n  [[ -n `grep -hs ^ sites/common_site_config.json | jq\
+      \ -r \".redis_queue // empty\"` ]];\ndo\n  echo \"Waiting for sites/common_site_config.json to be\
+      \ created\";\n  sleep 5;\n  if (( `date +%s`-start > 120 )); then\n    echo \"could not find sites/common_site_config.json\
+      \ with required keys\";\n    exit 1\n  fi\ndone; echo \"sites/common_site_config.json found\"; [[\
+      \ -d \"sites/${SITE_NAME}\" ]] && echo \"${SITE_NAME} already exists\" && exit 0; bench new-site\
+      \ --mariadb-user-host-login-scope='%' --admin-password=$${ADMIN_PASSWORD} --db-root-username=root\
+      \ --db-root-password=$${DB_ROOT_PASSWORD} $${INSTALL_APP_ARGS} $${SITE_NAME};\n"
+    volumes:
+    - ./sites:/home/frappe/frappe-bench/sites
+    environment:
+      SITE_NAME: {{ DOMAIN }}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+      DB_HOST: ${DB_HOST:-db}
+      DB_PORT: ${DB_PORT:-3306}
+      DB_ROOT_PASSWORD: ${DB_ROOT_PASSWORD}
+      INSTALL_APP_ARGS: ${INSTALL_APP_ARGS}
+    networks:
+    - internal
+    container_name: '{{ INSTANCE_CODE }}_create_site'
+    restart: unless-stopped
+  migration:
+    image: ${IMAGE_NAME:-ghcr.io/frappe/hrms}:${VERSION:-version-15}
+    pull_policy: ${PULL_POLICY:-always}
+    deploy:
+      mode: replicated
+      replicas: ${MIGRATE:-0}
+      restart_policy:
+        condition: none
+    entrypoint:
+    - bash
+    - -c
+    command:
+    - 'curl -f http://${SITE_NAME}:8080/api/method/ping || echo "Site busy" && exit 0; bench --site all
+      set-config -p maintenance_mode 1; bench --site all set-config -p pause_scheduler 1; bench --site
+      all migrate; bench --site all set-config -p maintenance_mode 0; bench --site all set-config -p pause_scheduler
+      0;
+
+      '
+    volumes:
+    - ./sites:/home/frappe/frappe-bench/sites
+    networks:
+    - internal
+    container_name: '{{ INSTANCE_CODE }}_migration'
+    restart: unless-stopped
+  db:
+    image: mariadb:10.6
+    deploy:
+      mode: replicated
+      replicas: ${ENABLE_DB:-0}
+      restart_policy:
+        condition: always
+    healthcheck:
+      test: mysqladmin ping -h localhost --password=${DB_ROOT_PASSWORD}
+      interval: 1s
+      retries: 20
+    command:
+    - --character-set-server=utf8mb4
+    - --collation-server=utf8mb4_unicode_ci
+    - --skip-character-set-client-handshake
+    - --skip-innodb-read-only-compressed
+    environment:
+    - MYSQL_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+    - MARIADB_ROOT_PASSWORD=${DB_ROOT_PASSWORD}
+    volumes:
+    - ./db_data:/var/lib/mysql
+    networks:
+    - internal
+    container_name: '{{ INSTANCE_CODE }}_db'
+    restart: unless-stopped
+  redis-cache:
+    deploy:
+      restart_policy:
+        condition: always
+    image: redis:6.2-alpine
+    volumes:
+    - ./redis_cache_data:/data
+    networks:
+    - internal
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}_redis_cache'
+    restart: unless-stopped
+  redis-queue:
+    deploy:
+      restart_policy:
+        condition: always
+    image: redis:6.2-alpine
+    volumes:
+    - ./redis_queue_data:/data
+    networks:
+    - internal
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}_redis_queue'
+    restart: unless-stopped
+  redis-socketio:
+    deploy:
+      restart_policy:
+        condition: always
+    image: redis:6.2-alpine
+    volumes:
+    - ./redis_socketio_data:/data
+    networks:
+    - internal
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 5s
+      timeout: 5s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}_redis_socketio'
+    restart: unless-stopped
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T db sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d db
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T db sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_frappe_hr_port_http" model="service.template.port">
+        <field name="template_id" ref="template_frappe_hr"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_frappe_hr_var_db_root_password" model="service.template.variable">
+        <field name="template_id" ref="template_frappe_hr"/>
+        <field name="name">DB_ROOT_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_frappe_hr_var_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_frappe_hr"/>
+        <field name="name">ADMIN_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_frappe_hr_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_frappe_hr"/>
+        <field name="name">sites</field>
+        <field name="local_path">./sites</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_frappe_hr_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_frappe_hr"/>
+        <field name="name">db-data</field>
+        <field name="local_path">./db_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_frappe_hr_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_frappe_hr"/>
+        <field name="name">redis-cache-data</field>
+        <field name="local_path">./redis_cache_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_frappe_hr_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_frappe_hr"/>
+        <field name="name">redis-queue-data</field>
+        <field name="local_path">./redis_queue_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_frappe_hr_vol_4" model="service.template.volume">
+        <field name="template_id" ref="template_frappe_hr"/>
+        <field name="name">redis-socketio-data</field>
+        <field name="local_path">./redis_socketio_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">50</field>
+    </record>
+</odoo>

@@ -1,0 +1,123 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_tooljet" model="service.template">
+        <field name="name">Tooljet</field>
+        <field name="code">tooljet</field>
+        <field name="service_code">tooljet</field>
+        <field name="version">ee-lts-latest</field>
+        <field name="description">ToolJet is an open-source low-code platform for building and deploying internal tools, dashboards, and business applications fast.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">ToolJet is an open-source low-code platform for building and deploying internal tools, dashboards, and business applications fast.</p>
+  <p>It pairs a drag-and-drop visual builder with the ability to connect to dozens of databases, APIs, cloud storage services, and SaaS tools, so teams can assemble production-grade internal apps without writing a full frontend and backend. JavaScript and Python can be embedded where custom logic is needed, and a built-in PostgreSQL-backed database and workflow engine cover data storage and automation. It targets developers, IT teams, and product managers who need to ship internal software quickly while retaining control over data and security.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Visual app builder with dozens of responsive UI components (tables, charts, forms, lists)</li>
+    <li>80+ connectors for databases, REST/GraphQL APIs, cloud storage, and SaaS platforms</li>
+    <li>Built-in no-code database and visual query builder backed by PostgreSQL</li>
+    <li>Event-driven workflow automation with conditions, loops, and multi-step orchestration</li>
+    <li>Embedded JavaScript and Python for custom logic and transformations</li>
+    <li>Enterprise security: SSO/SAML/OIDC/LDAP, RBAC, 2FA, encryption, and audit logs</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Engineering and IT teams building internal admin panels, back-office tools, CRUD apps, support consoles, and operational dashboards who want self-hosting, granular access control, and the freedom to extend with code.</p>
+</div>]]></field>
+        <field name="category">dev_tools</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/tooljet.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="website_url">https://tooljet.ai/</field>
+        <field name="documentation_url">https://docs.tooljet.ai/</field>
+        <field name="source_url">https://github.com/ToolJet/ToolJet</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  tooljet:
+    tty: true
+    stdin_open: true
+    image: tooljet/tooljet:ee-lts-latest
+    restart: always
+    env_file: .env
+    expose:
+    - 80
+    deploy:
+      resources:
+        limits:
+          cpus: '1'
+          memory: 2G
+    depends_on:
+    - postgres
+    environment:
+      SERVE_CLIENT: 'true'
+      PORT: '80'
+    command: npm run start:prod
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+  postgres:
+    image: postgres:13
+    restart: always
+    deploy:
+      resources:
+        limits:
+          cpus: '2'
+          memory: 3G
+    volumes:
+    - ../files/postgres:/var/lib/postgresql/data
+    env_file: .env
+    environment:
+    - POSTGRES_USER=${PG_USER}
+    - POSTGRES_PASSWORD=${PG_PASS}
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_tooljet_port_http" model="service.template.port">
+        <field name="template_id" ref="template_tooljet"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

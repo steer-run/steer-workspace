@@ -1,0 +1,324 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'mautic': mautic-cron, mautic-worker, phpmyadmin): revisar backup/red/init.
+           - Owner UID:GID de 'mautic' (imagen mautic/mautic:5.1.1-apache) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'mautic-cron' (imagen mautic/mautic:5.1.1-apache) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'mautic-worker' (imagen mautic/mautic:5.1.1-apache) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_mautic" model="service.template">
+        <field name="name">Mautic</field>
+        <field name="code">mautic</field>
+        <field name="service_code">mautic</field>
+        <field name="version">5.1.1</field>
+        <field name="description">Mautic is the leading open-source marketing automation platform, giving organizations enterprise-grade campaign tooling without vendor lock-in.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Mautic is the leading open-source marketing automation platform, giving organizations enterprise-grade campaign tooling without vendor lock-in.</p>
+  <p>Built on PHP and the Symfony framework, Mautic lets teams capture, segment, score and nurture contacts across multiple channels from a single self-hosted application. It covers the full lifecycle from landing pages and forms to multi-step automated campaigns, with complete ownership of contact data and the freedom to customize and extend every part of the stack. Backed by Acquia and a large global community, it is the privacy-focused alternative to proprietary suites like HubSpot or Marketo.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Visual, multi-step campaign builder for automated drip and trigger-based workflows</li>
+    <li>Unlimited contact segmentation, lead scoring and behavioral tracking</li>
+    <li>Multi-channel messaging: email, SMS/text, web push notifications and social</li>
+    <li>Built-in landing page and form builder with dynamic content</li>
+    <li>Email campaign management with A/B testing and deliverability reporting</li>
+    <li>Extensible plugin architecture and REST API for CRM and tooling integrations</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Marketing teams, agencies and businesses that want full data ownership and a self-hosted alternative to SaaS marketing clouds, and that have the technical resources to run and maintain a PHP/MySQL application.</p>
+</div>]]></field>
+        <field name="category">automation</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/mautic.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_crm'), ref('agz_infra_suite.tag_email'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_marketing')])]"/>
+        <field name="website_url">https://www.mautic.org/</field>
+        <field name="documentation_url">https://docs.mautic.org/en</field>
+        <field name="source_url">https://github.com/mautic/mautic</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  mysql:
+    image: mysql:8.0
+    command: --default-authentication-plugin=mysql_native_password
+    restart: unless-stopped
+    environment:
+      MYSQL_ROOT_PASSWORD: {{ mysql_root_password }}
+      MYSQL_DATABASE: {{ mautic_db_database }}
+      MYSQL_USER: {{ mautic_db_user }}
+      MYSQL_PASSWORD: {{ mautic_db_password }}
+    volumes:
+    - ./mysql_data:/var/lib/mysql
+    healthcheck:
+      test:
+      - CMD
+      - mysqladmin
+      - ping
+      - -h
+      - localhost
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    container_name: '{{ INSTANCE_CODE }}_mysql'
+    networks:
+    - internal
+  mautic:
+    image: mautic/mautic:5.1.1-apache
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    environment:
+    - DOCKER_MAUTIC_ROLE=mautic_web
+    - DOCKER_MAUTIC_RUN_MIGRATIONS=true
+    - MAUTIC_DB_HOST={{ mautic_db_host }}
+    - MAUTIC_DB_PORT={{ mautic_db_port }}
+    - MAUTIC_DB_DATABASE={{ mautic_db_database }}
+    - MAUTIC_DB_USER={{ mautic_db_user }}
+    - MAUTIC_DB_PASSWORD={{ mautic_db_password }}
+    - MAUTIC_URL={{ mautic_url }}
+    - MAUTIC_TRUSTED_PROXIES={{ mautic_trusted_proxies }}
+    - MAUTIC_MESSENGER_DSN_EMAIL={{ mautic_messenger_dsn_email }}
+    - MAUTIC_MESSENGER_DSN_HIT={{ mautic_messenger_dsn_hit }}
+    - PHP_INI_DATE_TIMEZONE={{ php_ini_date_timezone }}
+    - PHP_MEMORY_LIMIT={{ php_memory_limit }}
+    volumes:
+    - ./mautic_data:/var/www/html
+    entrypoint:
+    - /bin/sh
+    - -c
+    - chown -R www-data:www-data /var/www/html && /entrypoint.sh apache2-foreground
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - test -f /var/www/html/config/local.php || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 300s
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+  mautic-cron:
+    image: mautic/mautic:5.1.1-apache
+    restart: unless-stopped
+    depends_on:
+      mautic:
+        condition: service_healthy
+    environment:
+    - DOCKER_MAUTIC_ROLE=mautic_cron
+    - MAUTIC_DB_HOST={{ mautic_db_host }}
+    - MAUTIC_DB_PORT={{ mautic_db_port }}
+    - MAUTIC_DB_DATABASE={{ mautic_db_database }}
+    - MAUTIC_DB_USER={{ mautic_db_user }}
+    - MAUTIC_DB_PASSWORD={{ mautic_db_password }}
+    - MAUTIC_URL={{ mautic_url }}
+    - PHP_INI_DATE_TIMEZONE={{ php_ini_date_timezone }}
+    volumes:
+    - ./mautic_data:/var/www/html
+    container_name: '{{ INSTANCE_CODE }}_mautic_cron'
+    networks:
+    - internal
+  mautic-worker:
+    image: mautic/mautic:5.1.1-apache
+    restart: unless-stopped
+    depends_on:
+      mautic:
+        condition: service_healthy
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+    environment:
+    - DOCKER_MAUTIC_ROLE=mautic_worker
+    - DOCKER_MAUTIC_WORKERS_CONSUME_EMAIL=2
+    - DOCKER_MAUTIC_WORKERS_CONSUME_HIT=2
+    - DOCKER_MAUTIC_WORKERS_CONSUME_FAILED=2
+    - MAUTIC_DB_HOST={{ mautic_db_host }}
+    - MAUTIC_DB_PORT={{ mautic_db_port }}
+    - MAUTIC_DB_DATABASE={{ mautic_db_database }}
+    - MAUTIC_DB_USER={{ mautic_db_user }}
+    - MAUTIC_DB_PASSWORD={{ mautic_db_password }}
+    - MAUTIC_URL={{ mautic_url }}
+    - MAUTIC_MESSENGER_DSN_EMAIL={{ mautic_messenger_dsn_email }}
+    - MAUTIC_MESSENGER_DSN_HIT={{ mautic_messenger_dsn_hit }}
+    - PHP_INI_DATE_TIMEZONE={{ php_ini_date_timezone }}
+    volumes:
+    - ./mautic_data:/var/www/html
+    container_name: '{{ INSTANCE_CODE }}_mautic_worker'
+    networks:
+    - internal
+  phpmyadmin:
+    image: phpmyadmin/phpmyadmin
+    restart: unless-stopped
+    depends_on:
+      mysql:
+        condition: service_healthy
+    environment:
+      PMA_HOST: mysql
+      PMA_PORT: 3306
+      UPLOAD_LIMIT: 64M
+    ports:
+    - 80
+    container_name: '{{ INSTANCE_CODE }}_phpmyadmin'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T mysql sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d mysql
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T mysql sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_mautic_port_http" model="service.template.port">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_mautic_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">db_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_mautic_var_root_password" model="service.template.variable">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">root_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_mautic_var_mautic_url" model="service.template.variable">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">mautic_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">https://${mautic_domain}</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_mautic_var_mautic_db_host" model="service.template.variable">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">mautic_db_host</field>
+        <field name="var_type">string</field>
+        <field name="default_value">mysql</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_mautic_var_mautic_db_port" model="service.template.variable">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">mautic_db_port</field>
+        <field name="var_type">string</field>
+        <field name="default_value">3306</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_mautic_var_mautic_db_database" model="service.template.variable">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">mautic_db_database</field>
+        <field name="var_type">string</field>
+        <field name="default_value">mautic</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_mautic_var_mautic_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">mautic_db_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">mautic</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_mautic_var_mautic_trusted_proxies" model="service.template.variable">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">mautic_trusted_proxies</field>
+        <field name="var_type">string</field>
+        <field name="default_value">[&quot;0.0.0.0/0&quot;]</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_mautic_var_mautic_messenger_dsn_email" model="service.template.variable">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">mautic_messenger_dsn_email</field>
+        <field name="var_type">string</field>
+        <field name="default_value">doctrine://default</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_mautic_var_mautic_messenger_dsn_hit" model="service.template.variable">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">mautic_messenger_dsn_hit</field>
+        <field name="var_type">string</field>
+        <field name="default_value">doctrine://default</field>
+        <field name="sequence">100</field>
+    </record>
+    <record id="template_mautic_var_php_ini_date_timezone" model="service.template.variable">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">php_ini_date_timezone</field>
+        <field name="var_type">string</field>
+        <field name="default_value">UTC</field>
+        <field name="sequence">110</field>
+    </record>
+    <record id="template_mautic_var_php_memory_limit" model="service.template.variable">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">php_memory_limit</field>
+        <field name="var_type">string</field>
+        <field name="default_value">512M</field>
+        <field name="sequence">120</field>
+    </record>
+    <record id="template_mautic_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">mysql_data</field>
+        <field name="local_path">./mysql_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_mautic_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_mautic"/>
+        <field name="name">mautic_data</field>
+        <field name="local_path">./mautic_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

@@ -1,0 +1,253 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'twenty-server': twenty-change-vol-ownership, twenty-worker): revisar backup/red/init.
+           - Owner UID:GID de 'twenty-change-vol-ownership' (imagen ubuntu) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'twenty-server' (imagen twentycrm/twenty:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_twenty" model="service.template">
+        <field name="name">Twenty CRM</field>
+        <field name="code">twenty</field>
+        <field name="service_code">twenty</field>
+        <field name="version">latest</field>
+        <field name="description">Twenty is a modern, fully open-source CRM and a credible alternative to Salesforce and HubSpot, built around a flexible spreadsheet-like data model.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Twenty is a modern, fully open-source CRM and a credible alternative to Salesforce and HubSpot, built around a flexible spreadsheet-like data model.</p>
+  <p>Twenty gives teams the core building blocks of a CRM — customizable objects, records, views, pipelines and workflows — on top of a PostgreSQL-native data model, so you can define unlimited custom objects and relationships without consultants or vendor lock-in. It targets startups and technical teams that want full ownership of their customer data and the ability to extend the platform as code. Its modern React interface with a NestJS/GraphQL backend, runtime data-model customization and built-in workflow automation set it apart from heavier legacy CRMs.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Flexible, PostgreSQL-native data model with unlimited custom objects and relationships</li>
+    <li>Spreadsheet-style records with kanban, table and timeline views</li>
+    <li>No-code workflow automation, triggers and webhooks</li>
+    <li>AI agents and chat capabilities integrated into the CRM</li>
+    <li>Email and calendar sync via your own OAuth credentials (Gmail, Outlook)</li>
+    <li>Self-hosted via Docker Compose with a permissive AGPL-3.0 license and no user caps</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Startups, sales teams and technical organizations that want a self-hosted, customizable CRM with full data ownership and the freedom to extend it without per-seat licensing or vendor lock-in.</p>
+</div>]]></field>
+        <field name="category">business</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/twenty.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_crm'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="website_url">https://twenty.com</field>
+        <field name="documentation_url">https://docs.twenty.com</field>
+        <field name="source_url">https://github.com/twentyhq/twenty</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  twenty-change-vol-ownership:
+    image: ubuntu
+    user: root
+    volumes:
+    - ./twenty_server_local_data:/tmp/server-local-data
+    - ./twenty_docker_data:/tmp/docker-data
+    command: 'bash -c " chown -R 1000:1000 /tmp/server-local-data && chown -R 1000:1000 /tmp/docker-data"
+
+      '
+    container_name: '{{ INSTANCE_CODE }}_twenty_change_vol_ownership'
+    restart: unless-stopped
+    networks:
+    - internal
+  twenty-server:
+    image: twentycrm/twenty:latest
+    volumes:
+    - ./twenty_server_local_data:/app/packages/twenty-server/${STORAGE_LOCAL_PATH
+    - ./twenty_docker_data:/app/docker-data
+    environment:
+      PORT: 3000
+      SERVER_URL: {{ http_protocol }}://{{ twenty_host }}
+      FRONT_BASE_URL: {{ http_protocol }}://{{ twenty_host }}
+      PG_DATABASE_URL: postgres://{{ db_user }}:{{ db_password }}@twenty-postgres:5432/twenty
+      ENABLE_DB_MIGRATIONS: 'true'
+      REDIS_URL: redis://twenty-redis:6379
+      IS_SIGN_UP_DISABLED: ${IS_SIGN_UP_DISABLED:-false}
+      SIGN_IN_PREFILLED: 'false'
+      IS_CONFIG_VARIABLES_IN_DB_ENABLED: 'true'
+      STORAGE_TYPE: local
+      APP_SECRET: {{ app_secret }}
+    depends_on:
+      twenty-change-vol-ownership:
+        condition: service_completed_successfully
+      twenty-postgres:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://127.0.0.1:3000/healthz
+      interval: 5s
+      timeout: 5s
+      retries: 30
+      start_period: 30s
+    restart: always
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    networks:
+    - internal
+    - agz-proxy-network
+  twenty-worker:
+    image: twentycrm/twenty:latest
+    command:
+    - yarn
+    - worker:prod
+    environment:
+      PG_DATABASE_URL: postgres://{{ db_user }}:{{ db_password }}@twenty-postgres:5432/twenty
+      SERVER_URL: {{ http_protocol }}://{{ twenty_host }}
+      FRONT_BASE_URL: {{ http_protocol }}://{{ twenty_host }}
+      REDIS_URL: redis://twenty-redis:6379
+      ENABLE_DB_MIGRATIONS: 'false'
+      STORAGE_TYPE: local
+      APP_SECRET: {{ app_secret }}
+    depends_on:
+      twenty-postgres:
+        condition: service_healthy
+      twenty-server:
+        condition: service_healthy
+    restart: always
+    container_name: '{{ INSTANCE_CODE }}_twenty_worker'
+    networks:
+    - internal
+  twenty-postgres:
+    image: postgres:17-alpine
+    volumes:
+    - ./twenty_postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: {{ db_user }}
+      POSTGRES_PASSWORD: {{ db_password }}
+      POSTGRES_DB: twenty
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U {{ db_user }} -d twenty
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: always
+    container_name: '{{ INSTANCE_CODE }}_twenty_postgres'
+    networks:
+    - internal
+  twenty-redis:
+    image: redis:latest
+    volumes:
+    - ./twenty_redis_data:/data
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 5s
+      timeout: 5s
+      retries: 10
+    restart: always
+    container_name: '{{ INSTANCE_CODE }}_twenty_redis'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T twenty-postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d twenty-postgres
+for i in $(seq 1 30); do
+  docker compose exec -T twenty-postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T twenty-postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T twenty-postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_twenty_port_http" model="service.template.port">
+        <field name="template_id" ref="template_twenty"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_twenty_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_twenty"/>
+        <field name="name">db_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">twenty</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_twenty_var_app_secret" model="service.template.variable">
+        <field name="template_id" ref="template_twenty"/>
+        <field name="name">app_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_twenty_var_http_protocol" model="service.template.variable">
+        <field name="template_id" ref="template_twenty"/>
+        <field name="name">http_protocol</field>
+        <field name="var_type">string</field>
+        <field name="default_value">http</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_twenty_var_is_sign_up_disabled" model="service.template.variable">
+        <field name="template_id" ref="template_twenty"/>
+        <field name="name">is_sign_up_disabled</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_twenty_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_twenty"/>
+        <field name="name">twenty-server-local-data</field>
+        <field name="local_path">./twenty_server_local_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_twenty_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_twenty"/>
+        <field name="name">twenty-docker-data</field>
+        <field name="local_path">./twenty_docker_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_twenty_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_twenty"/>
+        <field name="name">twenty-postgres-data</field>
+        <field name="local_path">./twenty_postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_twenty_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_twenty"/>
+        <field name="name">twenty-redis-data</field>
+        <field name="local_path">./twenty_redis_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">40</field>
+    </record>
+</odoo>

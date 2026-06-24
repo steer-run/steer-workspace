@@ -1,0 +1,85 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'adguardhome' (imagen adguard/adguardhome:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_adguardhome" model="service.template">
+        <field name="name">AdGuard Home</field>
+        <field name="code">adguardhome</field>
+        <field name="service_code">adguardhome</field>
+        <field name="version">latest</field>
+        <field name="description">AdGuard Home is a network-wide DNS server that blocks ads, trackers, and malicious domains for every device on your network.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">AdGuard Home is a network-wide DNS server that blocks ads, trackers, and malicious domains for every device on your network.</p>
+  <p>It acts as a DNS sinkhole, re-routing requests to advertising and tracking domains to a "black hole" so they never resolve, protecting browsers, apps, and IoT devices without installing client software on each one. Configured once at the router or DHCP level, it gives a single point of control over filtering, encrypted DNS, and per-client policies, backed by a clean web dashboard with query logs and statistics. It is a strong, modern alternative to Pi-hole for home and small-office networks.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Network-wide blocking of ads, trackers, and malware domains using customizable filter lists and rules</li>
+    <li>Encrypted upstream DNS support: DNS-over-HTTPS, DNS-over-TLS, DNS-over-QUIC, and DNSCrypt</li>
+    <li>Per-client configuration with individual filtering rules and access control</li>
+    <li>Parental controls and enforced Safe Search for major search engines</li>
+    <li>Built-in DHCP server and a web admin interface with query logs and statistics</li>
+    <li>REST API for automation and integration with other tools</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Home labs, families, and small offices that want centralized, network-wide ad and tracker blocking plus private, encrypted DNS, managed from one self-hosted dashboard.</p>
+</div>]]></field>
+        <field name="category">networking</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/adguardhome.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_dns'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_security')])]"/>
+        <field name="website_url">https://adguard.com</field>
+        <field name="documentation_url">https://github.com/AdguardTeam/AdGuardHome/wiki</field>
+        <field name="source_url">https://github.com/AdguardTeam/AdGuardHome</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  adguardhome:
+    image: adguard/adguardhome:latest
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    volumes:
+    - ./adguardhome_work:/opt/adguardhome/work
+    - ./adguardhome_conf:/opt/adguardhome/conf
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_adguardhome_port_http" model="service.template.port">
+        <field name="template_id" ref="template_adguardhome"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_adguardhome_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_adguardhome"/>
+        <field name="name">adguardhome-work</field>
+        <field name="local_path">./adguardhome_work</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_adguardhome_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_adguardhome"/>
+        <field name="name">adguardhome-conf</field>
+        <field name="local_path">./adguardhome_conf</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

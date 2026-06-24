@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'pocketbase' (imagen adrianmusante/pocketbase:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_pocketbase" model="service.template">
+        <field name="name">PocketBase</field>
+        <field name="code">pocketbase</field>
+        <field name="service_code">pocketbase</field>
+        <field name="version">latest</field>
+        <field name="description">PocketBase is an open-source backend in a single file, bundling a database, authentication, file storage, realtime subscriptions and an admin dashboard.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">PocketBase is an open-source backend in a single file, bundling a database, authentication, file storage, realtime subscriptions and an admin dashboard.</p>
+  <p>Written in Go, it ships as one portable executable with an embedded SQLite database and an auto-generated REST API, giving you a complete Firebase-style backend with no external services to wire up. You can run it standalone or embed it as a Go library to add custom business logic, and clients connect through official JavaScript and Dart SDKs. It is a popular choice for developers who want a self-hosted, low-friction backend they fully control.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Embedded SQLite database with schema builder and auto-generated REST API</li>
+    <li>Built-in user authentication, including email/password and OAuth2 providers</li>
+    <li>Realtime subscriptions to record changes over server-sent events</li>
+    <li>File storage with local or S3-compatible backends and on-the-fly thumbnails</li>
+    <li>Web admin dashboard for managing collections, records, users and settings</li>
+    <li>Extensible via JavaScript hooks or as a Go library, packaged as one binary</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Developers, indie hackers and small teams building web, mobile or desktop apps that need a self-hosted backend with auth, storage and realtime data without operating a multi-service stack. Ideal for MVPs, prototypes and small-to-medium production apps where a single, easy-to-deploy binary is preferred.</p>
+</div>]]></field>
+        <field name="category">database</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/pocketbase.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_paas'), ref('agz_infra_suite.tag_identity'), ref('agz_infra_suite.tag_storage')])]"/>
+        <field name="website_url">https://pocketbase.io/</field>
+        <field name="documentation_url">https://pocketbase.io/docs/</field>
+        <field name="source_url">https://github.com/pocketbase/pocketbase</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  pocketbase:
+    image: adrianmusante/pocketbase:latest
+    restart: always
+    expose:
+    - 8090
+    volumes:
+    - ./pocketbase_data:/pocketbase
+    environment:
+    - POCKETBASE_ADMIN_EMAIL={{ admin_email }}
+    - POCKETBASE_ADMIN_PASSWORD={{ admin_password }}
+    - POCKETBASE_ADMIN_UPSERT=true
+    - POCKETBASE_PORT_NUMBER=8090
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - -qO-
+      - http://localhost:8090/_/
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8090'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_pocketbase_port_http" model="service.template.port">
+        <field name="template_id" ref="template_pocketbase"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8090</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_pocketbase_var_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_pocketbase"/>
+        <field name="name">admin_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_pocketbase_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_pocketbase"/>
+        <field name="name">pocketbase-data</field>
+        <field name="local_path">./pocketbase_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

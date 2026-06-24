@@ -1,0 +1,77 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'jenkins' (imagen jenkins/jenkins:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_jenkins" model="service.template">
+        <field name="name">jenkins</field>
+        <field name="code">jenkins</field>
+        <field name="service_code">jenkins</field>
+        <field name="version">latest</field>
+        <field name="description">Jenkins is the leading open-source automation server for building, testing, and deploying software across any pipeline.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Jenkins is the leading open-source automation server for building, testing, and deploying software across any pipeline.</p>
+  <p>Written in Java, Jenkins orchestrates continuous integration and continuous delivery (CI/CD) workflows and arbitrary automation tasks. Its strength is an ecosystem of more than 2,000 plugins that integrate with virtually any tool, source-control system, build tool, or cloud, letting teams model pipelines as code with declarative or scripted Jenkinsfiles. It is self-hosted and infrastructure-agnostic, with a controller/agent architecture that scales from a single machine to large distributed build farms.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Pipeline-as-code with declarative and scripted Jenkinsfiles stored alongside your source</li>
+    <li>Distributed controller/agent builds across physical, virtual, container, and cloud nodes</li>
+    <li>Extensive plugin ecosystem (2,000+) for SCM, build tools, notifications, cloud, and security integrations</li>
+    <li>Weekly and Long-Term Support (LTS) release lines with backported security and bug fixes</li>
+    <li>Credentials management, role-based access control, and a dedicated security advisory program (CNA)</li>
+    <li>Modernized web UI, REST API, and CLI for full programmatic control</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>DevOps and platform engineering teams that need a self-hosted, vendor-neutral CI/CD and automation hub, especially in enterprise or air-gapped environments requiring full control over build infrastructure and deep tool integration.</p>
+</div>]]></field>
+        <field name="category">ci_cd</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/jenkins.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_ci_cd'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_workflow')])]"/>
+        <field name="website_url">https://www.jenkins.io/</field>
+        <field name="documentation_url">https://www.jenkins.io/doc/</field>
+        <field name="source_url">https://github.com/jenkinsci/jenkins</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  jenkins:
+    image: jenkins/jenkins:latest
+    volumes:
+    - ./jenkins_home:/var/jenkins_home
+    - /var/run/docker.sock:/var/run/docker.sock
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_jenkins_port_http" model="service.template.port">
+        <field name="template_id" ref="template_jenkins"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_jenkins_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_jenkins"/>
+        <field name="name">jenkins-home</field>
+        <field name="local_path">./jenkins_home</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

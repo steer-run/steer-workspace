@@ -1,0 +1,178 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_web_check" model="service.template">
+        <field name="name">Web-Check</field>
+        <field name="code">web_check</field>
+        <field name="service_code">web_check</field>
+        <field name="version">latest</field>
+        <field name="description">Web-Check is an all-in-one OSINT and reconnaissance tool that reveals everything sitting behind any website from a single domain lookup.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Web-Check is an all-in-one OSINT and reconnaissance tool that reveals everything sitting behind any website from a single domain lookup.</p>
+  <p>It gathers, analyses and collates a website's infrastructure, security posture and configuration into one dashboard, with no special setup or technical skill required from the user. Each check runs on demand against a target domain, making it valuable for developers, sysadmins, security researchers, OSINT investigators and site owners who need a fast, comprehensive snapshot of how a site is built and exposed.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>IP, geolocation and server location mapping, with traceroute and open-port discovery</li>
+    <li>DNS records, DNSSEC validation and full redirect-chain analysis</li>
+    <li>SSL/TLS certificate inspection plus HTTP headers, cookies and security configuration review</li>
+    <li>Email security audit (SPF, DKIM, DMARC) and malware/phishing threat checks</li>
+    <li>Technology-stack detection and Lighthouse-based performance, accessibility and SEO metrics</li>
+    <li>Historical snapshots via the Wayback Machine and optional enrichment through Shodan, Google and WhoAPI keys</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Security researchers, OSINT investigators, sysadmins and developers who need an instant, consolidated view of any website's infrastructure, security and configuration during audits, due diligence or troubleshooting.</p>
+</div>]]></field>
+        <field name="category">security</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/web_check.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_dns'), ref('agz_infra_suite.tag_monitoring')])]"/>
+        <field name="website_url">https://github.com/lissy93/web-check</field>
+        <field name="documentation_url">https://github.com/lissy93/web-check</field>
+        <field name="source_url">https://github.com/lissy93/web-check</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  web-check:
+    image: lissy93/web-check
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_web_check_port_http" model="service.template.port">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_web_check_var_google_cloud_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">google_cloud_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_web_check_var_torrent_ip_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">torrent_ip_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_web_check_var_security_trails_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">security_trails_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_web_check_var_built_with_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">built_with_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_web_check_var_url_scan_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">url_scan_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_web_check_var_tranco_username" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">tranco_username</field>
+        <field name="var_type">string</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_web_check_var_tranco_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">tranco_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_web_check_var_cloudmersive_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">cloudmersive_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_web_check_var_react_app_shodan_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">react_app_shodan_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_web_check_var_react_app_who_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">react_app_who_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">100</field>
+    </record>
+    <record id="template_web_check_var_port" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">port</field>
+        <field name="var_type">string</field>
+        <field name="default_value">3000</field>
+        <field name="sequence">110</field>
+    </record>
+    <record id="template_web_check_var_disable_gui" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">disable_gui</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">120</field>
+    </record>
+    <record id="template_web_check_var_api_timeout_limit" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">api_timeout_limit</field>
+        <field name="var_type">string</field>
+        <field name="default_value">10000</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">130</field>
+    </record>
+    <record id="template_web_check_var_api_cors_origin" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">api_cors_origin</field>
+        <field name="var_type">string</field>
+        <field name="default_value">*</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">140</field>
+    </record>
+    <record id="template_web_check_var_api_enable_rate_limit" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">api_enable_rate_limit</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">150</field>
+    </record>
+    <record id="template_web_check_var_enable_analytics" model="service.template.variable">
+        <field name="template_id" ref="template_web_check"/>
+        <field name="name">enable_analytics</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">160</field>
+    </record>
+</odoo>

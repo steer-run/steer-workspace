@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'bazarr' (imagen lscr.io/linuxserver/bazarr:1.5.1) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_bazarr" model="service.template">
+        <field name="name">Bazarr</field>
+        <field name="code">bazarr</field>
+        <field name="service_code">bazarr</field>
+        <field name="version">latest</field>
+        <field name="description">Bazarr is a companion to Sonarr and Radarr that automatically finds, downloads and keeps your subtitles in sync with your media library.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Bazarr is a companion to Sonarr and Radarr that automatically finds, downloads and keeps your subtitles in sync with your media library.</p>
+  <p>It manages subtitles per TV show and movie according to your language preferences, querying dozens of subtitle providers and downloading the best match as soon as it becomes available. Bazarr tracks only the series and movies indexed in Sonarr and Radarr (it does not scan disk on its own), and can periodically re-search to upgrade existing subtitles when a better release is found. It targets users running a self-hosted Servarr media automation stack who want hands-off, multilingual subtitle coverage.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Tight integration with Sonarr and Radarr to manage subtitles per series and movie</li>
+    <li>Automatic search and download of missing subtitles in your preferred languages</li>
+    <li>Support for many subtitle providers (OpenSubtitles, Podnapisi and others) with per-provider configuration</li>
+    <li>Release-group and hash matching to improve subtitle-to-video synchronization</li>
+    <li>Scheduled upgrades that replace existing subtitles when a better version appears</li>
+    <li>Subtitle tools: sync, encoding fixes, forced/foreign tracks and download history</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Home media enthusiasts and self-hosters running Sonarr and Radarr who want fully automated, multilingual subtitle management for their Plex, Jellyfin or Emby libraries.</p>
+</div>]]></field>
+        <field name="category">media</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/bazarr.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_automation')])]"/>
+        <field name="website_url">https://www.bazarr.media/</field>
+        <field name="documentation_url">https://www.bazarr.media/docs</field>
+        <field name="source_url">https://github.com/morpheus65535/bazarr</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  bazarr:
+    image: lscr.io/linuxserver/bazarr:1.5.1
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:6767'
+    environment:
+    - PUID=1000
+    - PGID=1000
+    - TZ=UTC
+    volumes:
+    - ./config:/config
+    - {{ movies_path }}:/movies
+    - {{ tv_path }}:/tv
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_bazarr_port_http" model="service.template.port">
+        <field name="template_id" ref="template_bazarr"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">6767</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_bazarr_var_movies_path" model="service.template.variable">
+        <field name="template_id" ref="template_bazarr"/>
+        <field name="name">movies_path</field>
+        <field name="var_type">string</field>
+        <field name="default_value">./movies</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_bazarr_var_tv_path" model="service.template.variable">
+        <field name="template_id" ref="template_bazarr"/>
+        <field name="name">tv_path</field>
+        <field name="var_type">string</field>
+        <field name="default_value">./tv</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_bazarr_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_bazarr"/>
+        <field name="name">config</field>
+        <field name="local_path">./config</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

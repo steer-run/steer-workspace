@@ -1,0 +1,226 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'filer': master, volume, s3): revisar backup/red/init.
+           - Owner UID:GID de 'master' (imagen chrislusf/seaweedfs:4.02) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'volume' (imagen chrislusf/seaweedfs:4.02) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'filer' (imagen chrislusf/seaweedfs:4.02) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_seaweedfs" model="service.template">
+        <field name="name">SeaweedFS</field>
+        <field name="code">seaweedfs</field>
+        <field name="service_code">seaweedfs</field>
+        <field name="version">latest</field>
+        <field name="description">SeaweedFS is a fast, distributed storage system that serves blobs, objects, files, and data-lake tables at the scale of billions of files.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">SeaweedFS is a fast, distributed storage system that serves blobs, objects, files, and data-lake tables at the scale of billions of files.</p>
+  <p>Inspired by Facebook's Haystack and f4 papers, SeaweedFS splits responsibilities between a lightweight master that tracks only volumes and volume servers that store the actual data, keeping metadata overhead to roughly 40 bytes per file and most reads to a single disk seek. A pluggable Filer layer adds a POSIX-like namespace on top of metadata stores such as MySQL, PostgreSQL, MongoDB, or Redis, while built-in replication, erasure coding, and transparent cloud tiering cover hot, warm, and cold data. It targets teams that need S3-compatible object storage without the operational weight of larger systems.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>S3-compatible API with a built-in Iceberg REST catalog and embedded IAM</li>
+    <li>POSIX-like Filer with FUSE mount, WebDAV, and Hadoop access</li>
+    <li>Rack- and data-center-aware replication plus erasure coding for warm storage</li>
+    <li>Transparent cloud tiering and cross-data-center active-active replication</li>
+    <li>O(1) disk reads with ~40 bytes of metadata overhead per file</li>
+    <li>Encryption, TLS/mTLS, JWT-protected filer, TTL expiration, and Kubernetes support</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Platform and infrastructure teams that need a self-hosted, S3-compatible object and file store for media assets, backups, data lakes, or any workload involving very large numbers of files.</p>
+</div>]]></field>
+        <field name="category">storage</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/seaweedfs.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_backup'), ref('agz_infra_suite.tag_object_storage')])]"/>
+        <field name="website_url">https://seaweedfs.com/</field>
+        <field name="documentation_url">https://github.com/seaweedfs/seaweedfs/wiki</field>
+        <field name="source_url">https://github.com/seaweedfs/seaweedfs</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  master:
+    image: chrislusf/seaweedfs:4.02
+    command: '-v=0 master -volumeSizeLimitMB=10240 -ip=master -ip.bind=0.0.0.0 -port=9333 -mdir=/data/master
+
+      '
+    volumes:
+    - ./seaweedfs_master:/data/master
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - -q
+      - --spider
+      - http://localhost:9333
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    expose:
+    - 9333
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    container_name: '{{ INSTANCE_CODE }}_master'
+    networks:
+    - internal
+  volume:
+    image: chrislusf/seaweedfs:4.02
+    command: '-v=0 volume -mserver="master:9333" -port=8080 -dir=/data/volume -max=100
+
+      '
+    volumes:
+    - ./seaweedfs_volume:/data/volume
+    depends_on:
+      master:
+        condition: service_healthy
+    restart: unless-stopped
+    expose:
+    - 8080
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    container_name: '{{ INSTANCE_CODE }}_volume'
+    networks:
+    - internal
+  filer:
+    image: chrislusf/seaweedfs:4.02
+    command: '-v=0 filer -defaultReplicaPlacement=000 -master="master:9333" -ip=filer -ip.bind=0.0.0.0
+      -port=8888
+
+      '
+    environment:
+    - WEED_MASTER=master:9333
+    volumes:
+    - ./seaweedfs_filer:/data
+    depends_on:
+    - master
+    - volume
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - -q
+      - --spider
+      - http://localhost:8888
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+    expose:
+    - 8888
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8888'
+    networks:
+    - internal
+    - agz-proxy-network
+  s3:
+    image: chrislusf/seaweedfs:4.02
+    command: '-v=0 s3 -filer="filer:8888" -ip.bind=0.0.0.0 -port=8333
+
+      '
+    environment:
+    - AWS_ACCESS_KEY_ID={{ s3_access_key }}
+    - AWS_SECRET_ACCESS_KEY={{ s3_secret_key }}
+    restart: unless-stopped
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
+    expose:
+    - 8333
+    container_name: '{{ INSTANCE_CODE }}_s3'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_seaweedfs_port_http" model="service.template.port">
+        <field name="template_id" ref="template_seaweedfs"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8888</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_seaweedfs_var_filer_domain" model="service.template.variable">
+        <field name="template_id" ref="template_seaweedfs"/>
+        <field name="name">filer_domain</field>
+        <field name="var_type">string</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_seaweedfs_var_master_domain" model="service.template.variable">
+        <field name="template_id" ref="template_seaweedfs"/>
+        <field name="name">master_domain</field>
+        <field name="var_type">string</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_seaweedfs_var_s3_domain" model="service.template.variable">
+        <field name="template_id" ref="template_seaweedfs"/>
+        <field name="name">s3_domain</field>
+        <field name="var_type">string</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_seaweedfs_var_s3_access_key" model="service.template.variable">
+        <field name="template_id" ref="template_seaweedfs"/>
+        <field name="name">s3_access_key</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_seaweedfs_var_s3_secret_key" model="service.template.variable">
+        <field name="template_id" ref="template_seaweedfs"/>
+        <field name="name">s3_secret_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_seaweedfs_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_seaweedfs"/>
+        <field name="name">seaweedfs-master</field>
+        <field name="local_path">./seaweedfs_master</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_seaweedfs_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_seaweedfs"/>
+        <field name="name">seaweedfs-volume</field>
+        <field name="local_path">./seaweedfs_volume</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_seaweedfs_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_seaweedfs"/>
+        <field name="name">seaweedfs-filer</field>
+        <field name="local_path">./seaweedfs_filer</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+</odoo>

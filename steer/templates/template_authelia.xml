@@ -1,0 +1,392 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'authelia' (imagen authelia/authelia:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+           - Tiene 2 mount(s) de config: revisar rutas y montaje en el compose.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_authelia" model="service.template">
+        <field name="name">Authelia</field>
+        <field name="code">authelia</field>
+        <field name="service_code">authelia</field>
+        <field name="version">latest</field>
+        <field name="description">Authelia is a self-hosted authentication and authorization server that adds single sign-on and multi-factor authentication to your applications through a single login portal.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Authelia is a self-hosted authentication and authorization server that adds single sign-on and multi-factor authentication to your applications through a single login portal.</p>
+  <p>It fulfills the identity and access management (IAM) role for your infrastructure, acting as a companion to reverse proxies that allow, deny, or redirect requests based on per-rule access policies. As an OpenID Certified OpenID Connect 1.0 provider, it integrates cleanly with proxies such as Traefik, nginx, Caddy, HAProxy, and Envoy, and protects both modern apps and legacy services that have no authentication of their own. It is lightweight, written in Go and React, and designed with a security-by-design philosophy.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>OpenID Connect 1.0 / OAuth 2.0 provider (OpenID Certified) for app-native SSO</li>
+    <li>Multi-factor authentication: FIDO2/WebAuthn security keys and passkeys, TOTP, and Duo push</li>
+    <li>Fine-grained access control rules by domain, path, method, user, group, and network</li>
+    <li>User backends via file or LDAP/Active Directory, with self-service password reset</li>
+    <li>Reverse-proxy integration with Traefik, nginx, Caddy, HAProxy, Envoy, and Skipper</li>
+    <li>High-availability deployments backed by an external database and Redis sessions</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams and self-hosters who want to centralize authentication, enforce MFA, and put SSO in front of multiple web services behind a reverse proxy, without relying on a third-party identity provider.</p>
+</div>]]></field>
+        <field name="category">security</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/authelia.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_identity'), ref('agz_infra_suite.tag_proxy'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="website_url">https://www.authelia.com/</field>
+        <field name="documentation_url">https://www.authelia.com/overview/prologue/introduction/</field>
+        <field name="source_url">https://github.com/authelia/authelia</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  authelia:
+    image: authelia/authelia:latest
+    restart: unless-stopped
+    volumes:
+    - ./authelia_config:/config
+    - ../files/configuration.yml:/config/configuration.yml:ro
+    - ../files/users_database.yml:/config/users_database.yml
+    environment:
+      AUTHELIA_JWT_SECRET: $JWT_SECRET
+      AUTHELIA_SESSION_SECRET: $SESSION_SECRET
+      AUTHELIA_STORAGE_ENCRYPTION_KEY: $STORAGE_ENCRYPTION_KEY
+      AUTHELIA_STORAGE_POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    depends_on:
+      redis:
+        condition: service_healthy
+      postgres:
+        condition: service_healthy
+    ports:
+    - '{{ PORT_HTTP }}:9091'
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    volumes:
+    - ./redis_data:/data
+    command: redis-server --save 60 1 --loglevel warning --requirepass $REDIS_PASSWORD
+    environment:
+      REDIS_PASSWORD: $REDIS_PASSWORD
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - --raw
+      - incr
+      - ping
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    networks:
+    - internal
+  postgres:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    volumes:
+    - ./postgres_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: authelia
+      POSTGRES_USER: authelia
+      POSTGRES_PASSWORD: $POSTGRES_PASSWORD
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U authelia -d authelia
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_authelia_port_http" model="service.template.port">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">9091</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_authelia_var_jwt_secret" model="service.template.variable">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="name">JWT_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_authelia_var_session_secret" model="service.template.variable">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="name">SESSION_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_authelia_var_storage_encryption_key" model="service.template.variable">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="name">STORAGE_ENCRYPTION_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_authelia_var_redis_password" model="service.template.variable">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="name">REDIS_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_authelia_var_postgres_password" model="service.template.variable">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="name">POSTGRES_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_authelia_var_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="name">admin_password</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_authelia_var_admin_password_hash" model="service.template.variable">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="name">admin_password_hash</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_authelia_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="name">authelia_config</field>
+        <field name="local_path">./authelia_config</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_authelia_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="name">redis_data</field>
+        <field name="local_path">./redis_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_authelia_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="name">postgres_data</field>
+        <field name="local_path">./postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_authelia_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="name">configuration.yml</field>
+        <field name="filename">configuration.yml</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[###############################################################
+#                   Authelia configuration                    #
+###############################################################
+
+# DEFAULT ADMIN CREDENTIALS:
+# Username: (auto-generated, check users_database.yml)
+# Password: AdminPass123!
+# Email: (auto-generated)
+#
+# IMPORTANT: Change the password after first login!
+# SECURITY NOTE: This template starts with one-factor auth for easier setup.
+# After configuring SMTP/notifications, change the policy to 'two_factor'
+
+# Server Configuration
+server:
+  address: 'tcp://0.0.0.0:9091'
+  headers:
+    csp_template: ''
+
+# Log Configuration
+log:
+  level: info
+  format: text
+
+# Theme
+theme: auto
+
+# TOTP Configuration
+totp:
+  disable: false
+  issuer: authelia.com
+  algorithm: sha1
+  digits: 6
+  period: 30
+  skew: 1
+  secret_size: 32
+
+# WebAuthn/FIDO2 Configuration
+webauthn:
+  disable: false
+  timeout: 60s
+  display_name: Authelia
+  attestation_conveyance_preference: indirect
+  user_verification: preferred
+
+# NTP Configuration
+ntp:
+  address: 'time.cloudflare.com:123'
+  version: 4
+  max_desync: 3s
+  disable_startup_check: false
+  disable_failure: false
+
+# Authentication Backend Configuration
+authentication_backend:
+  password_reset:
+    disable: false
+    custom_url: ''
+  refresh_interval: 5m
+  file:
+    path: /config/users_database.yml
+    watch: false
+    search:
+      email: false
+      case_insensitive: false
+    password:
+      algorithm: argon2
+      argon2:
+        variant: argon2id
+        iterations: 3
+        memory: 65536
+        parallelism: 4
+        key_length: 32
+        salt_length: 16
+
+# Password Policy
+password_policy:
+  standard:
+    enabled: false
+    min_length: 8
+    max_length: 0
+    require_uppercase: true
+    require_lowercase: true
+    require_number: true
+    require_special: true
+  zxcvbn:
+    enabled: false
+    min_score: 3
+
+# Session Configuration
+session:
+  name: authelia_session
+  domain: ${main_domain}
+  same_site: lax
+  secret: ${session_secret}
+  expiration: 1h
+  inactivity: 5m
+  remember_me_duration: 1M
+  redis:
+    host: redis
+    port: 6379
+    password: ${redis_password}
+    database_index: 0
+    maximum_active_connections: 8
+    minimum_idle_connections: 0
+
+# Storage Configuration
+storage:
+  encryption_key: ${storage_encryption_key}
+  postgres:
+    host: postgres
+    port: 5432
+    database: authelia
+    schema: public
+    username: authelia
+    password: ${postgres_password}
+    timeout: 5s
+
+# Notifier Configuration
+notifier:
+  disable_startup_check: true
+  filesystem:
+    filename: /config/notification.txt
+
+# Regulation Configuration
+regulation:
+  max_retries: 3
+  find_time: 10m
+  ban_time: 12h
+
+# Access Control Configuration - MODIFIED FOR EASIER INITIAL SETUP
+access_control:
+  default_policy: deny
+  rules:
+    - domain: ${main_domain}
+      policy: one_factor  # Changed from one_factor to two_factor for production
+]]></field>
+    </record>
+    <record id="template_authelia_cfg_1" model="service.template.config.file">
+        <field name="template_id" ref="template_authelia"/>
+        <field name="name">users_database.yml</field>
+        <field name="filename">users_database.yml</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[###############################################################
+#                         Users Database                     #
+###############################################################
+
+# DEFAULT LOGIN CREDENTIALS:
+# Username: (generated from username helper)
+# Password: AdminPass123!
+# Email: (generated from email helper)
+#
+# IMPORTANT: Change the default password after first login!
+# To generate a new password hash, run:
+# docker run authelia/authelia:latest authelia hash-password 'your-new-password'
+
+users:
+  ${admin_username}:
+    disabled: false
+    displayname: "Authelia Admin"
+    password: "${admin_password_hash}"
+    email: ${admin_email}
+    groups:
+      - admins
+      - dev
+]]></field>
+    </record>
+</odoo>

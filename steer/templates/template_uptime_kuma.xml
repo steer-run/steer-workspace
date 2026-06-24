@@ -1,0 +1,106 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================== -->
+    <!-- Template: Uptime Kuma                         -->
+    <!-- ============================================== -->
+    <record id="template_uptime_kuma" model="service.template">
+        <field name="name">Uptime Kuma</field>
+        <field name="code">uptime-kuma</field>
+        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/uptime-kuma.png"/>
+        <field name="description">Monitor de uptime self-hosted con interfaz moderna. Monitorea HTTP(s), TCP, DNS, Docker, y más. Notificaciones via Telegram, Discord, Slack, Email y 90+ servicios.</field>
+        <field name="category">monitoring</field>
+        <field name="version">1</field>
+        <field name="service_code">uptime-kuma</field>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_self_hosted')])]"/>
+        <field name="is_web_app">True</field>
+        <field name="is_global">True</field>
+        <field name="active">True</field>
+        <field name="requires_database">False</field>
+        <field name="database_type">none</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  uptime-kuma:
+    image: louislam/uptime-kuma:{{ version | default('1') }}
+    container_name: {{ INSTANCE_CODE }}
+    ports:
+      - "{{ PORT_HTTP }}:3001"
+    volumes:
+      - ./data:/app/data
+    environment:
+      - TZ={{ timezone | default('America/Argentina/Buenos_Aires') }}
+    restart: unless-stopped
+    networks:
+      - agz-proxy-network
+    healthcheck:
+      test: ["CMD-SHELL", "curl -f http://localhost:3001/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 15s
+
+networks:
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+
+    <!-- Puertos del template Uptime Kuma -->
+    <record id="template_uptime_kuma_port_http" model="service.template.port">
+        <field name="template_id" ref="template_uptime_kuma"/>
+        <field name="code">http</field>
+        <field name="name">HTTP (Uptime Kuma)</field>
+        <field name="default_port">3001</field>
+        <field name="sequence">10</field>
+        <field name="traefik_routed" eval="True"/>
+    </record>
+
+    <!-- Variables del template Uptime Kuma -->
+    <record id="template_uptime_kuma_var_version" model="service.template.variable">
+        <field name="template_id" ref="template_uptime_kuma"/>
+        <field name="name">version</field>
+        <field name="display_name">Versión</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">1,latest,1.23.16,1.23.15,beta</field>
+        <field name="default_value">1</field>
+        <field name="required">False</field>
+        <field name="sequence">10</field>
+        <field name="help">Versión de Uptime Kuma. '1' es la rama estable (recomendado), 'latest' puede incluir cambios recientes.</field>
+    </record>
+
+    <record id="template_uptime_kuma_var_timezone" model="service.template.variable">
+        <field name="template_id" ref="template_uptime_kuma"/>
+        <field name="name">timezone</field>
+        <field name="display_name">Zona Horaria</field>
+        <field name="var_type">string</field>
+        <field name="default_value">America/Argentina/Buenos_Aires</field>
+        <field name="required">False</field>
+        <field name="sequence">20</field>
+        <field name="help">Zona horaria para mostrar fechas correctamente. Formato: America/Argentina/Buenos_Aires</field>
+    </record>
+
+    <!-- Volúmenes del template Uptime Kuma -->
+    <record id="template_uptime_kuma_vol_data" model="service.template.volume">
+        <field name="template_id" ref="template_uptime_kuma"/>
+        <field name="name">Datos Uptime Kuma</field>
+        <field name="local_path">./data</field>
+        <field name="owner">1000:1000</field>
+        <field name="permissions">755</field>
+        <field name="sequence">10</field>
+    </record>
+
+
+    <!-- Config Docker por servicio — defaults recomendados (VPS 2-8 GB) -->
+    <!-- ========== Uptime Kuma (template_uptime_kuma) ========== -->
+    <record id="svcfg_uptimekuma" model="service.template.service.config">
+        <field name="template_id" ref="template_uptime_kuma"/>
+        <field name="service_name">uptime-kuma</field>
+        <field name="sequence">10</field>
+        <field name="memory_limit">256m</field>
+        <field name="cpu_limit">0.5</field>
+        <field name="memory_reservation">128m</field>
+        <field name="log_max_size">10m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+</odoo>

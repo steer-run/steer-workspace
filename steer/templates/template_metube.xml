@@ -1,0 +1,279 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'metube' (imagen ghcr.io/alexta69/metube) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_metube" model="service.template">
+        <field name="name">MeTube</field>
+        <field name="code">metube</field>
+        <field name="service_code">metube</field>
+        <field name="version">latest</field>
+        <field name="description">MeTube is a self-hosted web interface for yt-dlp that lets you download videos and audio from YouTube and hundreds of other sites straight from your browser.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">MeTube is a self-hosted web interface for yt-dlp that lets you download videos and audio from YouTube and hundreds of other sites straight from your browser.</p>
+  <p>It wraps the powerful yt-dlp command-line downloader in a clean, queue-based web UI, so you can grab media without touching a terminal. Downloads run on your own server and land in a directory you control, making it a private alternative to ad-laden online download sites. It is aimed at self-hosters and home-lab users who want a simple, always-available downloader.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Browser-based UI for yt-dlp with a live download queue and progress tracking</li>
+    <li>Download video, audio-only, captions and thumbnails in selectable formats and quality</li>
+    <li>Batch download of full playlists and channels</li>
+    <li>Subscriptions that periodically check channels/playlists and auto-queue new uploads</li>
+    <li>Configurable behaviour via global options, named presets and per-download overrides</li>
+    <li>Official Docker images with automated nightly yt-dlp updates, optional basic auth and reverse-proxy support</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Self-hosters and home-lab users who want a private, browser-accessible tool to archive and download online video and audio for offline viewing or personal media libraries.</p>
+</div>]]></field>
+        <field name="category">media</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/metube.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="website_url">https://github.com/alexta69/metube</field>
+        <field name="documentation_url">https://github.com/alexta69/metube/wiki</field>
+        <field name="source_url">https://github.com/alexta69/metube</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  metube:
+    image: ghcr.io/alexta69/metube
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:8081'
+    volumes:
+    - ../files/downloads:/downloads
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_metube_port_http" model="service.template.port">
+        <field name="template_id" ref="template_metube"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8081</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_metube_var_uid" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">uid</field>
+        <field name="var_type">string</field>
+        <field name="default_value">1000</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_metube_var_gid" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">gid</field>
+        <field name="var_type">string</field>
+        <field name="default_value">1000</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_metube_var_umask" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">umask</field>
+        <field name="var_type">string</field>
+        <field name="default_value">022</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_metube_var_default_theme" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">default_theme</field>
+        <field name="var_type">string</field>
+        <field name="default_value">auto</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_metube_var_download_dir" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">download_dir</field>
+        <field name="var_type">string</field>
+        <field name="default_value">/downloads</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_metube_var_audio_download_dir" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">audio_download_dir</field>
+        <field name="var_type">string</field>
+        <field name="default_value">/downloads</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_metube_var_download_dirs_indexable" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">download_dirs_indexable</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_metube_var_custom_dirs" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">custom_dirs</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_metube_var_create_custom_dirs" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">create_custom_dirs</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_metube_var_custom_dirs_exclude_regex" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">custom_dirs_exclude_regex</field>
+        <field name="var_type">string</field>
+        <field name="default_value">(^|/)[.@].*$</field>
+        <field name="sequence">100</field>
+    </record>
+    <record id="template_metube_var_state_dir" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">state_dir</field>
+        <field name="var_type">string</field>
+        <field name="default_value">/downloads/.metube</field>
+        <field name="sequence">110</field>
+    </record>
+    <record id="template_metube_var_temp_dir" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">temp_dir</field>
+        <field name="var_type">string</field>
+        <field name="default_value">/downloads</field>
+        <field name="sequence">120</field>
+    </record>
+    <record id="template_metube_var_delete_file_on_trashcan" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">delete_file_on_trashcan</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">130</field>
+    </record>
+    <record id="template_metube_var_url_prefix" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">url_prefix</field>
+        <field name="var_type">string</field>
+        <field name="default_value">/</field>
+        <field name="sequence">140</field>
+    </record>
+    <record id="template_metube_var_public_host_url" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">public_host_url</field>
+        <field name="var_type">string</field>
+        <field name="sequence">150</field>
+    </record>
+    <record id="template_metube_var_https" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">https</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">160</field>
+    </record>
+    <record id="template_metube_var_certfile" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">certfile</field>
+        <field name="var_type">string</field>
+        <field name="sequence">170</field>
+    </record>
+    <record id="template_metube_var_keyfile" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">keyfile</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">180</field>
+    </record>
+    <record id="template_metube_var_public_host_audio_url" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">public_host_audio_url</field>
+        <field name="var_type">string</field>
+        <field name="sequence">190</field>
+    </record>
+    <record id="template_metube_var_output_template" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">output_template</field>
+        <field name="var_type">string</field>
+        <field name="default_value">%(title)s.%(ext)s</field>
+        <field name="sequence">200</field>
+    </record>
+    <record id="template_metube_var_output_template_chapter" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">output_template_chapter</field>
+        <field name="var_type">string</field>
+        <field name="default_value">%(title)s - %(section_number)s %(section_title)s.%(ext)s</field>
+        <field name="sequence">210</field>
+    </record>
+    <record id="template_metube_var_output_template_playlist" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">output_template_playlist</field>
+        <field name="var_type">string</field>
+        <field name="default_value">%(playlist_title)s/%(title)s.%(ext)s</field>
+        <field name="sequence">220</field>
+    </record>
+    <record id="template_metube_var_default_option_playlist_strict_mode" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">default_option_playlist_strict_mode</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">230</field>
+    </record>
+    <record id="template_metube_var_default_option_playlist_item_limit" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">default_option_playlist_item_limit</field>
+        <field name="var_type">string</field>
+        <field name="default_value">0</field>
+        <field name="sequence">240</field>
+    </record>
+    <record id="template_metube_var_ytdl_options" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">ytdl_options</field>
+        <field name="var_type">string</field>
+        <field name="default_value">{}</field>
+        <field name="sequence">250</field>
+    </record>
+    <record id="template_metube_var_ytdl_options_file" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">ytdl_options_file</field>
+        <field name="var_type">string</field>
+        <field name="sequence">260</field>
+    </record>
+    <record id="template_metube_var_robots_txt" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">robots_txt</field>
+        <field name="var_type">string</field>
+        <field name="sequence">270</field>
+    </record>
+    <record id="template_metube_var_download_mode" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">download_mode</field>
+        <field name="var_type">string</field>
+        <field name="default_value">limited</field>
+        <field name="sequence">280</field>
+    </record>
+    <record id="template_metube_var_max_concurrent_downloads" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">max_concurrent_downloads</field>
+        <field name="var_type">string</field>
+        <field name="default_value">3</field>
+        <field name="sequence">290</field>
+    </record>
+    <record id="template_metube_var_loglevel" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">loglevel</field>
+        <field name="var_type">string</field>
+        <field name="default_value">INFO</field>
+        <field name="sequence">300</field>
+    </record>
+    <record id="template_metube_var_enable_accesslog" model="service.template.variable">
+        <field name="template_id" ref="template_metube"/>
+        <field name="name">enable_accesslog</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">310</field>
+    </record>
+</odoo>

@@ -1,0 +1,67 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'trilium' (imagen zadam/trilium:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_trilium" model="service.template">
+        <field name="name">Trilium</field>
+        <field name="code">trilium</field>
+        <field name="service_code">trilium</field>
+        <field name="version">latest</field>
+        <field name="description">Trilium Notes is a self-hosted, hierarchical note-taking application for building large, structured personal knowledge bases.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Trilium Notes is a self-hosted, hierarchical note-taking application for building large, structured personal knowledge bases.</p>
+  <p>Trilium organizes information into an arbitrarily deep tree where a single note can be cloned into multiple locations at once. It combines a rich WYSIWYG editor with code editing, full-text search, attributes, scripting and a REST API, making it suited to power users who outgrow flat note apps. Originally created by zadam and now maintained by the community-led TriliumNext team, it runs as a desktop app, a self-hosted server, or both with synchronization.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Hierarchical notes with cloning, so one note can live in multiple places in the tree</li>
+    <li>Rich WYSIWYG editor plus source-code notes with syntax highlighting, tables, images and math</li>
+    <li>Fast full-text search, note navigation and per-note version history</li>
+    <li>Attributes, scripting and a REST API for automation and custom workflows</li>
+    <li>Visualization tools: relation/link maps, mind maps, canvas sketching and geo maps</li>
+    <li>Per-note encryption, OIDC/OpenID and TOTP authentication, and self-hosted sync</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals and technical users building a lifelong personal knowledge base, second brain or structured documentation who want full data ownership through self-hosting and advanced organization beyond a simple notes app.</p>
+</div>]]></field>
+        <field name="category">knowledge</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/trilium.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_notes'), ref('agz_infra_suite.tag_documentation'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_search')])]"/>
+        <field name="website_url">https://github.com/zadam/trilium</field>
+        <field name="documentation_url">https://github.com/zadam/trilium/wiki/</field>
+        <field name="source_url">https://github.com/zadam/trilium</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  trilium:
+    image: zadam/trilium:latest
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    restart: always
+    volumes:
+    - /root/trilium-backups:/home/node/trilium-data/backup
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_trilium_port_http" model="service.template.port">
+        <field name="template_id" ref="template_trilium"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

@@ -1,0 +1,159 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'zipline' (imagen ghcr.io/diced/zipline:v4) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_zipline" model="service.template">
+        <field name="name">Zipline</field>
+        <field name="code">zipline</field>
+        <field name="service_code">zipline</field>
+        <field name="version">v3.7.9</field>
+        <field name="description">Zipline is a self-hosted ShareX and file upload server that turns your own infrastructure into a fast, feature-rich hub for screenshots, files and short links.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Zipline is a self-hosted ShareX and file upload server that turns your own infrastructure into a fast, feature-rich hub for screenshots, files and short links.</p>
+  <p>Built as a modern full-stack TypeScript application (Next.js frontend with a Node.js backend on PostgreSQL), Zipline pairs a polished dashboard with deep integrations for screenshot tools across Windows (ShareX), macOS (ishare), Linux (Flameshot) and mobile. It targets developers, teams and homelabbers who want full control over where their uploads live, with support for both local and S3-compatible storage. Its standout trait is being one of the most complete options in its class, combining uploads, URL shortening and rich embeds in a single app.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>File uploads with folders, tags, chunked large-file transfers and on-the-fly image compression</li>
+    <li>URL shortener with custom links plus customizable embeds for Discord and other apps</li>
+    <li>Authentication via 2FA, passkeys and OAuth2/OIDC (Discord, GitHub, Google or any OIDC provider)</li>
+    <li>Password protection for files and URLs, user quotas and invite links</li>
+    <li>Fully featured API, Discord and HTTP webhooks, and installable PWA</li>
+    <li>Local and S3-compatible storage backends with Docker-first deployment</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Developers, content creators and teams who want a self-hosted, privacy-respecting destination for screenshots and file sharing, and homelab users replacing third-party upload services with a single feature-complete server.</p>
+</div>]]></field>
+        <field name="category">storage</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/zipline.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="website_url">https://zipline.diced.sh/</field>
+        <field name="documentation_url">https://zipline.diced.sh/docs/</field>
+        <field name="source_url">https://github.com/diced/zipline</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  postgres:
+    image: postgres:15
+    restart: unless-stopped
+    environment:
+    - POSTGRES_USER=postgres
+    - POSTGRES_PASSWORD=postgres
+    - POSTGRES_DATABASE=postgres
+    volumes:
+    - ./pg_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U postgres
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    networks:
+    - internal
+  zipline:
+    image: ghcr.io/diced/zipline:v4
+    restart: unless-stopped
+    environment:
+    - CORE_RETURN_HTTPS={{ zipline_return_https }}
+    - CORE_SECRET={{ zipline_secret }}
+    - CORE_HOSTNAME=0.0.0.0
+    - CORE_PORT={{ zipline_port }}
+    - DATABASE_URL=postgres://postgres:postgres@postgres/postgres
+    - CORE_LOGGER={{ zipline_logger }}
+    - DATASOURCE_TYPE=local
+    - DATASOURCE_LOCAL_DIRECTORY=./uploads
+    volumes:
+    - ../files/uploads:/zipline/uploads
+    - ../files/public:/zipline/public
+    depends_on:
+    - postgres
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_zipline_port_http" model="service.template.port">
+        <field name="template_id" ref="template_zipline"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_zipline_var_secret_base" model="service.template.variable">
+        <field name="template_id" ref="template_zipline"/>
+        <field name="name">secret_base</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_zipline_var_zipline_port" model="service.template.variable">
+        <field name="template_id" ref="template_zipline"/>
+        <field name="name">zipline_port</field>
+        <field name="var_type">string</field>
+        <field name="default_value">3000</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_zipline_var_zipline_return_https" model="service.template.variable">
+        <field name="template_id" ref="template_zipline"/>
+        <field name="name">zipline_return_https</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_zipline_var_zipline_logger" model="service.template.variable">
+        <field name="template_id" ref="template_zipline"/>
+        <field name="name">zipline_logger</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_zipline_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_zipline"/>
+        <field name="name">pg_data</field>
+        <field name="local_path">./pg_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'akaunting' (imagen docker.io/akaunting/akaunting:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_akaunting" model="service.template">
+        <field name="name">Akaunting</field>
+        <field name="code">akaunting</field>
+        <field name="service_code">akaunting</field>
+        <field name="version">latest</field>
+        <field name="description">Akaunting is a self-hosted, open-source accounting platform that gives small businesses and freelancers full control over their finances and data.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Akaunting is a self-hosted, open-source accounting platform that gives small businesses and freelancers full control over their finances and data.</p>
+  <p>Built on Laravel, Vue and Tailwind, it covers the full money-management cycle: invoicing, billing, income and expense tracking, double-entry bookkeeping and financial reporting. Its modular architecture and built-in App Store let you extend the core with additional features such as payroll, custom payment gateways and integrations. It supports multiple companies and currencies from a single install.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Invoicing, billing and quotes with recurring transactions</li>
+    <li>Income, expense and bank-transaction tracking with reconciliation</li>
+    <li>Double-entry bookkeeping with chart of accounts and journal entries</li>
+    <li>Customer and vendor management plus a client portal</li>
+    <li>Multi-company and multi-currency support from one instance</li>
+    <li>Financial reports (profit &amp; loss, balance sheet, cash flow, tax) and a modular App Store</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Small businesses, freelancers and accountants who want a self-hosted alternative to cloud accounting suites, keeping financial data on their own infrastructure. Note the core uses the Business Source License, which limits free production use to a small scale; commercial on-premise plans are available for larger deployments.</p>
+</div>]]></field>
+        <field name="category">finance</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/akaunting.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_finance'), ref('agz_infra_suite.tag_erp'), ref('agz_infra_suite.tag_productivity')])]"/>
+        <field name="website_url">https://akaunting.com</field>
+        <field name="documentation_url">https://akaunting.com/docs</field>
+        <field name="source_url">https://github.com/akaunting/akaunting</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  akaunting:
+    image: docker.io/akaunting/akaunting:latest
+    restart: unless-stopped
+    depends_on:
+      akaunting-db:
+        condition: service_healthy
+    environment:
+      APP_URL: ${APP_URL}
+      LOCALE: {{ LOCALE }}
+      DB_HOST: akaunting-db
+      DB_PORT: 3306
+      DB_NAME: {{ DB_NAME }}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_PREFIX: {{ DB_PREFIX }}
+      COMPANY_NAME: {{ COMPANY_NAME }}
+      COMPANY_EMAIL: ${COMPANY_EMAIL}
+      ADMIN_EMAIL: ${ADMIN_EMAIL}
+      ADMIN_PASSWORD: ${ADMIN_PASSWORD}
+    expose:
+    - '80'
+    volumes:
+    - ./akaunting_data:/var/www/html
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+  akaunting-db:
+    image: mariadb:10.11
+    restart: unless-stopped
+    environment:
+      MYSQL_DATABASE: ${MYSQL_DATABASE}
+      MYSQL_USER: ${MYSQL_USER}
+      MYSQL_PASSWORD: ${MYSQL_PASSWORD}
+      MYSQL_RANDOM_ROOT_PASSWORD: 'yes'
+    volumes:
+    - ./akaunting_db:/var/lib/mysql
+    healthcheck:
+      test:
+      - CMD
+      - mysqladmin
+      - ping
+      - -h
+      - localhost
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    container_name: '{{ INSTANCE_CODE }}_akaunting_db'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T akaunting-db sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d akaunting-db
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T akaunting-db sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_akaunting_port_http" model="service.template.port">
+        <field name="template_id" ref="template_akaunting"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_akaunting_var_locale" model="service.template.variable">
+        <field name="template_id" ref="template_akaunting"/>
+        <field name="name">LOCALE</field>
+        <field name="var_type">string</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_akaunting_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_akaunting"/>
+        <field name="name">DB_NAME</field>
+        <field name="var_type">string</field>
+        <field name="default_value">akaunting</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_akaunting_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_akaunting"/>
+        <field name="name">db_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">akaunting</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_akaunting_var_mysql_password" model="service.template.variable">
+        <field name="template_id" ref="template_akaunting"/>
+        <field name="name">MYSQL_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_akaunting_var_company_name" model="service.template.variable">
+        <field name="template_id" ref="template_akaunting"/>
+        <field name="name">COMPANY_NAME</field>
+        <field name="var_type">string</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_akaunting_var_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_akaunting"/>
+        <field name="name">ADMIN_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_akaunting_var_db_prefix" model="service.template.variable">
+        <field name="template_id" ref="template_akaunting"/>
+        <field name="name">DB_PREFIX</field>
+        <field name="var_type">string</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_akaunting_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_akaunting"/>
+        <field name="name">akaunting-data</field>
+        <field name="local_path">./akaunting_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_akaunting_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_akaunting"/>
+        <field name="name">akaunting-db</field>
+        <field name="local_path">./akaunting_db</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_akaunting_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_akaunting"/>
+        <field name="name">DB_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">80</field>
+    </record>
+</odoo>

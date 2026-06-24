@@ -1,0 +1,680 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'casdoor' (imagen casbin/casdoor:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+           - Tiene 2 mount(s) de config: revisar rutas y montaje en el compose.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_casdoor" model="service.template">
+        <field name="name">Casdoor</field>
+        <field name="code">casdoor</field>
+        <field name="service_code">casdoor</field>
+        <field name="version">latest</field>
+        <field name="description">Casdoor is a UI-first, open-source Identity and Access Management (IAM) and Single Sign-On (SSO) platform that centralizes authentication and authorization for all your applications.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Casdoor is a UI-first, open-source Identity and Access Management (IAM) and Single Sign-On (SSO) platform that centralizes authentication and authorization for all your applications.</p>
+  <p>Built in Go with a React web console and powered by the Casbin authorization engine, Casdoor lets you manage users, organizations, roles and permissions from a single dashboard while acting as an authentication provider for your own apps and third-party services. It speaks every major auth protocol, supports fine-grained access control models, and integrates with hundreds of external identity providers, making it a flexible replacement for hosted SSO services.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Standards support: OAuth 2.0, OIDC, SAML, CAS, LDAP, SCIM, RADIUS and Kerberos.</li>
+    <li>Casbin-based authorization with ACL, RBAC and ABAC access control models.</li>
+    <li>Multi-factor authentication via TOTP, SMS/email codes and WebAuthn/passkeys.</li>
+    <li>Social and enterprise login through 100+ external identity providers.</li>
+    <li>Web UI to manage users, organizations, roles, permissions and audit logs.</li>
+    <li>Customizable registration and login pages, plus multi-language support.</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams and organizations that want a self-hosted, centralized authentication and authorization layer for multiple internal and customer-facing applications, especially when fine-grained, policy-based access control beyond simple login is required.</p>
+</div>]]></field>
+        <field name="category">security</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/casdoor.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_identity')])]"/>
+        <field name="website_url">https://casdoor.org/</field>
+        <field name="documentation_url">https://casdoor.org/docs/overview</field>
+        <field name="source_url">https://github.com/casdoor/casdoor</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  casdoor:
+    image: casbin/casdoor:latest
+    environment:
+    - RUNNING_IN_DOCKER=true
+    volumes:
+    - ../files/app.conf:/conf/app.conf
+    - ../files/init_data.json:/init_data.json
+    - ./casdoor_data:/data
+    depends_on:
+      casdoor-db:
+        condition: service_healthy
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8000'
+    networks:
+    - internal
+    - agz-proxy-network
+  casdoor-db:
+    image: postgres:16
+    environment:
+    - POSTGRES_USER=casdoor
+    - POSTGRES_PASSWORD={{ postgres_password }}
+    - POSTGRES_DB=casdoor
+    volumes:
+    - ./casdoor_postgres_data:/var/lib/postgresql/data
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U casdoor -d casdoor
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    container_name: '{{ INSTANCE_CODE }}_casdoor_db'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T casdoor-db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d casdoor-db
+for i in $(seq 1 30); do
+  docker compose exec -T casdoor-db sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T casdoor-db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T casdoor-db sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_casdoor_port_http" model="service.template.port">
+        <field name="template_id" ref="template_casdoor"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_casdoor_var_postgres_password" model="service.template.variable">
+        <field name="template_id" ref="template_casdoor"/>
+        <field name="name">postgres_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_casdoor_var_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_casdoor"/>
+        <field name="name">admin_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_casdoor_var_jwt_secret" model="service.template.variable">
+        <field name="template_id" ref="template_casdoor"/>
+        <field name="name">jwt_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_casdoor_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_casdoor"/>
+        <field name="name">casdoor-data</field>
+        <field name="local_path">./casdoor_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_casdoor_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_casdoor"/>
+        <field name="name">casdoor-postgres-data</field>
+        <field name="local_path">./casdoor_postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_casdoor_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_casdoor"/>
+        <field name="name">app.conf</field>
+        <field name="filename">app.conf</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[appname = casdoor
+httpport = 8000
+runmode = prod
+SessionOn = true
+copyrequestbody = true
+driverName = postgres
+dataSourceName = user=casdoor password={{ postgres_password }} host=casdoor-db port=5432 sslmode=disable dbname=casdoor
+dbName = casdoor
+showSql = false
+redisEndpoint =
+defaultStorageProvider =
+isCloudIntranet = false
+authState = "casdoor"
+socks5Proxy = "127.0.0.1:10808"
+verificationCodeTimeout = 10
+initData = "./init_data.json"
+logPostOnly = true
+isUsernameLowered = false
+origin = "https://{{ DOMAIN }}"
+staticBaseUrl = "https://cdn.casbin.org"
+isDemoMode = false
+batchSize = 100
+enableGzip = true
+ldapServerPort = 389
+radiusServerPort = 1812
+radiusSecret = "secret"
+quota = {"organization": -1, "user": -1, "application": -1, "provider": -1}
+logConfig = {"filename": "logs/casdoor.log", "maxdays":99999, "perm":"0770"}
+initDataFile = "./init_data.json"
+frontendBaseDir = "../web/build"
+]]></field>
+    </record>
+    <record id="template_casdoor_cfg_1" model="service.template.config.file">
+        <field name="template_id" ref="template_casdoor"/>
+        <field name="name">init_data.json</field>
+        <field name="filename">init_data.json</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[{
+  "organizations": [
+    {
+      "owner": "admin",
+      "name": "built-in",
+      "createdTime": "2021-01-01T00:00:00Z",
+      "displayName": "Built-in Organization",
+      "websiteUrl": "https://casdoor.org",
+      "favicon": "https://cdn.casbin.org/img/casbin/favicon.ico",
+      "passwordType": "plain",
+      "passwordOptions": ["AtLeast6"],
+      "countryCode": "US",
+      "defaultAvatar": "https://cdn.casbin.org/img/casbin/user.png",
+      "defaultApplication": "app-built-in",
+      "tags": [],
+      "languages": ["en"],
+      "themeData": {
+        "isCompact": false,
+        "isEnabled": false,
+        "themeType": "default",
+        "colorPrimary": "#1976d2",
+        "borderRadius": 6,
+        "isRoundedButton": false,
+        "isGradientButton": false,
+        "themeAlgorithm": "default"
+      },
+      "masterPassword": "",
+      "initScore": 2000,
+      "enableSoftDeletion": false,
+      "isProfilePublic": false,
+      "mfaItems": [],
+      "accountItems": [
+        {
+          "name": "Organization",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "ID",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Immutable"
+        },
+        {
+          "name": "Name",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "Display name",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Avatar",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "User type",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "Password",
+          "visible": true,
+          "viewRule": "Self",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Email",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Phone",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Country/Region",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Location",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Affiliation",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Title",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Homepage",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Bio",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Tag",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "Language",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Gender",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Birthday",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Education",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Score",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "Karma",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "Ranking",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "Signup application",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "Roles",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Immutable"
+        },
+        {
+          "name": "Permissions",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Immutable"
+        },
+        {
+          "name": "Groups",
+          "visible": true,
+          "viewRule": "Public",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "3rd-party logins",
+          "visible": true,
+          "viewRule": "Self",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Properties",
+          "visible": false,
+          "viewRule": "Admin",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "Is admin",
+          "visible": true,
+          "viewRule": "Admin",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "Is forbidden",
+          "visible": true,
+          "viewRule": "Admin",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "Is deleted",
+          "visible": true,
+          "viewRule": "Admin",
+          "modifyRule": "Admin"
+        },
+        {
+          "name": "Multi-factor authentication",
+          "visible": true,
+          "viewRule": "Self",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "WebAuthn credentials",
+          "visible": true,
+          "viewRule": "Self",
+          "modifyRule": "Self"
+        },
+        {
+          "name": "Managed accounts",
+          "visible": true,
+          "viewRule": "Self",
+          "modifyRule": "Self"
+        }
+      ]
+    }
+  ],
+  "users": [
+    {
+      "owner": "built-in",
+      "name": "admin",
+      "createdTime": "2021-01-01T00:00:00Z",
+      "updatedTime": "2021-01-01T00:00:00Z",
+      "id": "admin",
+      "type": "normal-user",
+      "password": "{{ admin_password }}",
+      "passwordSalt": "",
+      "displayName": "Admin",
+      "firstName": "",
+      "lastName": "",
+      "avatar": "https://cdn.casbin.org/img/casbin/user.png",
+      "permanentAvatar": "",
+      "email": "admin@example.com",
+      "emailVerified": true,
+      "phone": "",
+      "location": "",
+      "address": [],
+      "affiliation": "Example Inc.",
+      "title": "Administrator",
+      "idCardType": "",
+      "idCard": "",
+      "homepage": "",
+      "bio": "",
+      "tag": "staff",
+      "region": "US",
+      "language": "en",
+      "gender": "",
+      "birthday": "",
+      "education": "",
+      "score": 2000,
+      "karma": 0,
+      "ranking": 1,
+      "isDefaultAvatar": false,
+      "isOnline": false,
+      "isAdmin": true,
+      "isGlobalAdmin": true,
+      "isForbidden": false,
+      "isDeleted": false,
+      "signupApplication": "app-built-in",
+      "hash": "",
+      "preHash": "",
+      "createdIp": "",
+      "lastSigninTime": "",
+      "lastSigninIp": "",
+      "github": "",
+      "google": "",
+      "qq": "",
+      "wechat": "",
+      "facebook": "",
+      "dingtalk": "",
+      "weibo": "",
+      "gitee": "",
+      "linkedin": "",
+      "wecom": "",
+      "lark": "",
+      "gitlab": "",
+      "adfs": "",
+      "baidu": "",
+      "alipay": "",
+      "casdoor": "",
+      "infoflow": "",
+      "apple": "",
+      "azuread": "",
+      "slack": "",
+      "steam": "",
+      "bilibili": "",
+      "okta": "",
+      "douyin": "",
+      "custom": "",
+      "webauthnCredentials": [],
+      "preferredMfaType": "",
+      "recoveryCodes": [],
+      "totpSecret": "",
+      "mfaPhoneEnabled": false,
+      "mfaEmailEnabled": false,
+      "ldap": "",
+      "properties": {},
+      "roles": [],
+      "permissions": [],
+      "groups": [],
+      "lastSigninWrongTime": "",
+      "signinWrongTimes": 0,
+      "managedAccounts": []
+    }
+  ],
+  "applications": [
+    {
+      "owner": "built-in",
+      "name": "app-built-in",
+      "createdTime": "2021-01-01T00:00:00Z",
+      "displayName": "Casdoor",
+      "logo": "https://cdn.casbin.org/img/casbin/favicon.ico",
+      "homepageUrl": "https://{{ DOMAIN }}",
+      "description": "Casdoor - A UI-first Identity Access Management (IAM) / Single-Sign-On (SSO) platform",
+      "organization": "built-in",
+      "cert": "",
+      "enablePassword": true,
+      "enableSignUp": true,
+      "enableSigninSession": false,
+      "enableAutoSignin": false,
+      "enableCodeSignin": false,
+      "enableSamlCompress": false,
+      "enableWebAuthn": false,
+      "enableLinkWithEmail": false,
+      "samlReplyUrl": "",
+      "providers": [],
+      "signupItems": [
+        {
+          "name": "ID",
+          "visible": false,
+          "required": true,
+          "prompted": false,
+          "rule": "Random"
+        },
+        {
+          "name": "Username",
+          "visible": true,
+          "required": true,
+          "prompted": false,
+          "rule": "None"
+        },
+        {
+          "name": "Display name",
+          "visible": true,
+          "required": true,
+          "prompted": false,
+          "rule": "None"
+        },
+        {
+          "name": "Password",
+          "visible": true,
+          "required": true,
+          "prompted": false,
+          "rule": "None"
+        },
+        {
+          "name": "Confirm password",
+          "visible": true,
+          "required": true,
+          "prompted": false,
+          "rule": "None"
+        },
+        {
+          "name": "Email",
+          "visible": true,
+          "required": true,
+          "prompted": false,
+          "rule": "None"
+        },
+        {
+          "name": "Phone",
+          "visible": true,
+          "required": true,
+          "prompted": false,
+          "rule": "None"
+        },
+        {
+          "name": "Agreement",
+          "visible": true,
+          "required": true,
+          "prompted": false,
+          "rule": "None"
+        }
+      ],
+      "grantTypes": [
+        "authorization_code",
+        "password",
+        "client_credentials",
+        "token",
+        "id_token"
+      ],
+      "organizationObj": {
+        "owner": "admin",
+        "name": "built-in",
+        "createdTime": "2021-01-01T00:00:00Z",
+        "displayName": "Built-in Organization"
+      },
+      "tags": [],
+      "clientId": "{{ jwt_secret }}",
+      "clientSecret": "{{ jwt_secret }}",
+      "redirectUris": ["https://{{ DOMAIN }}/callback"],
+      "tokenFormat": "JWT",
+      "tokenFields": [],
+      "expireInHours": 168,
+      "refreshExpireInHours": 168,
+      "signupUrl": "",
+      "signinUrl": "",
+      "forgetUrl": "",
+      "affiliationUrl": "",
+      "termsOfUse": "",
+      "privacyPolicy": "",
+      "tokenFields": [],
+      "themeData": {
+        "isCompact": false,
+        "isEnabled": false,
+        "themeType": "default",
+        "colorPrimary": "#1976d2",
+        "borderRadius": 6,
+        "isRoundedButton": false,
+        "isGradientButton": false,
+        "themeAlgorithm": "default"
+      },
+      "formCss": "",
+      "formCssMobile": "",
+      "formOffset": 2,
+      "formSideHtml": "",
+      "formBackgroundUrl": ""
+    }
+  ],
+  "certs": [],
+  "providers": [],
+  "ldaps": [],
+  "models": [],
+  "permissions": [],
+  "roles": [],
+  "groups": [],
+  "enforcers": [],
+  "tokens": [],
+  "sessions": [],
+  "payments": [],
+  "products": [],
+  "resources": [],
+  "synceers": [],
+  "adapters": [],
+  "webhooks": [],
+  "subscriptions": [],
+  "plans": [],
+  "pricings": [],
+  "invitations": []
+}
+]]></field>
+    </record>
+</odoo>

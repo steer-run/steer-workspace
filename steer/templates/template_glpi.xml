@@ -1,0 +1,132 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'glpi-web' (imagen elestio/glpi:10.0.16) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_glpi" model="service.template">
+        <field name="name">GLPI Project</field>
+        <field name="code">glpi</field>
+        <field name="service_code">glpi</field>
+        <field name="version">10.0.16</field>
+        <field name="description">GLPI is a mature open-source IT Service Management and Asset Management platform that unifies your help desk, inventory and CMDB in a single self-hosted application.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">GLPI is a mature open-source IT Service Management and Asset Management platform that unifies your help desk, inventory and CMDB in a single self-hosted application.</p>
+  <p>It combines ITIL-aligned incident, problem and change management with hardware and software inventory, license tracking, contracts and a configuration management database. Designed for IT departments and managed service providers, it scales from small teams to large multi-entity organizations and is extended through a rich plugin marketplace. Authentication integrates with LDAP, SSO and OAuth, with granular per-profile permissions.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>ITIL service desk: ticketing, incidents, problems, changes and SLAs</li>
+    <li>IT asset management with dynamic native inventory and CMDB</li>
+    <li>Software, license and contract tracking for compliance and cost control</li>
+    <li>Data Center Infrastructure Management (DCIM) and rack visualization</li>
+    <li>Self-service portal, knowledge base and FAQ for end users</li>
+    <li>LDAP/SSO/OAuth authentication with granular role-based permissions</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>IT teams, internal help desks and managed service providers that need a unified, self-hosted solution for asset inventory, ITIL ticketing and configuration management.</p>
+</div>]]></field>
+        <field name="category">business</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/glpi.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_documentation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_helpdesk')])]"/>
+        <field name="website_url">https://glpi-project.org/</field>
+        <field name="documentation_url">https://glpi-project.org/documentation/</field>
+        <field name="source_url">https://github.com/glpi-project/glpi</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  glpi-mysql:
+    image: mysql:9.1.0
+    restart: always
+    volumes:
+    - ./glpi_mysql_data:/var/lib/mysql
+    container_name: '{{ INSTANCE_CODE }}_glpi_mysql'
+    networks:
+    - internal
+  glpi-web:
+    image: elestio/glpi:10.0.16
+    restart: always
+    volumes:
+    - /etc/timezone:/etc/timezone:ro
+    - /etc/localtime:/etc/localtime:ro
+    - ./glpi_www_data:/var/www/html/glpi
+    environment:
+    - TIMEZONE=Europe/Brussels
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T glpi-mysql sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d glpi-mysql
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T glpi-mysql sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_glpi_port_http" model="service.template.port">
+        <field name="template_id" ref="template_glpi"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_glpi_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_glpi"/>
+        <field name="name">glpi-mysql-data</field>
+        <field name="local_path">./glpi_mysql_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_glpi_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_glpi"/>
+        <field name="name">glpi-www-data</field>
+        <field name="local_path">./glpi_www_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

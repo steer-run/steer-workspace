@@ -1,0 +1,213 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'immich-server': immich-machine-learning, immich-database): revisar backup/red/init.
+           - Owner UID:GID de 'immich-server' (imagen ghcr.io/immich-app/immich-server:v2.1.0) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'immich-machine-learning' (imagen ghcr.io/immich-app/immich-machine-learning:v2.1.0) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'immich-database' (imagen tensorchord/pgvecto-rs:pg14-v0.3.0) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_immich" model="service.template">
+        <field name="name">Immich</field>
+        <field name="code">immich</field>
+        <field name="service_code">immich</field>
+        <field name="version">v1.121.0</field>
+        <field name="description">Immich is a high-performance, self-hosted photo and video management platform that brings the convenience of Google Photos to your own server.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Immich is a high-performance, self-hosted photo and video management platform that brings the convenience of Google Photos to your own server.</p>
+  <p>It automatically backs up photos and videos from mobile devices and organizes a complete media library with a polished web interface and native iOS/Android apps. AI features such as facial recognition, object detection and smart semantic search run locally on your own hardware, keeping your memories private. It supports multiple users, shared albums, RAW formats and rich metadata browsing by date, place and people.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Automatic background backup from iOS and Android, with multi-device and multi-user support</li>
+    <li>Local AI: facial recognition, object detection and smart semantic search, all on your own server</li>
+    <li>Shared albums, partner sharing and a fast, responsive web and mobile experience</li>
+    <li>RAW format support, timeline view and browsing by people, places and metadata</li>
+    <li>External library import and full control over where your media is stored</li>
+    <li>Privacy-first design with no dependency on third-party cloud services</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals, families and small teams who want a private, self-hosted alternative to Google Photos or iCloud Photos to back up and manage large photo and video collections on their own infrastructure.</p>
+</div>]]></field>
+        <field name="category">media</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/immich.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_backup'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_photos')])]"/>
+        <field name="website_url">https://immich.app/</field>
+        <field name="documentation_url">https://immich.app/docs/overview/introduction</field>
+        <field name="source_url">https://github.com/immich-app/immich</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  immich-server:
+    image: ghcr.io/immich-app/immich-server:v2.1.0
+    volumes:
+    - ./immich_library:/usr/src/app/upload
+    - /etc/localtime:/etc/localtime:ro
+    depends_on:
+      immich-redis:
+        condition: service_healthy
+      immich-database:
+        condition: service_healthy
+    environment:
+      PORT: 2283
+      SERVER_URL: ${SERVER_URL}
+      FRONT_BASE_URL: ${FRONT_BASE_URL}
+      DB_HOSTNAME: ${DB_HOSTNAME}
+      DB_PORT: ${DB_PORT}
+      DB_USERNAME: ${DB_USERNAME}
+      DB_PASSWORD: ${DB_PASSWORD}
+      DB_DATABASE_NAME: ${DB_DATABASE_NAME}
+      REDIS_HOSTNAME: ${REDIS_HOSTNAME}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_DBINDEX: ${REDIS_DBINDEX}
+      TZ: ${TZ}
+    restart: always
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:2283/server-info/ping
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:2283'
+    networks:
+    - internal
+    - agz-proxy-network
+  immich-machine-learning:
+    image: ghcr.io/immich-app/immich-machine-learning:v2.1.0
+    volumes:
+    - ./immich_model_cache:/cache
+    environment:
+      REDIS_HOSTNAME: ${REDIS_HOSTNAME}
+      REDIS_PORT: ${REDIS_PORT}
+      REDIS_DBINDEX: ${REDIS_DBINDEX}
+    restart: always
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:3003/ping
+      interval: 30s
+      timeout: 10s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}_immich_machine_learning'
+    networks:
+    - internal
+  immich-redis:
+    image: redis:6.2-alpine
+    volumes:
+    - ./immich_redis_data:/data
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: always
+    container_name: '{{ INSTANCE_CODE }}_immich_redis'
+    networks:
+    - internal
+  immich-database:
+    image: tensorchord/pgvecto-rs:pg14-v0.3.0
+    volumes:
+    - ./immich_postgres:/var/lib/postgresql/data
+    environment:
+      POSTGRES_PASSWORD: ${DB_PASSWORD}
+      POSTGRES_USER: ${DB_USERNAME}
+      POSTGRES_DB: immich
+      POSTGRES_INITDB_ARGS: --data-checksums
+    healthcheck:
+      test: pg_isready -U ${DB_USERNAME} -d immich || exit 1
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    command:
+    - postgres
+    - -c
+    - shared_preload_libraries=vectors.so
+    - -c
+    - search_path="$$user", public, vectors
+    - -c
+    - logging_collector=on
+    - -c
+    - max_wal_size=2GB
+    - -c
+    - shared_buffers=512MB
+    - -c
+    - wal_compression=on
+    restart: always
+    container_name: '{{ INSTANCE_CODE }}_immich_database'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_immich_port_http" model="service.template.port">
+        <field name="template_id" ref="template_immich"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">2283</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_immich_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_immich"/>
+        <field name="name">db_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">immich</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_immich_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_immich"/>
+        <field name="name">immich-library</field>
+        <field name="local_path">./immich_library</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_immich_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_immich"/>
+        <field name="name">immich-model-cache</field>
+        <field name="local_path">./immich_model_cache</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_immich_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_immich"/>
+        <field name="name">immich-redis-data</field>
+        <field name="local_path">./immich_redis_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_immich_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_immich"/>
+        <field name="name">immich-postgres</field>
+        <field name="local_path">./immich_postgres</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_immich_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_immich"/>
+        <field name="name">DB_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

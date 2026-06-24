@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'crowdsec' (imagen crowdsecurity/crowdsec:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_crowdsec" model="service.template">
+        <field name="name">Crowdsec</field>
+        <field name="code">crowdsec</field>
+        <field name="service_code">crowdsec</field>
+        <field name="version">latest</field>
+        <field name="description">CrowdSec is an open-source, behavior-based intrusion prevention engine that detects malicious activity and shares threat intelligence across a global community.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">CrowdSec is an open-source, behavior-based intrusion prevention engine that detects malicious activity and shares threat intelligence across a global community.</p>
+  <p>Written in Go, CrowdSec analyzes logs and HTTP requests to identify abusive behavior such as brute-force attempts, port scans and web exploitation, then blocks offenders through pluggable remediation components (bouncers) at the system, network or application layer. Each installation contributes anonymized signals to a curated community blocklist, so every user benefits from threats seen by others. It is designed as a modern, IPv6-ready successor to fail2ban, separating detection from enforcement for flexible "detect here, remedy there" deployments.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Behavioral detection via configurable scenarios and Grok-based log parsers</li>
+    <li>Crowdsourced community blocklist and real-time cyber threat intelligence (CTI)</li>
+    <li>Remediation components (bouncers) for firewalls, reverse proxies, web servers and CDNs</li>
+    <li>Built-in WAF / AppSec rules to inspect and block malicious HTTP requests</li>
+    <li>Extensible Hub of scenarios, parsers and integrations under MIT license</li>
+    <li>Runs on all major Linux distros, Docker, Kubernetes, Windows and OPNsense</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Sysadmins, DevOps and security teams protecting servers, web applications and infrastructure from automated attacks and known malicious IPs, especially those seeking a faster, collaborative alternative to fail2ban.</p>
+</div>]]></field>
+        <field name="category">security</field>
+        <field name="is_web_app">False</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/crowdsec.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_logging'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="website_url">https://crowdsec.net/</field>
+        <field name="documentation_url">https://docs.crowdsec.net</field>
+        <field name="source_url">https://github.com/crowdsecurity/crowdsec</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  crowdsec:
+    image: crowdsecurity/crowdsec:latest
+    environment:
+      GID: ${GID-1000}
+      COLLECTIONS: crowdsecurity/linux crowdsecurity/traefik crowdsecurity/http-cve
+    volumes:
+    - ../files/acquis.yaml:/etc/crowdsec/acquis.yaml
+    - ./crowdsec_db:/var/lib/crowdsec/data/
+    - ./crowdsec_config:/etc/crowdsec/
+    - /etc/dokploy/traefik/dynamic/access.log:/var/log/traefik/access.log:ro
+    - {{ auth_log_path }}:/var/log/ssh/auth.log:ro
+    security_opt:
+    - no-new-privileges:true
+    labels:
+    - traefik.enable=false
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}_crowdsec'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_crowdsec_port_http" model="service.template.port">
+        <field name="template_id" ref="template_crowdsec"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_crowdsec_var_auth_log_path" model="service.template.variable">
+        <field name="template_id" ref="template_crowdsec"/>
+        <field name="name">auth_log_path</field>
+        <field name="var_type">string</field>
+        <field name="default_value">./auth.log</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_crowdsec_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_crowdsec"/>
+        <field name="name">crowdsec-db</field>
+        <field name="local_path">./crowdsec_db</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_crowdsec_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_crowdsec"/>
+        <field name="name">crowdsec-config</field>
+        <field name="local_path">./crowdsec_config</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

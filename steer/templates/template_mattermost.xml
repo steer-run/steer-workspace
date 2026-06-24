@@ -1,0 +1,192 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'mattermost' (imagen mattermost/mattermost-team-edition:10.6.1) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_mattermost" model="service.template">
+        <field name="name">Mattermost</field>
+        <field name="code">mattermost</field>
+        <field name="service_code">mattermost</field>
+        <field name="version">10.6.1</field>
+        <field name="description">Mattermost is an open-source, self-hosted collaboration platform that brings secure team messaging, workflow automation, and DevOps tooling under your own control.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Mattermost is an open-source, self-hosted collaboration platform that brings secure team messaging, workflow automation, and DevOps tooling under your own control.</p>
+  <p>Built as a privacy-focused alternative to Slack and Microsoft Teams, Mattermost combines persistent channels, direct messaging, file sharing, voice and screen sharing with structured automation through Playbooks and task Boards. It runs as a single Go binary backed by PostgreSQL, integrates with existing identity and DevOps tooling, and is favored by enterprises, regulated industries, and government agencies that require data sovereignty and compliance.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Persistent channels, threaded conversations, and direct/group messaging</li>
+    <li>Playbooks for incident response and repeatable workflow automation</li>
+    <li>Boards for kanban-style task and project management</li>
+    <li>Voice calls, screen sharing, and file sharing across teams</li>
+    <li>Native desktop and mobile clients plus an extensive plugin and integration ecosystem</li>
+    <li>Enterprise-grade SSO (SAML, OAuth, LDAP/AD), compliance exports, and granular access control</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Engineering, DevOps, and security teams—and organizations in regulated or sovereignty-sensitive sectors—that need a fully self-hosted, auditable chat and collaboration hub instead of a SaaS messaging tool.</p>
+</div>]]></field>
+        <field name="category">communication</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/mattermost.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_chat'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_project_management'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="website_url">https://mattermost.com/</field>
+        <field name="documentation_url">https://docs.mattermost.com/</field>
+        <field name="source_url">https://github.com/mattermost/mattermost</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  postgres:
+    image: postgres:17
+    restart: unless-stopped
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 100
+    read_only: true
+    tmpfs:
+    - /tmp
+    - /var/run/postgresql
+    volumes:
+    - ./mattermostdbdata:/var/lib/postgresql/data
+    environment:
+    - TZ
+    - POSTGRES_USER
+    - POSTGRES_PASSWORD
+    - POSTGRES_DB
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    networks:
+    - internal
+  mattermost:
+    depends_on:
+    - postgres
+    image: mattermost/mattermost-team-edition:10.6.1
+    restart: unless-stopped
+    security_opt:
+    - no-new-privileges:true
+    pids_limit: 200
+    read_only: false
+    tmpfs:
+    - /tmp
+    volumes:
+    - ./mattermostconf:/mattermost/config
+    - ./mattermostdata:/mattermost/data
+    - ./mattermostlogs:/mattermost/logs
+    - ./mattermostplugsin:/mattermost/plugins
+    - ./mattermostclientplugins:/mattermost/client/plugins
+    - ./mattermostbleveindexes:/mattermost/bleve-indexes
+    environment:
+    - DOMAIN
+    - TZ
+    - POSTGRES_USER
+    - POSTGRES_PASSWORD
+    - POSTGRES_DB
+    - MM_SQLSETTINGS_DRIVERNAME
+    - MM_SQLSETTINGS_DATASOURCE
+    - MM_BLEVESETTINGS_INDEXDIR
+    - MM_SERVICESETTINGS_SITEURL
+    - APP_PORT
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8065'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_mattermost_port_http" model="service.template.port">
+        <field name="template_id" ref="template_mattermost"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8065</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_mattermost_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_mattermost"/>
+        <field name="name">mattermostDbData</field>
+        <field name="local_path">./mattermostdbdata</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_mattermost_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_mattermost"/>
+        <field name="name">mattermostconf</field>
+        <field name="local_path">./mattermostconf</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_mattermost_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_mattermost"/>
+        <field name="name">mattermostdata</field>
+        <field name="local_path">./mattermostdata</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_mattermost_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_mattermost"/>
+        <field name="name">mattermostlogs</field>
+        <field name="local_path">./mattermostlogs</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_mattermost_vol_4" model="service.template.volume">
+        <field name="template_id" ref="template_mattermost"/>
+        <field name="name">mattermostplugsin</field>
+        <field name="local_path">./mattermostplugsin</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_mattermost_vol_5" model="service.template.volume">
+        <field name="template_id" ref="template_mattermost"/>
+        <field name="name">mattermostclientplugins</field>
+        <field name="local_path">./mattermostclientplugins</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_mattermost_vol_6" model="service.template.volume">
+        <field name="template_id" ref="template_mattermost"/>
+        <field name="name">mattermostBleveIndexes</field>
+        <field name="local_path">./mattermostbleveindexes</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">70</field>
+    </record>
+</odoo>

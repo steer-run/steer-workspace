@@ -1,0 +1,189 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="template_activepieces" model="service.template">
+        <field name="name">Activepieces</field>
+        <field name="code">activepieces</field>
+        <field name="service_code">activepieces</field>
+        <field name="version">0.35.0</field>
+        <field name="description">Activepieces is an open-source, no-code automation platform that lets teams build AI-powered workflows without per-task fees or vendor lock-in.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Activepieces is an open-source, no-code automation platform that lets teams build AI-powered workflows without per-task fees or vendor lock-in.</p>
+  <p>It connects apps, APIs and AI models through a visual flow builder, serving as a self-hostable alternative to Zapier, Make and Tray. Integrations are written as type-safe TypeScript "pieces" that the community can extend, and any piece automatically doubles as a Model Context Protocol (MCP) server usable from LLM clients like Claude, Cursor and Windsurf. It targets both non-technical builders who want a simple drag-and-drop experience and engineering teams that need to keep automation and data on their own infrastructure.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Visual no-code flow builder with triggers, branches, loops and auto-retries</li>
+    <li>Hundreds of native integration "pieces" plus inline HTTP requests and custom code steps</li>
+    <li>Native AI actions and MCP servers to wire workflows into LLM agents</li>
+    <li>Human-in-the-loop steps: approval gates, forms and chat interfaces</li>
+    <li>Type-safe TypeScript framework for building custom pieces with hot reloading</li>
+    <li>Self-hosted and network-gapped deployment via Docker for full data control</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams that want to automate business processes and AI agent workflows on their own infrastructure, avoid per-run pricing, and extend integrations in code while keeping sensitive data on-premise.</p>
+</div>]]></field>
+        <field name="category">automation</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/activepieces.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="website_url">https://www.activepieces.com/</field>
+        <field name="documentation_url">https://www.activepieces.com/docs</field>
+        <field name="source_url">https://github.com/activepieces/activepieces</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  activepieces:
+    image: activepieces/activepieces:0.35.0
+    restart: unless-stopped
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    environment:
+      AP_ENGINE_EXECUTABLE_PATH: dist/packages/engine/main.js
+      AP_API_KEY: ${AP_API_KEY}
+      AP_ENCRYPTION_KEY: ${AP_ENCRYPTION_KEY}
+      AP_JWT_SECRET: ${AP_JWT_SECRET}
+      AP_ENVIRONMENT: prod
+      AP_FRONTEND_URL: https://{{ instance.full_domain }}
+      AP_WEBHOOK_TIMEOUT_SECONDS: 30
+      AP_TRIGGER_DEFAULT_POLL_INTERVAL: 5
+      AP_POSTGRES_DATABASE: activepieces
+      AP_POSTGRES_HOST: postgres
+      AP_POSTGRES_PORT: 5432
+      AP_POSTGRES_USERNAME: activepieces
+      AP_POSTGRES_PASSWORD: ${AP_POSTGRES_PASSWORD}
+      AP_EXECUTION_MODE: UNSANDBOXED
+      AP_REDIS_HOST: redis
+      AP_REDIS_PORT: 6379
+      AP_SANDBOX_RUN_TIME_SECONDS: 600
+      AP_TELEMETRY_ENABLED: 'false'
+      AP_TEMPLATES_SOURCE_URL: https://cloud.activepieces.com/api/v1/flow-templates
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+  postgres:
+    image: postgres:14
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: activepieces
+      POSTGRES_PASSWORD: ${AP_POSTGRES_PASSWORD}
+      POSTGRES_USER: activepieces
+    volumes:
+    - ./postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U activepieces -d activepieces
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    networks:
+    - internal
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    volumes:
+    - ./redis_data:/data
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 30s
+      timeout: 30s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_activepieces_port_http" model="service.template.port">
+        <field name="template_id" ref="template_activepieces"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_activepieces_var_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_activepieces"/>
+        <field name="name">AP_API_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_activepieces_var_encryption_key" model="service.template.variable">
+        <field name="template_id" ref="template_activepieces"/>
+        <field name="name">AP_ENCRYPTION_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_activepieces_var_jwt_secret" model="service.template.variable">
+        <field name="template_id" ref="template_activepieces"/>
+        <field name="name">AP_JWT_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_activepieces_var_postgres_password" model="service.template.variable">
+        <field name="template_id" ref="template_activepieces"/>
+        <field name="name">AP_POSTGRES_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_activepieces_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_activepieces"/>
+        <field name="name">postgres_data</field>
+        <field name="local_path">./postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_activepieces_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_activepieces"/>
+        <field name="name">redis_data</field>
+        <field name="local_path">./redis_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

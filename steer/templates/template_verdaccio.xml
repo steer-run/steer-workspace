@@ -1,0 +1,341 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'verdaccio' (imagen verdaccio/verdaccio:6) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Tiene 1 mount(s) de config: revisar rutas y montaje en el compose.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_verdaccio" model="service.template">
+        <field name="name">Verdaccio</field>
+        <field name="code">verdaccio</field>
+        <field name="service_code">verdaccio</field>
+        <field name="version">6</field>
+        <field name="description">Verdaccio is a lightweight, zero-config private npm registry and proxy you can run on your own infrastructure.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Verdaccio is a lightweight, zero-config private npm registry and proxy you can run on your own infrastructure.</p>
+  <p>It lets teams host their own private JavaScript packages while transparently proxying and caching modules from public registries such as npmjs.org. It needs no external database to get started, ships with its own small storage, and is extensible through plugins for authentication, storage backends and metadata filtering. It is widely used both as an internal package server for organizations and as a fast, offline-friendly registry for CI and end-to-end testing.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Host private npm packages scoped to your team or organization</li>
+    <li>Proxy and cache packages from one or more upstream registries</li>
+    <li>Zero-config startup with built-in file storage; no database required</li>
+    <li>Pluggable authentication (htpasswd by default; LDAP, JWT, OIDC and more)</li>
+    <li>Fine-grained access control over who can publish and install each package</li>
+    <li>Optional metadata filtering to block compromised or unwanted versions</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Development teams that need a private package registry, organizations sharing internal libraries, and CI/CD or end-to-end test pipelines that benefit from a fast, cached, locally controlled npm registry.</p>
+</div>]]></field>
+        <field name="category">dev_tools</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/verdaccio.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_proxy'), ref('agz_infra_suite.tag_cache')])]"/>
+        <field name="website_url">https://www.verdaccio.org/</field>
+        <field name="documentation_url">https://www.verdaccio.org/docs/what-is-verdaccio</field>
+        <field name="source_url">https://github.com/verdaccio/verdaccio</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  verdaccio:
+    image: verdaccio/verdaccio:6
+    environment:
+    - VERDACCIO_PORT=4873
+    ports:
+    - '{{ PORT_HTTP }}:4873'
+    volumes:
+    - ./verdaccio_storage:/verdaccio/storage
+    - ./verdaccio_plugins:/verdaccio/plugins
+    - ../files/conf:/verdaccio/conf
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_verdaccio_port_http" model="service.template.port">
+        <field name="template_id" ref="template_verdaccio"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">4873</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_verdaccio_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_verdaccio"/>
+        <field name="name">verdaccio_storage</field>
+        <field name="local_path">./verdaccio_storage</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_verdaccio_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_verdaccio"/>
+        <field name="name">verdaccio_plugins</field>
+        <field name="local_path">./verdaccio_plugins</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_verdaccio_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_verdaccio"/>
+        <field name="name">config.yaml</field>
+        <field name="filename">config.yaml</field>
+        <field name="path">./files/conf</field>
+        <field name="content_template"><![CDATA[#
+# This is the default configuration file. It allows all users to do anything,
+# please read carefully the documentation and best practices to
+# improve security.
+#
+# Look here for more config file examples:
+# https://github.com/verdaccio/verdaccio/blob/master/docker-examples/README.md
+#
+# Read about the best practices
+# https://verdaccio.org/docs/best
+
+# Path to a directory with all packages
+storage: /verdaccio/storage/data
+
+# Path to a directory with plugins to include, the plugins folder has the higher priority for loading plugins
+# Disable this folder to avoid warnings if is not used
+plugins: /verdaccio/plugins
+
+# Web UI settings
+# https://verdaccio.org/docs/webui
+web:
+  title: Verdaccio
+  # Disable complete web UI
+  # enabled: false
+  # Custom colors for header background and font
+  # primaryColor: "#4b5e40"
+  # Custom logos and favicon
+  # logo: ./path/to/logo.png
+  # logoDark: ./path/to/logoDark.png
+  # favicon: ./path/to/favicon.ico
+  # Disable gravatar support
+  # gravatar: false
+  # By default, packages are ordered ascending
+  # sort_packages: asc | desc
+  # Convert your UI to the dark side
+  # darkMode: true
+  # html_cache: true
+  # By default, all features are displayed
+  # login: true
+  # showInfo: true
+  # showSettings: true
+  # In combination with darkMode you can force specific theme
+  # showThemeSwitch: true
+  # showFooter: true
+  # showSearch: true
+  # showRaw: true
+  # showDownloadTarball: true
+  # showUplinks: true
+  #
+  # HTML tags injected before ends </head>
+  # metaScripts:
+  #   - '<script type="text/javascript" src="https://code.jquery.com/jquery-3.5.1.slim.min.js"></script>'
+  #   - '<script type="text/javascript" src="https://browser.sentry-cdn.com/5.15.5/bundle.min.js"></script>'
+  #   - '<meta name="robots" content="noindex">'
+  #
+  # HTML tags injected as first child in <body>
+  # scriptsBodyBefore:
+  #   - '<div id="myId">html before webpack scripts</div>'
+  #
+  # HTML tags injected as last child in </body>
+  # scriptsBodyAfter:
+  #   - '<script type="text/javascript" src="https://my.company.com/customJS.min.js"></script>'
+  #
+  # Public path for template manifest scripts (only manifest)
+  # publicPath: http://somedomain.org/
+
+# Settings for authentication plugin
+# https://verdaccio.org/docs/configuration#authentication
+auth:
+  htpasswd:
+    file: /verdaccio/storage/htpasswd
+    # Maximum amount of users allowed to register, defaults to "+inf".
+    # You can set this to -1 to disable registration.
+    max_users: 1
+
+# A list of other known repositories we can talk to
+# https://verdaccio.org/docs/configuration#uplinks
+uplinks:
+  npmjs:
+    url: https://registry.npmjs.org/
+
+# Learn how to protect your packages
+# https://verdaccio.org/docs/protect-your-dependencies/
+# https://verdaccio.org/docs/configuration#packages
+packages:
+  '@*/*':
+    # scoped packages
+    access: $all
+    publish: $authenticated
+    unpublish: $authenticated
+    proxy: npmjs
+
+  '**':
+    # allow all users (including non-authenticated users) to read and
+    # publish all packages
+    #
+    # you can specify usernames/groupnames (depending on your auth plugin)
+    # and three keywords: "$all", "$anonymous", "$authenticated"
+    access: $all
+
+    # allow all known users to publish/unpublish packages
+    # (anyone can register by default, remember?)
+    publish: $authenticated
+    unpublish: $authenticated
+
+    # if package is not available locally, proxy requests to 'npmjs' registry
+    proxy: npmjs
+
+# To improve your security configuration and avoid dependency confusion
+# consider removing the proxy property for private packages
+# https://verdaccio.org/docs/best#remove-proxy-to-increase-security-at-private-packages
+
+# https://verdaccio.org/docs/configuration#server
+# You can specify HTTP/1.1 server keep alive timeout in seconds for incoming connections.
+# A value of 0 makes the http server behave similarly to Node.js versions prior to 8.0.0, which did not have a keep-alive timeout.
+# WORKAROUND: Through given configuration you can workaround following issue https://github.com/verdaccio/verdaccio/issues/301. Set to 0 in case 60 is not enough.
+server:
+  keepAliveTimeout: 60
+  # The pluginPrefix replaces the default plugins prefix which is `verdaccio`. Please don't include `-`. If `something` is provided
+  # the resolved package will be `something-xxxx`.
+  # pluginPrefix: something
+  # A regex for the password validation /.{3}$/ (3 characters min)
+  # An example to limit to 10 characters minimum
+  # passwordValidationRegex: /.{10}$/
+  # Allow `req.ip` to resolve properly when Verdaccio is behind a proxy or load-balancer
+  # https://expressjs.com/en/guide/behind-proxies.html
+  # trustProxy: '127.0.0.1'
+
+# https://verdaccio.org/docs/configuration#offline-publish
+# publish:
+#   allow_offline: false
+#   check_owners: false
+#   keep_readmes: 'latest' | 'tagged' | 'all'
+
+# Define public URL of registry in combination with VERDACCIO_PUBLIC_URL environment variable
+# https://verdaccio.org/docs/configuration#url-prefix
+# url_prefix: /verdaccio/
+#
+# Examples:
+# VERDACCIO_PUBLIC_URL='https://somedomain.org'
+# url_prefix: '/my_prefix'
+# // url -> https://somedomain.org/my_prefix/
+#
+# VERDACCIO_PUBLIC_URL='https://somedomain.org'
+# url_prefix: '/'
+# // url -> https://somedomain.org/
+#
+# VERDACCIO_PUBLIC_URL='https://somedomain.org/first_prefix'
+# url_prefix: '/second_prefix'
+# // url -> https://somedomain.org/second_prefix/
+
+# Security settings
+# https://verdaccio.org/docs/configuration#security
+# security:
+#   api:
+#     legacy: true
+#     jwt:
+#       sign:
+#         expiresIn: 29d
+#       verify:
+#         someProp: [value]
+#   web:
+#     sign:
+#       expiresIn: 1h # 1 hour by default
+#     verify:
+#       someProp: [value]
+
+# https://verdaccio.org/docs/configuration#user-rate-limit
+# userRateLimit:
+#   windowMs: 50000
+#   max: 1000
+
+# https://verdaccio.org/docs/configuration#max-body-size
+# max_body_size: 10mb
+
+# https://verdaccio.org/docs/configuration#listen-port
+# listen:
+#   - localhost:4873            # default value
+#   - http://localhost:4873     # same thing
+#   - 0.0.0.0:4873              # listen on all addresses (INADDR_ANY)
+#   - https://example.org:4873  # if you want to use https
+#   - "[::1]:4873"              # ipv6
+#   - unix:/tmp/verdaccio.sock  # unix socket
+
+# The HTTPS configuration is useful if you do not consider use a HTTP Proxy
+# https://verdaccio.org/docs/configuration#https
+# https:
+#   key: ./path/verdaccio-key.pem
+#   cert: ./path/verdaccio-cert.pem
+#   ca: ./path/verdaccio-csr.pem
+
+# https://verdaccio.org/docs/configuration#proxy
+# http_proxy: http://something.local/
+# https_proxy: https://something.local/
+# no_proxy: localhost,127.0.0.1,server.local
+
+# https://verdaccio.org/docs/configuration#notifications
+# notify:
+#   method: 'POST'
+#   headers: '[{ "Content-Type": "application/json" }]'
+#   endpoint: 'https://usagge.hipchat.com/v2/room/3729485/notification?auth_token=mySecretToken'
+#   content: '{"color":"green","message":"New package published: * {{ name }}*","notify":true,"message_format":"text"}'
+
+# Settings for middleware plugins
+# https://verdaccio.org/docs/plugins#middleware-configuration
+middlewares:
+  audit:
+    enabled: true
+    # timeout: 10000
+
+# Log settings
+# https://verdaccio.org/docs/logger
+# Redaction: https://getpino.io/#/docs/redaction
+# Synchronous logging: https://getpino.io/#/docs/asynchronous
+log:
+  type: stdout
+  format: pretty
+  level: http
+#  redact:
+#    paths: ['req.header.authorization','req.header.cookie','req.remoteAddress','req.remotePort','ip','remoteIP','user','msg']
+#    censor: '<redacted>'
+#  sync: true
+
+# Feature flags (experimental settings that can be changed or removed in the future)
+# https://verdaccio.org/docs/configuration#experiments
+# experiments:
+#  # Support for npm token command
+#  token: false
+#  # Enable tarball URL redirect for hosting tarball with a different server.
+#  # The tarball_url_redirect can be a template string
+#  tarball_url_redirect: 'https://mycdn.com/verdaccio/${packageName}/${filename}'
+#  # The tarball_url_redirect can be a function, takes packageName and filename and returns the url,
+#  # when working with a js configuration file
+#  tarball_url_redirect(packageName, filename) {
+#    const signedUrl = // generate a signed url
+#    return signedUrl;
+#  }
+# Renamed from "experiments" to "flags" in next major release
+# flags:
+#  changePassword: true
+#  searchRemote: true
+
+# Translate your registry, API and web UI
+# List of the available translations https://github.com/verdaccio/verdaccio/blob/master/packages/plugins/ui-theme/src/i18n/ABOUT_TRANSLATIONS.md
+i18n:
+    web: en-US
+]]></field>
+    </record>
+</odoo>

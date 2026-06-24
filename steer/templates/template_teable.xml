@@ -1,0 +1,215 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'teable': teable-db-migrate): revisar backup/red/init.
+           - Owner UID:GID de 'teable' (imagen ghcr.io/teableio/teable:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_teable" model="service.template">
+        <field name="name">teable</field>
+        <field name="code">teable</field>
+        <field name="service_code">teable</field>
+        <field name="version">v1.3.1-alpha-build.460</field>
+        <field name="description">Teable is a no-code database platform with a spreadsheet-like interface, backed by a real PostgreSQL database.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Teable is a no-code database platform with a spreadsheet-like interface, backed by a real PostgreSQL database.</p>
+  <p>It positions itself as an open-source Airtable alternative, letting teams build database applications visually while every workspace runs on actual Postgres tables. Because data lives in real Postgres, there are no artificial row limits and you keep full SQL access for BI, ETL and low-code tools. It targets teams that want spreadsheet ease for non-technical users without giving up database performance, scalability and data ownership.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Spreadsheet-like grid plus Kanban, Calendar, Gallery and Form views</li>
+    <li>Real-time collaboration with live cursors and instant updates</li>
+    <li>Full CRUD REST API for every table, plus a React plugin system to extend it</li>
+    <li>Trigger-based automation for workflows</li>
+    <li>AI database agent that creates tables, relationships and workflows from plain-language prompts</li>
+    <li>Self-hosting with full data ownership; external Postgres and S3/MinIO storage support</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams and businesses that need an Airtable-style, no-code data tool but want native PostgreSQL performance, large datasets, REST API access and on-premises data control.</p>
+</div>]]></field>
+        <field name="category">database</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/teable.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="website_url">https://teable.io/</field>
+        <field name="documentation_url">https://help.teable.io/</field>
+        <field name="source_url">https://github.com/teableio/teable</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  teable:
+    image: ghcr.io/teableio/teable:latest
+    restart: always
+    volumes:
+    - ./teable_data:/app/.assets
+    environment:
+    - TZ={{ timezone }}
+    - NEXT_ENV_IMAGES_ALL_REMOTE=true
+    - PUBLIC_ORIGIN={{ public_origin }}
+    - PRISMA_DATABASE_URL={{ prisma_database_url }}
+    - PUBLIC_DATABASE_PROXY={{ public_database_proxy }}
+    - BACKEND_MAIL_HOST=${BACKEND_MAIL_HOST}
+    - BACKEND_MAIL_PORT=${BACKEND_MAIL_PORT}
+    - BACKEND_MAIL_SECURE=${BACKEND_MAIL_SECURE}
+    - BACKEND_MAIL_SENDER=${BACKEND_MAIL_SENDER}
+    - BACKEND_MAIL_SENDER_NAME=${BACKEND_MAIL_SENDER_NAME}
+    - BACKEND_MAIL_AUTH_USER=${BACKEND_MAIL_AUTH_USER}
+    - BACKEND_MAIL_AUTH_PASS=${BACKEND_MAIL_AUTH_PASS}
+    depends_on:
+      teable-db-migrate:
+        condition: service_completed_successfully
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    networks:
+    - internal
+    - agz-proxy-network
+  teable-db:
+    image: postgres:15.4
+    restart: always
+    ports:
+    - {{ teable_db_port }}:{{ postgres_port }}
+    volumes:
+    - ./teable_db:/var/lib/postgresql/data
+    environment:
+    - TZ={{ timezone }}
+    - POSTGRES_DB={{ postgres_db }}
+    - POSTGRES_USER={{ postgres_user }}
+    - POSTGRES_PASSWORD={{ postgres_password }}
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - sh -c 'pg_isready -U {{ postgres_user }} -d {{ postgres_db }}'
+      interval: 10s
+      timeout: 3s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}_teable_db'
+    networks:
+    - internal
+  teable-db-migrate:
+    image: ghcr.io/teableio/teable-db-migrate:latest
+    environment:
+    - TZ={{ timezone }}
+    - PRISMA_DATABASE_URL=postgresql://{{ postgres_user }}:{{ postgres_password }}@{{ postgres_host }}:{{ postgres_port }}/{{ postgres_db }}
+    depends_on:
+      teable-db:
+        condition: service_healthy
+    container_name: '{{ INSTANCE_CODE }}_teable_db_migrate'
+    restart: unless-stopped
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T teable-db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d teable-db
+for i in $(seq 1 30); do
+  docker compose exec -T teable-db sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T teable-db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T teable-db sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_teable_port_http" model="service.template.port">
+        <field name="template_id" ref="template_teable"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_teable_var_timezone" model="service.template.variable">
+        <field name="template_id" ref="template_teable"/>
+        <field name="name">timezone</field>
+        <field name="var_type">string</field>
+        <field name="default_value">UTC</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_teable_var_postgres_host" model="service.template.variable">
+        <field name="template_id" ref="template_teable"/>
+        <field name="name">postgres_host</field>
+        <field name="var_type">string</field>
+        <field name="default_value">teable-db</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_teable_var_postgres_port" model="service.template.variable">
+        <field name="template_id" ref="template_teable"/>
+        <field name="name">postgres_port</field>
+        <field name="var_type">string</field>
+        <field name="default_value">5432</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_teable_var_postgres_db" model="service.template.variable">
+        <field name="template_id" ref="template_teable"/>
+        <field name="name">postgres_db</field>
+        <field name="var_type">string</field>
+        <field name="default_value">teable</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_teable_var_postgres_user" model="service.template.variable">
+        <field name="template_id" ref="template_teable"/>
+        <field name="name">postgres_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">teable</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_teable_var_public_origin" model="service.template.variable">
+        <field name="template_id" ref="template_teable"/>
+        <field name="name">public_origin</field>
+        <field name="var_type">string</field>
+        <field name="default_value">https://${main_domain}</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_teable_var_prisma_database_url" model="service.template.variable">
+        <field name="template_id" ref="template_teable"/>
+        <field name="name">prisma_database_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">postgresql://teable:${db_password}@teable-db:5432/teable</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_teable_var_public_database_proxy" model="service.template.variable">
+        <field name="template_id" ref="template_teable"/>
+        <field name="name">public_database_proxy</field>
+        <field name="var_type">string</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_teable_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_teable"/>
+        <field name="name">teable-data</field>
+        <field name="local_path">./teable_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_teable_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_teable"/>
+        <field name="name">teable-db</field>
+        <field name="local_path">./teable_db</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

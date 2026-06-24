@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'ipfs' (imagen ipfs/kubo:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+           - Tiene 1 mount(s) de config: revisar rutas y montaje en el compose.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_ipfs" model="service.template">
+        <field name="name">IPFS (Kubo)</field>
+        <field name="code">ipfs</field>
+        <field name="service_code">ipfs</field>
+        <field name="version">latest</field>
+        <field name="description">Kubo is the reference implementation of IPFS, the InterPlanetary File System, letting you run your own node on a global content-addressed peer-to-peer network.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Kubo is the reference implementation of IPFS, the InterPlanetary File System, letting you run your own node on a global content-addressed peer-to-peer network.</p>
+  <p>Written in Go, Kubo turns content into immutable, verifiable CIDs and exchanges data across the LAN and the public Amino DHT. It exposes an HTTP gateway for browser retrieval, an RPC API and CLI to control the daemon, and a WebUI to manage your node. It is the most widely-used IPFS implementation and the foundation of most public gateways and pinning services.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Content-addressed storage with verifiable CIDs and UnixFS file/directory handling</li>
+    <li>Peer-to-peer data exchange over LAN (mDNS) and the public WAN Amino DHT via Bitswap</li>
+    <li>Built-in HTTP gateway for serving and retrieving content in any browser</li>
+    <li>RPC API, command-line interface and bundled WebUI to operate the node</li>
+    <li>Delegated Routing V1 HTTP API for light clients and browser-based retrieval</li>
+    <li>Local pinning, FUSE filesystem mounts and content blocking for public operators</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams and individuals running their own IPFS gateway or pinning node, hosting decentralized websites and dapp assets, or building censorship-resistant, content-addressed storage into their infrastructure.</p>
+</div>]]></field>
+        <field name="category">storage</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/ipfs.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_file_sharing')])]"/>
+        <field name="website_url">https://ipfs.tech/</field>
+        <field name="documentation_url">https://docs.ipfs.tech/</field>
+        <field name="source_url">https://github.com/ipfs/kubo</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  ipfs:
+    image: ipfs/kubo:latest
+    restart: unless-stopped
+    environment:
+    - IPFS_PROFILE=server
+    volumes:
+    - ./ipfs_data:/data/ipfs
+    - ./ipfs_staging:/export
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_ipfs_port_http" model="service.template.port">
+        <field name="template_id" ref="template_ipfs"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_ipfs_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_ipfs"/>
+        <field name="name">ipfs_data</field>
+        <field name="local_path">./ipfs_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_ipfs_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_ipfs"/>
+        <field name="name">ipfs_staging</field>
+        <field name="local_path">./ipfs_staging</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_ipfs_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_ipfs"/>
+        <field name="name">001-configure-api.sh</field>
+        <field name="filename">001-configure-api.sh</field>
+        <field name="path">./files/container-init.d</field>
+        <field name="content_template"><![CDATA[#!/bin/sh
+ipfs config Addresses.API /ip4/0.0.0.0/tcp/5001
+ipfs config --json API.HTTPHeaders.Access-Control-Allow-Origin '["*"]'
+ipfs config --json API.HTTPHeaders.Access-Control-Allow-Methods '["PUT", "POST", "GET"]'
+]]></field>
+    </record>
+</odoo>

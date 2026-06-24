@@ -1,0 +1,110 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'pocket-id' (imagen ghcr.io/pocket-id/pocket-id:v1) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_pocket_id" model="service.template">
+        <field name="name">Pocket ID</field>
+        <field name="code">pocket_id</field>
+        <field name="service_code">pocket_id</field>
+        <field name="version">v1</field>
+        <field name="description">Pocket ID is a lightweight, self-hosted OpenID Connect provider that signs users in with passkeys instead of passwords.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Pocket ID is a lightweight, self-hosted OpenID Connect provider that signs users in with passkeys instead of passwords.</p>
+  <p>It acts as a single identity provider for any service that speaks OIDC, replacing passwords with passkeys (WebAuthn/FIDO2), including hardware keys such as YubiKeys. Designed to be far simpler to run than Keycloak or ORY Hydra, it covers the common self-hosting case without the operational overhead, and pairs well with reverse-proxy auth gateways to protect apps that lack native OIDC support.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Passwordless, passkey-only authentication (WebAuthn/FIDO2, hardware keys)</li>
+    <li>Standard OIDC provider with per-client configuration and user-group access restrictions</li>
+    <li>One-time login codes to sign in from a device without your passkey</li>
+    <li>LDAP synchronization of users and groups</li>
+    <li>Documented REST API for automation and integrations</li>
+    <li>Global and per-user audit logs, plus email alerts for sign-ins from unknown devices</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Self-hosters, homelabs and small teams that want a simple, secure single sign-on for their services and prefer passwordless authentication without the complexity of a full enterprise identity platform.</p>
+</div>]]></field>
+        <field name="category">security</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/pocket_id.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_identity'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="website_url">https://pocket-id.org/</field>
+        <field name="documentation_url">https://pocket-id.org/docs</field>
+        <field name="source_url">https://github.com/pocket-id/pocket-id</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  pocket-id:
+    image: ghcr.io/pocket-id/pocket-id:v1
+    restart: unless-stopped
+    environment:
+    - APP_URL
+    - TRUST_PROXY
+    - ENCRYPTION_KEY
+    volumes:
+    - ./pocket_id_data:/app/data
+    healthcheck:
+      test:
+      - CMD
+      - /app/pocket-id
+      - healthcheck
+      interval: 1m30s
+      timeout: 5s
+      retries: 2
+      start_period: 10s
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:1411'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_pocket_id_port_http" model="service.template.port">
+        <field name="template_id" ref="template_pocket_id"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">1411</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_pocket_id_var_encryption_key" model="service.template.variable">
+        <field name="template_id" ref="template_pocket_id"/>
+        <field name="name">encryption_key</field>
+        <field name="var_type">string</field>
+        <field name="default_value">CHANGEME: openssl rand -base64 32</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_pocket_id_var_app_url" model="service.template.variable">
+        <field name="template_id" ref="template_pocket_id"/>
+        <field name="name">app_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">http://${main_domain}</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_pocket_id_var_trust_proxy" model="service.template.variable">
+        <field name="template_id" ref="template_pocket_id"/>
+        <field name="name">trust_proxy</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_pocket_id_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_pocket_id"/>
+        <field name="name">pocket-id-data</field>
+        <field name="local_path">./pocket_id_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

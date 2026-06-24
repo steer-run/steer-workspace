@@ -1,0 +1,74 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_grafana" model="service.template">
+        <field name="name">Grafana</field>
+        <field name="code">grafana</field>
+        <field name="service_code">grafana</field>
+        <field name="version">12.4</field>
+        <field name="description">Grafana is the open-source standard for querying, visualizing and alerting on metrics, logs and traces from virtually any data source.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Grafana is the open-source standard for querying, visualizing and alerting on metrics, logs and traces from virtually any data source.</p>
+  <p>It connects to dozens of backends such as Prometheus, Loki, Elasticsearch, InfluxDB, PostgreSQL and many more, then turns that data into interactive dashboards. Built with a Go backend and a TypeScript frontend, it lets engineering, SRE and ops teams build a single pane of glass for observability without coupling their data to one vendor. A rich plugin ecosystem extends panels, data sources and apps.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Dynamic, templated dashboards that combine multiple data sources in a single view</li>
+    <li>Native support for Prometheus, Loki, Elasticsearch, InfluxDB, PostgreSQL and many other backends</li>
+    <li>Unified alerting with visual rule definition and routing to email, Slack, PagerDuty and more</li>
+    <li>Explore mode for ad-hoc metric and log querying, switching seamlessly between signals</li>
+    <li>Granular access control, organizations, teams and SSO/OAuth integration</li>
+    <li>Extensible via a large catalog of panel, data-source and app plugins</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>SRE, DevOps and platform teams that need a self-hosted, vendor-neutral observability dashboard layer to monitor infrastructure and applications, correlate metrics with logs and traces, and drive alerting from a central place.</p>
+</div>]]></field>
+        <field name="category">monitoring</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/grafana.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_logging'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="website_url">https://grafana.com/</field>
+        <field name="documentation_url">https://grafana.com/docs/</field>
+        <field name="source_url">https://github.com/grafana/grafana</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  grafana:
+    image: grafana/grafana-enterprise:12.4
+    restart: unless-stopped
+    volumes:
+    - ./grafana_storage:/var/lib/grafana
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_grafana_port_http" model="service.template.port">
+        <field name="template_id" ref="template_grafana"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_grafana_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_grafana"/>
+        <field name="name">grafana-storage</field>
+        <field name="local_path">./grafana_storage</field>
+        <field name="owner">472:472</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

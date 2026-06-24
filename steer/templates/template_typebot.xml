@@ -1,0 +1,211 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'typebot-builder': typebot-viewer): revisar backup/red/init.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_typebot" model="service.template">
+        <field name="name">Typebot</field>
+        <field name="code">typebot</field>
+        <field name="service_code">typebot</field>
+        <field name="version">2.27.0</field>
+        <field name="description">Typebot is a self-hostable, no-code builder for conversational chatbots and interactive forms.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Typebot is a self-hostable, no-code builder for conversational chatbots and interactive forms.</p>
+  <p>Using a drag-and-drop canvas, Typebot lets you compose conversation flows from dozens of building blocks, publish them as standalone pages or embed them on any website, and run them on your own infrastructure with full feature parity to the managed cloud. It targets marketers, product teams and developers who want engaging, conversational alternatives to static forms while keeping conversation data under their control.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Visual drag-and-drop flow editor with bubble, input and logic blocks</li>
+    <li>Conditional branching, JavaScript scripting, variables and A/B testing</li>
+    <li>Native integrations: OpenAI, Webhooks/HTTP, Google Sheets, Stripe, Zapier, Make and more</li>
+    <li>Embed anywhere (standalone, popup, bubble) plus WhatsApp and messaging channels</li>
+    <li>Built-in analytics and results collection for completed conversations</li>
+    <li>Self-hosted via Docker with PostgreSQL and Redis, no per-chat or per-bot pricing</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams building lead-capture, onboarding, surveys, support deflection or interactive quizzes that want a conversational UX and on-premise data ownership instead of a SaaS form tool.</p>
+</div>]]></field>
+        <field name="category">automation</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/typebot.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_chat'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="website_url">https://typebot.io/</field>
+        <field name="documentation_url">https://docs.typebot.io/get-started/introduction</field>
+        <field name="source_url">https://github.com/baptisteArno/typebot.io</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  typebot-db:
+    image: postgres:14-alpine
+    restart: always
+    volumes:
+    - ./db_data:/var/lib/postgresql/data
+    environment:
+      POSTGRES_USER: typebot
+      POSTGRES_DB: typebot
+      POSTGRES_PASSWORD: typebot
+    container_name: '{{ INSTANCE_CODE }}_typebot_db'
+    networks:
+    - internal
+  typebot-builder:
+    image: baptistearno/typebot-builder:2.27
+    restart: always
+    depends_on:
+    - typebot-db
+    environment:
+      ENCRYPTION_SECRET: {{ encryption_secret }}
+      DATABASE_URL: postgresql://typebot:typebot@typebot-db:5432/typebot
+      NEXTAUTH_URL: {{ nextauth_url }}
+      NEXT_PUBLIC_VIEWER_URL: {{ next_public_viewer_url }}
+      ADMIN_EMAIL: {{ admin_email }}
+      SMTP_HOST: {{ smtp_host }}
+      NEXT_PUBLIC_SMTP_FROM: {{ next_public_smtp_from }}
+      SMTP_USERNAME: {{ smtp_username }}
+      SMTP_PASSWORD: {{ smtp_password }}
+      DEFAULT_WORKSPACE_PLAN: {{ default_workspace_plan }}
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    networks:
+    - internal
+    - agz-proxy-network
+  typebot-viewer:
+    image: baptistearno/typebot-viewer:2.27.0
+    restart: always
+    environment:
+      ENCRYPTION_SECRET: {{ encryption_secret }}
+      DATABASE_URL: postgresql://typebot:typebot@typebot-db:5432/typebot
+      NEXTAUTH_URL: {{ nextauth_url }}
+      NEXT_PUBLIC_VIEWER_URL: {{ next_public_viewer_url }}
+      ADMIN_EMAIL: {{ admin_email }}
+      SMTP_HOST: {{ smtp_host }}
+      NEXT_PUBLIC_SMTP_FROM: {{ next_public_smtp_from }}
+      SMTP_USERNAME: {{ smtp_username }}
+      SMTP_PASSWORD: {{ smtp_password }}
+      DEFAULT_WORKSPACE_PLAN: {{ default_workspace_plan }}
+    container_name: '{{ INSTANCE_CODE }}_typebot_viewer'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T typebot-db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d typebot-db
+for i in $(seq 1 30); do
+  docker compose exec -T typebot-db sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T typebot-db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T typebot-db sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_typebot_port_http" model="service.template.port">
+        <field name="template_id" ref="template_typebot"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_typebot_var_encryption_secret" model="service.template.variable">
+        <field name="template_id" ref="template_typebot"/>
+        <field name="name">encryption_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_typebot_var_nextauth_url" model="service.template.variable">
+        <field name="template_id" ref="template_typebot"/>
+        <field name="name">nextauth_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">http://${builder_domain}</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_typebot_var_next_public_viewer_url" model="service.template.variable">
+        <field name="template_id" ref="template_typebot"/>
+        <field name="name">next_public_viewer_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">http://${viewer_domain}</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_typebot_var_admin_email" model="service.template.variable">
+        <field name="template_id" ref="template_typebot"/>
+        <field name="name">admin_email</field>
+        <field name="var_type">string</field>
+        <field name="default_value">typebot@example.com</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_typebot_var_smtp_host" model="service.template.variable">
+        <field name="template_id" ref="template_typebot"/>
+        <field name="name">smtp_host</field>
+        <field name="var_type">string</field>
+        <field name="default_value">'Fill'</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_typebot_var_smtp_port" model="service.template.variable">
+        <field name="template_id" ref="template_typebot"/>
+        <field name="name">smtp_port</field>
+        <field name="var_type">string</field>
+        <field name="default_value">25</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_typebot_var_smtp_username" model="service.template.variable">
+        <field name="template_id" ref="template_typebot"/>
+        <field name="name">smtp_username</field>
+        <field name="var_type">string</field>
+        <field name="default_value">'Fill'</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_typebot_var_smtp_password" model="service.template.variable">
+        <field name="template_id" ref="template_typebot"/>
+        <field name="name">smtp_password</field>
+        <field name="var_type">string</field>
+        <field name="default_value">'Fill'</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_typebot_var_next_public_smtp_from" model="service.template.variable">
+        <field name="template_id" ref="template_typebot"/>
+        <field name="name">next_public_smtp_from</field>
+        <field name="var_type">string</field>
+        <field name="default_value">typebot@example.com</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_typebot_var_default_workspace_plan" model="service.template.variable">
+        <field name="template_id" ref="template_typebot"/>
+        <field name="name">default_workspace_plan</field>
+        <field name="var_type">string</field>
+        <field name="default_value">UNLIMITED</field>
+        <field name="sequence">100</field>
+    </record>
+    <record id="template_typebot_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_typebot"/>
+        <field name="name">db-data</field>
+        <field name="local_path">./db_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

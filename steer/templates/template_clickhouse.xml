@@ -1,0 +1,100 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_clickhouse" model="service.template">
+        <field name="name">ClickHouse</field>
+        <field name="code">clickhouse</field>
+        <field name="service_code">clickhouse</field>
+        <field name="version">latest</field>
+        <field name="description">ClickHouse is a high-performance, column-oriented SQL database built for real-time analytics over massive datasets.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">ClickHouse is a high-performance, column-oriented SQL database built for real-time analytics over massive datasets.</p>
+  <p>It is an open-source online analytical processing (OLAP) database management system that runs aggregation queries across billions of rows in milliseconds. Designed for data engineers and analytics teams, it combines a vectorized execution engine, columnar storage and aggressive compression to deliver interactive dashboards, observability backends and large-scale reporting that traditional row-oriented databases struggle to serve.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Columnar storage with strong compression for fast, scan-heavy analytical queries</li>
+    <li>Vectorized, parallel query execution that scales across cores and nodes</li>
+    <li>Familiar SQL dialect with rich functions, materialized views and table engines</li>
+    <li>Real-time ingestion from Kafka, files, S3 and many external systems</li>
+    <li>Horizontal scaling via sharding and replication for high availability</li>
+    <li>Integrations and official clients for Python, Java, Go, JavaScript and .NET</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams building real-time analytics, business intelligence, log and metrics platforms, event and clickstream analysis, or any workload that needs fast aggregations over very large volumes of data.</p>
+</div>]]></field>
+        <field name="category">database</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/clickhouse.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_analytics')])]"/>
+        <field name="website_url">https://clickhouse.com/</field>
+        <field name="documentation_url">https://clickhouse.com/docs</field>
+        <field name="source_url">https://github.com/ClickHouse/ClickHouse</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  clickhouse:
+    image: clickhouse/clickhouse-server:latest
+    restart: unless-stopped
+    environment:
+    - CLICKHOUSE_USER={{ clickhouse_user }}
+    - CLICKHOUSE_PASSWORD={{ clickhouse_password }}
+    volumes:
+    - ./clickhouse_data:/var/lib/clickhouse
+    - ./clickhouse_logs:/var/log/clickhouse-server
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8123'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_clickhouse_port_http" model="service.template.port">
+        <field name="template_id" ref="template_clickhouse"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8123</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_clickhouse_var_clickhouse_user" model="service.template.variable">
+        <field name="template_id" ref="template_clickhouse"/>
+        <field name="name">clickhouse_user</field>
+        <field name="var_type">string</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_clickhouse_var_clickhouse_password" model="service.template.variable">
+        <field name="template_id" ref="template_clickhouse"/>
+        <field name="name">clickhouse_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_clickhouse_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_clickhouse"/>
+        <field name="name">clickhouse-data</field>
+        <field name="local_path">./clickhouse_data</field>
+        <field name="owner">101:101</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_clickhouse_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_clickhouse"/>
+        <field name="name">clickhouse-logs</field>
+        <field name="local_path">./clickhouse_logs</field>
+        <field name="owner">101:101</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

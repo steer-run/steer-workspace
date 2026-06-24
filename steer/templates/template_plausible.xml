@@ -1,0 +1,206 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'plausible': plausible_events_db): revisar backup/red/init.
+           - Tiene 2 mount(s) de config: revisar rutas y montaje en el compose.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_plausible" model="service.template">
+        <field name="name">Plausible</field>
+        <field name="code">plausible</field>
+        <field name="service_code">plausible</field>
+        <field name="version">v2.1.5</field>
+        <field name="description">Plausible Analytics is a lightweight, privacy-first web analytics platform and a cookie-free alternative to Google Analytics.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Plausible Analytics is a lightweight, privacy-first web analytics platform and a cookie-free alternative to Google Analytics.</p>
+  <p>It measures website traffic and visitor behavior without using cookies, storing IP addresses, or collecting personal data, so it needs no consent banner and aligns with GDPR, CCPA and PECR. The self-hosted Community Edition runs as an Elixir/Phoenix application backed by PostgreSQL and ClickHouse, and ships a tiny tracking script that keeps page weight minimal. It is aimed at teams who want clear, actionable metrics while keeping full ownership of their data.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Cookie-free, privacy-by-design tracking with no personal data or IP storage</li>
+    <li>Single, simple dashboard with traffic, sources, pages, devices and locations</li>
+    <li>Goal and conversion tracking, plus custom events and UTM campaign analysis</li>
+    <li>Real-time visitor stats and historical reports with shareable public links</li>
+    <li>Ultra-light tracking script for fast page loads and reliable measurement</li>
+    <li>Self-hosted via Docker (Community Edition, AGPLv3) with full data ownership</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Privacy-conscious teams, developers, agencies and site owners who want straightforward, GDPR-friendly web analytics without the complexity of Google Analytics and without surrendering control of their visitor data.</p>
+</div>]]></field>
+        <field name="category">analytics</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/plausible.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_monitoring')])]"/>
+        <field name="website_url">https://plausible.io/</field>
+        <field name="documentation_url">https://plausible.io/docs</field>
+        <field name="source_url">https://github.com/plausible/plausible</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  plausible_db:
+    image: postgres:16-alpine
+    restart: always
+    volumes:
+    - ./db_data:/var/lib/postgresql/data
+    environment:
+    - POSTGRES_PASSWORD=postgres
+    container_name: '{{ INSTANCE_CODE }}_plausible_db'
+    networks:
+    - internal
+  plausible_events_db:
+    image: clickhouse/clickhouse-server:24.3.3.102-alpine
+    restart: always
+    volumes:
+    - ./event_data:/var/lib/clickhouse
+    - ./event_logs:/var/log/clickhouse-server
+    - ../files/clickhouse/clickhouse-config.xml:/etc/clickhouse-server/config.d/logging.xml:ro
+    - ../files/clickhouse/clickhouse-user-config.xml:/etc/clickhouse-server/users.d/logging.xml:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    container_name: '{{ INSTANCE_CODE }}_plausible_events_db'
+    networks:
+    - internal
+  plausible:
+    image: ghcr.io/plausible/community-edition:v2.1.5
+    restart: always
+    command: sh -c "sleep 10 && /entrypoint.sh db createdb && /entrypoint.sh db migrate && /entrypoint.sh
+      run"
+    depends_on:
+    - plausible_db
+    - plausible_events_db
+    env_file:
+    - .env
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8000'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T plausible_db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d plausible_db
+for i in $(seq 1 30); do
+  docker compose exec -T plausible_db sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T plausible_db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T plausible_db sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_plausible_port_http" model="service.template.port">
+        <field name="template_id" ref="template_plausible"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_plausible_var_secret_base" model="service.template.variable">
+        <field name="template_id" ref="template_plausible"/>
+        <field name="name">secret_base</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_plausible_var_totp_key" model="service.template.variable">
+        <field name="template_id" ref="template_plausible"/>
+        <field name="name">totp_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_plausible_var_base_url" model="service.template.variable">
+        <field name="template_id" ref="template_plausible"/>
+        <field name="name">base_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">http://${main_domain}</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_plausible_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_plausible"/>
+        <field name="name">db-data</field>
+        <field name="local_path">./db_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_plausible_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_plausible"/>
+        <field name="name">event-data</field>
+        <field name="local_path">./event_data</field>
+        <field name="owner">101:101</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_plausible_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_plausible"/>
+        <field name="name">event-logs</field>
+        <field name="local_path">./event_logs</field>
+        <field name="owner">101:101</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_plausible_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_plausible"/>
+        <field name="name">clickhouse-config.xml</field>
+        <field name="filename">clickhouse-config.xml</field>
+        <field name="path">./files/clickhouse</field>
+        <field name="content_template"><![CDATA[<clickhouse>
+  <logger>
+    <level>warning</level>
+    <console>true</console>
+  </logger>
+
+  <!-- Stop all the unnecessary logging -->
+  <query_thread_log remove="remove"/>
+  <query_log remove="remove"/>
+  <text_log remove="remove"/>
+  <trace_log remove="remove"/>
+  <metric_log remove="remove"/>
+  <asynchronous_metric_log remove="remove"/>
+  <session_log remove="remove"/>
+  <part_log remove="remove"/>
+</clickhouse>
+]]></field>
+    </record>
+    <record id="template_plausible_cfg_1" model="service.template.config.file">
+        <field name="template_id" ref="template_plausible"/>
+        <field name="name">clickhouse-user-config.xml</field>
+        <field name="filename">clickhouse-user-config.xml</field>
+        <field name="path">./files/clickhouse</field>
+        <field name="content_template"><![CDATA[<clickhouse>
+  <profiles>
+    <default>
+      <log_queries>0</log_queries>
+      <log_query_threads>0</log_query_threads>
+    </default>
+  </profiles>
+</clickhouse>
+]]></field>
+    </record>
+</odoo>

@@ -1,0 +1,322 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'proxy': apps, worker, minio, couchdb): revisar backup/red/init.
+           - Owner UID:GID de 'minio' (imagen minio/minio:RELEASE.2025-09-07T16-13-09Z) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'couchdb' (imagen budibase/couchdb:v3.3.3) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_budibase" model="service.template">
+        <field name="name">Budibase</field>
+        <field name="code">budibase</field>
+        <field name="service_code">budibase</field>
+        <field name="version">3.23.47</field>
+        <field name="description">Budibase is an open-source low-code platform for building internal tools, business apps, automations, and AI agents in minutes.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Budibase is an open-source low-code platform for building internal tools, business apps, automations, and AI agents in minutes.</p>
+  <p>It combines a UI builder, a built-in database, automation workflows, and a wide range of data connectors in a single self-hostable stack. Teams use it to replace spreadsheets and stitched-together tools with secure admin panels, forms, portals, and approval apps. Built on a JavaScript stack (Node/Koa backend, Svelte frontend, CouchDB internal store), it is a recognized open-source alternative to Retool, Appsmith, and ToolJet.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Drag-and-drop app builder with a built-in database (BudibaseDB) and ready-made components</li>
+    <li>External data connectors: PostgreSQL, MySQL, MS SQL, Oracle, MongoDB, REST APIs, S3, Google Sheets, Airtable and more</li>
+    <li>Visual automation engine for multi-step workflows, triggers, and scheduled jobs</li>
+    <li>AI agents that run actions across systems: create records, route approvals, and notify teams</li>
+    <li>Granular role-based access control, SSO/SAML, and audit logs (enterprise)</li>
+    <li>Self-hosting via a single Docker image, Docker Compose, or Kubernetes</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>IT teams, developers, and operations staff who need to quickly build secure internal tools, admin dashboards, and approval workflows while keeping full control over their data and infrastructure on self-hosted deployments.</p>
+</div>]]></field>
+        <field name="category">automation</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/budibase.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="website_url">https://budibase.com/</field>
+        <field name="documentation_url">https://docs.budibase.com/docs/</field>
+        <field name="source_url">https://github.com/Budibase/budibase</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  apps:
+    image: budibase/apps:3.23.47
+    restart: unless-stopped
+    environment:
+      SELF_HOSTED: 1
+      LOG_LEVEL: info
+      PORT: 4002
+      INTERNAL_API_KEY: ${BB_INTERNAL_API_KEY}
+      API_ENCRYPTION_KEY: ${BB_API_ENCRYPTION_KEY}
+      JWT_SECRET: ${BB_JWT_SECRET}
+      MINIO_ACCESS_KEY: ${BB_MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${BB_MINIO_SECRET_KEY}
+      MINIO_URL: http://minio:9000
+      REDIS_URL: redis:6379
+      REDIS_PASSWORD: ${BB_REDIS_PASSWORD}
+      WORKER_URL: http://worker:4003
+      COUCH_DB_USERNAME: budibase
+      COUCH_DB_PASSWORD: ${BB_COUCHDB_PASSWORD}
+      COUCH_DB_URL: http://budibase:${BB_COUCHDB_PASSWORD}@couchdb:5984
+      BUDIBASE_ENVIRONMENT: ${BUDIBASE_ENVIRONMENT:-PRODUCTION}
+      ENABLE_ANALYTICS: ${ENABLE_ANALYTICS:-true}
+      BB_ADMIN_USER_EMAIL: ''
+      BB_ADMIN_USER_PASSWORD: ''
+    depends_on:
+      worker:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - --spider
+      - -qO-
+      - http://localhost:4002/health
+      interval: 15s
+      timeout: 15s
+      retries: 5
+      start_period: 10s
+    container_name: '{{ INSTANCE_CODE }}_apps'
+    networks:
+    - internal
+  worker:
+    image: budibase/worker:3.23.47
+    restart: unless-stopped
+    environment:
+      SELF_HOSTED: 1
+      LOG_LEVEL: info
+      PORT: 4003
+      CLUSTER_PORT: 10000
+      INTERNAL_API_KEY: ${BB_INTERNAL_API_KEY}
+      API_ENCRYPTION_KEY: ${BB_API_ENCRYPTION_KEY}
+      JWT_SECRET: ${BB_JWT_SECRET}
+      MINIO_ACCESS_KEY: ${BB_MINIO_ACCESS_KEY}
+      MINIO_SECRET_KEY: ${BB_MINIO_SECRET_KEY}
+      APPS_URL: http://apps:4002
+      MINIO_URL: http://minio:9000
+      REDIS_URL: redis:6379
+      REDIS_PASSWORD: ${BB_REDIS_PASSWORD}
+      COUCH_DB_USERNAME: budibase
+      COUCH_DB_PASSWORD: ${BB_COUCHDB_PASSWORD}
+      COUCH_DB_URL: http://budibase:${BB_COUCHDB_PASSWORD}@couchdb:5984
+      BUDIBASE_ENVIRONMENT: ${BUDIBASE_ENVIRONMENT:-PRODUCTION}
+      ENABLE_ANALYTICS: ${ENABLE_ANALYTICS:-true}
+    depends_on:
+      redis:
+        condition: service_healthy
+      minio:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - --spider
+      - -qO-
+      - http://localhost:4003/health
+      interval: 15s
+      timeout: 15s
+      retries: 5
+      start_period: 10s
+    container_name: '{{ INSTANCE_CODE }}_worker'
+    networks:
+    - internal
+  minio:
+    image: minio/minio:RELEASE.2025-09-07T16-13-09Z
+    restart: unless-stopped
+    volumes:
+    - ./minio_data:/data
+    environment:
+      MINIO_ROOT_USER: ${BB_MINIO_ACCESS_KEY}
+      MINIO_ROOT_PASSWORD: ${BB_MINIO_SECRET_KEY}
+      MINIO_BROWSER: false
+    command: server /data --console-address ":9001"
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:9000/minio/health/live
+      interval: 30s
+      timeout: 20s
+      retries: 3
+    container_name: '{{ INSTANCE_CODE }}_minio'
+    networks:
+    - internal
+  proxy:
+    image: budibase/proxy:3.23.47
+    restart: unless-stopped
+    environment:
+      PROXY_RATE_LIMIT_WEBHOOKS_PER_SECOND: 10
+      PROXY_RATE_LIMIT_API_PER_SECOND: 20
+      APPS_UPSTREAM_URL: http://apps:4002
+      WORKER_UPSTREAM_URL: http://worker:4003
+      MINIO_UPSTREAM_URL: http://minio:9000
+      COUCHDB_UPSTREAM_URL: http://couchdb:5984
+      WATCHTOWER_UPSTREAM_URL: http://watchtower:8080
+      RESOLVER: 127.0.0.11
+    depends_on:
+      minio:
+        condition: service_healthy
+      worker:
+        condition: service_healthy
+      apps:
+        condition: service_healthy
+      couchdb:
+        condition: service_healthy
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:10000/
+      interval: 15s
+      timeout: 15s
+      retries: 5
+      start_period: 10s
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:10000'
+    networks:
+    - internal
+    - agz-proxy-network
+  couchdb:
+    image: budibase/couchdb:v3.3.3
+    restart: unless-stopped
+    environment:
+      COUCHDB_USER: budibase
+      COUCHDB_PASSWORD: ${BB_COUCHDB_PASSWORD}
+      TARGETBUILD: docker-compose
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://localhost:5984/
+      interval: 15s
+      timeout: 15s
+      retries: 5
+      start_period: 10s
+    volumes:
+    - ./couchdb3_data:/opt/couchdb/data
+    container_name: '{{ INSTANCE_CODE }}_couchdb'
+    networks:
+    - internal
+  redis:
+    image: redis:8.4-alpine
+    restart: unless-stopped
+    command: redis-server --requirepass "${BB_REDIS_PASSWORD}"
+    volumes:
+    - ./redis_data:/data
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - -a
+      - ${BB_REDIS_PASSWORD}
+      - ping
+      interval: 15s
+      timeout: 15s
+      retries: 5
+      start_period: 10s
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_budibase_port_http" model="service.template.port">
+        <field name="template_id" ref="template_budibase"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">10000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_budibase_var_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_budibase"/>
+        <field name="name">BB_INTERNAL_API_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_budibase_var_encryption_key" model="service.template.variable">
+        <field name="template_id" ref="template_budibase"/>
+        <field name="name">BB_API_ENCRYPTION_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_budibase_var_jwt_secret" model="service.template.variable">
+        <field name="template_id" ref="template_budibase"/>
+        <field name="name">BB_JWT_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_budibase_var_couchdb_password" model="service.template.variable">
+        <field name="template_id" ref="template_budibase"/>
+        <field name="name">BB_COUCHDB_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_budibase_var_redis_password" model="service.template.variable">
+        <field name="template_id" ref="template_budibase"/>
+        <field name="name">BB_REDIS_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_budibase_var_minio_access_key" model="service.template.variable">
+        <field name="template_id" ref="template_budibase"/>
+        <field name="name">BB_MINIO_ACCESS_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_budibase_var_minio_secret_key" model="service.template.variable">
+        <field name="template_id" ref="template_budibase"/>
+        <field name="name">BB_MINIO_SECRET_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_budibase_var_watchtower_password" model="service.template.variable">
+        <field name="template_id" ref="template_budibase"/>
+        <field name="name">watchtower_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_budibase_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_budibase"/>
+        <field name="name">minio_data</field>
+        <field name="local_path">./minio_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_budibase_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_budibase"/>
+        <field name="name">couchdb3_data</field>
+        <field name="local_path">./couchdb3_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_budibase_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_budibase"/>
+        <field name="name">redis_data</field>
+        <field name="local_path">./redis_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+</odoo>

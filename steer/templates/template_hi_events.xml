@@ -1,0 +1,134 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="template_hi_events" model="service.template">
+        <field name="name">Hi.events</field>
+        <field name="code">hi_events</field>
+        <field name="service_code">hi_events</field>
+        <field name="version">0.8.0-beta.1</field>
+        <field name="description">Hi.Events is a self-hosted event management and ticketing platform, a privacy-friendly alternative to Eventbrite.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Hi.Events is a self-hosted event management and ticketing platform, a privacy-friendly alternative to Eventbrite.</p>
+  <p>It lets organizers create event pages, sell tickets and manage attendees end to end, from configuration to check-in at the door. Payments run through your own Stripe account via Stripe Connect, so funds and card data flow straight to your bank without passing through the application. Built on a Laravel (PHP) backend and a React/TypeScript frontend, it targets organizers who want full data ownership and zero per-ticket platform fees.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Multiple ticket types: free, paid, donation and tiered pricing, with per-ticket taxes and fees</li>
+    <li>Customizable event homepages and an embeddable ticket widget for any website</li>
+    <li>QR-code check-in tools and attendee management with multi-user roles and permissions</li>
+    <li>Stripe Connect integration for direct, instant payouts to your own account</li>
+    <li>Custom order forms, attendee messaging and data exports to XLSX or CSV</li>
+    <li>Full REST API and webhooks for integration with Zapier, Make and CRMs</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Event organizers, conferences, concerts, workshops and white-label agencies that need a production-ready ticketing system on their own infrastructure, with complete data control and no vendor lock-in.</p>
+</div>]]></field>
+        <field name="category">ecommerce</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/hi_events.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_ecommerce'), ref('agz_infra_suite.tag_finance'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_scheduling')])]"/>
+        <field name="website_url">https://hi.events/</field>
+        <field name="documentation_url">https://hi.events/docs</field>
+        <field name="source_url">https://github.com/HiEventsDev/hi.events</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  all-in-one:
+    image: daveearley/hi.events-all-in-one:v0.8.0-beta.1
+    restart: always
+    environment:
+    - VITE_FRONTEND_URL=https://{{ instance.full_domain }}
+    - APP_FRONTEND_URL=https://{{ instance.full_domain }}
+    - VITE_API_URL_CLIENT=https://{{ instance.full_domain }}/api
+    - VITE_API_URL_SERVER=http://localhost:80/api
+    - VITE_STRIPE_PUBLISHABLE_KEY
+    - LOG_CHANNEL=stderr
+    - QUEUE_CONNECTION=sync
+    - MAIL_MAILER=array
+    - APP_KEY
+    - JWT_SECRET
+    - FILESYSTEM_PUBLIC_DISK=public
+    - FILESYSTEM_PRIVATE_DISK=local
+    - APP_CDN_URL=https://{{ instance.full_domain }}/storage
+    - DATABASE_URL=postgresql://${POSTGRES_USER}:${POSTGRES_PASSWORD}@postgres:5432/${POSTGRES_DB}
+    - MAIL_MAILER
+    - MAIL_HOST
+    - MAIL_PORT
+    - MAIL_FROM_ADDRESS
+    - MAIL_FROM_NAME
+    depends_on:
+    - postgres
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+  postgres:
+    image: elestio/postgres:16
+    restart: always
+    environment:
+    - POSTGRES_DB
+    - POSTGRES_USER
+    - POSTGRES_PASSWORD
+    volumes:
+    - ./pg_hi_events_data:/var/lib/postgresql/data
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_hi_events_port_http" model="service.template.port">
+        <field name="template_id" ref="template_hi_events"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_hi_events_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_hi_events"/>
+        <field name="name">pg_hi-events_data</field>
+        <field name="local_path">./pg_hi_events_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_hi_events_var_postgres_password" model="service.template.variable">
+        <field name="template_id" ref="template_hi_events"/>
+        <field name="name">POSTGRES_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

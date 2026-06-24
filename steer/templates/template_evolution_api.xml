@@ -1,0 +1,582 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================== -->
+    <!-- Template: Evolution API (WhatsApp)            -->
+    <!-- ============================================== -->
+    <record id="template_evolution_api" model="service.template">
+        <field name="name">Evolution API</field>
+        <field name="code">evolution-api</field>
+        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/evolution-api.png"/>
+        <field name="description">API open-source de integración con WhatsApp. Incluye PostgreSQL y Redis para alta performance. Ideal para envío masivo, chatbots y automatizaciones.</field>
+        <field name="category">communication</field>
+        <field name="version">latest</field>
+        <field name="service_code">evolution-api</field>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_automation')])]"/>
+        <field name="is_web_app">True</field>
+        <field name="is_global">True</field>
+        <field name="active">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  db:
+    image: postgres:{{ postgres_version | default('16') }}
+    container_name: {{ INSTANCE_CODE }}_db
+    environment:
+      - POSTGRES_DB={{ db_name | default('evolution') }}
+      - POSTGRES_USER={{ db_user | default('evolution') }}
+      - POSTGRES_PASSWORD={{ db_password }}
+      - PGDATA=/var/lib/postgresql/data/pgdata
+    volumes:
+      - ./postgres-data:/var/lib/postgresql/data/pgdata
+    restart: unless-stopped
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U {{ db_user | default('evolution') }}"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  redis:
+    image: redis:7-alpine
+    container_name: {{ INSTANCE_CODE }}_redis
+    restart: unless-stopped
+    command: redis-server --appendonly yes
+    volumes:
+      - ./redis-data:/data
+    networks:
+      - internal
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  evolution-api:
+    image: {{ evolution_image | default('evoapicloud/evolution-api:latest') }}
+    container_name: {{ INSTANCE_CODE }}
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    ports:
+      - "{{ PORT_HTTP }}:8080"
+    environment:
+      # Autenticación
+      - AUTHENTICATION_API_KEY={{ api_key }}
+      - JWT_SECRET={{ jwt_secret }}
+      # Base de datos
+      - DATABASE_ENABLED=true
+      - DATABASE_PROVIDER=postgresql
+      - DATABASE_CONNECTION_URI=postgresql://{{ db_user | default('evolution') }}:{{ db_password }}@db:5432/{{ db_name | default('evolution') }}
+      - DATABASE_CONNECTION_CLIENT_NAME=evolution_api
+      # Guardado en base de datos
+      - DATABASE_SAVE_DATA_INSTANCE=true
+      - DATABASE_SAVE_DATA_NEW_MESSAGE={{ save_new_message | default('false') }}
+      - DATABASE_SAVE_MESSAGE_UPDATE={{ save_message_update | default('false') }}
+      - DATABASE_SAVE_DATA_CONTACTS={{ save_contacts | default('false') }}
+      - DATABASE_SAVE_DATA_CHATS={{ save_chats | default('false') }}
+      - DATABASE_SAVE_DATA_LABELS={{ save_labels | default('false') }}
+      - DATABASE_SAVE_DATA_HISTORIC={{ save_historic | default('false') }}
+      # Redis
+      - CACHE_REDIS_ENABLED=true
+      - CACHE_REDIS_URI=redis://redis:6379/0
+      - CACHE_REDIS_PREFIX_KEY={{ redis_prefix | default('evolution') }}
+      - CACHE_REDIS_SAVE_INSTANCES=false
+      - CACHE_LOCAL_ENABLED=false
+      # URL del servidor
+      - SERVER_URL=https://{{ instance.full_domain }}/
+      - SERVER_PORT=8080
+      - DOCKER_ENV=true
+      # Configuración de instancia
+      - DEL_INSTANCE={{ del_instance | default('false') }}
+      - CONFIG_SESSION_PHONE_CLIENT={{ phone_client | default('Evolution') }}
+      - CONFIG_SESSION_PHONE_NAME={{ phone_name | default('Chrome') }}
+      - LOG_LEVEL={{ log_level | default('INFO') }}
+      # Sincronización
+      - SYNC_MESSAGES=false
+      - SYNC_CONTACTS=false
+      - SYNC_CHATS=false
+      - SYNC_LABELS=false
+      - SYNC_FULL_HISTORY=false
+      - SYNC_ARCHIVE_CHATS=false
+      - SYNC_ON_CONNECT=false
+      - INITIAL_SYNC=false
+      - HISTORY_SYNC_MINUTES=0
+      - WAIT_FOR_ACK=true
+      - MESSAGE_ACK_TIMEOUT=3000
+      # Mensajes
+      - STORE_MESSAGES=false
+      - STORE_CONTACTS=false
+      - STORE_CHATS=false
+      - STORE_PRESENCES=false
+      - STORE_GROUPS=false
+      - IGNORE_MESSAGE_UPDATES=true
+      - IGNORE_STATUS_UPDATES=true
+      - IGNORE_BROADCAST_MESSAGES=true
+      - IGNORE_GROUP_MESSAGES=true
+      - IGNORE_BROADCAST_STATUSES=true
+      - MARK_MESSAGES_READ=false
+      - READ_MESSAGES=false
+      # Multimedia
+      - AUTO_DOWNLOAD_MEDIA=false
+      - AUTO_DOWNLOAD_STATUS=false
+      - REJECT_MEDIA_MESSAGES=true
+      - MAX_MEDIA_SIZE=0
+      - DISABLE_MEDIA_DOWNLOAD=true
+      # Webhooks
+      - WEBHOOK_ENABLED=false
+      - WEBHOOK_GLOBAL_ENABLED=false
+      - WEBHOOK_LOCAL_ENABLED=false
+      # RabbitMQ / S3
+      - RABBITMQ_ENABLED=false
+      - S3_ENABLED=false
+      - MINIO_ENABLED=false
+      # Instancias
+      - DEL_TEMP_INSTANCES=true
+      - INSTANCE_MAX_RETRY_INIT=2
+      - INSTANCE_MAX_RETRY_QR=2
+      # Performance
+      - MAX_CONCURRENT_SESSIONS={{ max_sessions | default('12') }}
+      - WORKER_THREADS={{ worker_threads | default('2') }}
+      - BATCH_SIZE=10
+      - PARALLEL_PROCESSING=true
+    volumes:
+      - ./evolution-instances:/evolution/instances
+      - ./evolution-store:/evolution/store
+    restart: unless-stopped
+    networks:
+      - internal
+      - agz-proxy-network
+
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+# Pre-backup: Genera dump paralelo de PostgreSQL para Evolution API
+# Variables del sistema: SERVICE_PATH, INSTANCE_CODE, BACKUP_DATA_DIR
+# Variables del servicio: db_user, db_name, db_password, etc.
+# Los directorios evolution-instances y evolution-store se incluyen en el tar del sistema
+set -e
+cd "$SERVICE_PATH"
+
+DB_USER="${db_user:-evolution}"
+DB_NAME="${db_name:-evolution}"
+CONTAINER=$(docker compose ps -q db 2>/dev/null | head -1)
+
+echo "Iniciando backup paralelo de PostgreSQL (Evolution API)..."
+
+# Limpiar dump anterior en el contenedor
+docker exec $CONTAINER rm -rf /tmp/backup_dump 2>/dev/null || true
+
+# pg_dump paralelo: formato directorio, 4 jobs, sin compresión
+docker exec $CONTAINER pg_dump -U "$DB_USER" "$DB_NAME" \
+    --no-owner --jobs=4 -Fd -x --compress=0 \
+    -f /tmp/backup_dump
+
+# Copiar del contenedor al directorio de datos del backup
+docker cp $CONTAINER:/tmp/backup_dump "$BACKUP_DATA_DIR/"
+
+# Limpiar en el contenedor
+docker exec $CONTAINER rm -rf /tmp/backup_dump
+
+echo "Dump paralelo creado en $BACKUP_DATA_DIR/backup_dump"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+# Post-restore: Restaura dump paralelo de PostgreSQL para Evolution API
+# Variables del sistema: SERVICE_PATH, INSTANCE_CODE, RESTORE_DATA_DIR
+# Variables del servicio: db_user, db_name, db_password, etc.
+set -e
+cd "$SERVICE_PATH"
+
+if [ -d "$RESTORE_DATA_DIR/backup_dump" ]; then
+    DB_USER="${db_user:-evolution}"
+    DB_NAME="${db_name:-evolution}"
+
+    echo "Iniciando restore paralelo de PostgreSQL (Evolution API)..."
+    echo "Usuario BD: $DB_USER, Base de datos: $DB_NAME"
+
+    # 1. Iniciar SOLO el contenedor de BD
+    echo "Iniciando contenedor de base de datos..."
+    docker compose up -d db
+
+    # 2. Esperar a que PostgreSQL esté listo
+    echo "Esperando que PostgreSQL esté listo..."
+    for i in $(seq 1 30); do
+        if docker compose exec -T db pg_isready -U "$DB_USER" 2>/dev/null | grep -q "accepting connections"; then
+            echo "PostgreSQL listo después de $i segundos"
+            break
+        fi
+        sleep 1
+    done
+
+    # 3. Obtener ID del contenedor
+    CONTAINER=$(docker compose ps -q db 2>/dev/null | head -1)
+    if [ -z "$CONTAINER" ]; then
+        echo "ERROR: No se encontró el contenedor de base de datos"
+        exit 1
+    fi
+
+    # 4. Copiar dump al contenedor
+    docker cp "$RESTORE_DATA_DIR/backup_dump" $CONTAINER:/tmp/
+
+    # 5. Generar lista ordenada excluyendo MATERIALIZED VIEW DATA
+    docker exec $CONTAINER bash -c "pg_restore -l -Fd /tmp/backup_dump | sed '/MATERIALIZED VIEW DATA/d' > /tmp/backup_dump/pg_restore_ordered.lst"
+
+    # 6. Limpiar la base de datos existente antes de restaurar
+    echo "Limpiando base de datos existente..."
+    docker exec $CONTAINER psql -U "$DB_USER" -d postgres -c "DROP DATABASE IF EXISTS \"$DB_NAME\" WITH (FORCE);"
+    docker exec $CONTAINER psql -U "$DB_USER" -d postgres -c "CREATE DATABASE \"$DB_NAME\" OWNER \"$DB_USER\";"
+
+    # 7. Restore paralelo con 4 jobs
+    echo "Restaurando base de datos..."
+    docker exec $CONTAINER pg_restore \
+        -U "$DB_USER" \
+        --jobs=4 --no-owner --no-acl \
+        -d "$DB_NAME" \
+        -L /tmp/backup_dump/pg_restore_ordered.lst \
+        -Fd /tmp/backup_dump
+
+    RESTORE_EXIT=$?
+
+    # 8. Limpiar en el contenedor
+    docker exec $CONTAINER rm -rf /tmp/backup_dump
+
+    if [ $RESTORE_EXIT -ne 0 ]; then
+        echo "ERROR: pg_restore falló con código $RESTORE_EXIT"
+        exit $RESTORE_EXIT
+    fi
+
+    # 9. Verificar que la BD tiene datos
+    TABLE_COUNT=$(docker exec $CONTAINER psql -U "$DB_USER" -d "$DB_NAME" -t -c "SELECT count(*) FROM information_schema.tables WHERE table_schema = 'public';" 2>/dev/null | tr -d ' ')
+    echo "Tablas restauradas: $TABLE_COUNT"
+
+    if [ "$TABLE_COUNT" = "0" ] || [ -z "$TABLE_COUNT" ]; then
+        echo "ERROR: La base de datos está vacía después del restore"
+        exit 1
+    fi
+
+    echo "Base de datos restaurada exitosamente"
+else
+    echo "ADVERTENCIA: No se encontró backup_dump en $RESTORE_DATA_DIR"
+fi
+]]></field>
+    </record>
+
+    <!-- Puertos del template Evolution API -->
+    <record id="template_evolution_api_port_http" model="service.template.port">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="code">http</field>
+        <field name="name">HTTP (Evolution API)</field>
+        <field name="default_port">8080</field>
+        <field name="sequence">10</field>
+        <field name="traefik_routed" eval="True"/>
+    </record>
+
+    <!-- Variables del template Evolution API -->
+    <record id="template_evolution_api_var_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">api_key</field>
+        <field name="display_name">API Key</field>
+        <field name="var_type">password</field>
+        <field name="required">True</field>
+        <field name="sequence">10</field>
+        <field name="help">Clave de autenticación para la API. Se usa en el header apikey de las peticiones.</field>
+    </record>
+
+    <record id="template_evolution_api_var_jwt_secret" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">jwt_secret</field>
+        <field name="display_name">JWT Secret</field>
+        <field name="var_type">password</field>
+        <field name="required">True</field>
+        <field name="sequence">20</field>
+        <field name="help">Clave secreta para firmar tokens JWT. Mínimo 32 caracteres recomendado.</field>
+    </record>
+
+    <record id="template_evolution_api_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">db_password</field>
+        <field name="display_name">Contraseña de Base de Datos</field>
+        <field name="var_type">password</field>
+        <field name="required">True</field>
+        <field name="sequence">30</field>
+        <field name="help">Contraseña para el usuario PostgreSQL interno.</field>
+    </record>
+
+    <record id="template_evolution_api_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">db_user</field>
+        <field name="display_name">Usuario de Base de Datos</field>
+        <field name="var_type">string</field>
+        <field name="default_value">evolution</field>
+        <field name="required">True</field>
+        <field name="sequence">35</field>
+    </record>
+
+    <record id="template_evolution_api_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">db_name</field>
+        <field name="display_name">Nombre de Base de Datos</field>
+        <field name="var_type">string</field>
+        <field name="default_value">evolution</field>
+        <field name="required">False</field>
+        <field name="sequence">37</field>
+    </record>
+
+    <record id="template_evolution_api_var_postgres_version" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">postgres_version</field>
+        <field name="display_name">Versión de PostgreSQL</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">16,15,14</field>
+        <field name="default_value">16</field>
+        <field name="required">True</field>
+        <field name="sequence">40</field>
+    </record>
+
+    <record id="template_evolution_api_var_evolution_image" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">evolution_image</field>
+        <field name="display_name">Imagen Docker</field>
+        <field name="var_type">string</field>
+        <field name="default_value">evoapicloud/evolution-api:latest</field>
+        <field name="required">True</field>
+        <field name="sequence">45</field>
+        <field name="help">Imagen Docker de Evolution API. Usar evoapicloud/evolution-api:latest o evoapicloud/evolution-api:latest.</field>
+    </record>
+
+    <record id="template_evolution_api_var_phone_client" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">phone_client</field>
+        <field name="display_name">Nombre del Cliente</field>
+        <field name="var_type">string</field>
+        <field name="default_value">Evolution</field>
+        <field name="required">False</field>
+        <field name="sequence">50</field>
+        <field name="help">Nombre que aparece en WhatsApp como dispositivo vinculado.</field>
+    </record>
+
+    <record id="template_evolution_api_var_phone_name" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">phone_name</field>
+        <field name="display_name">Nombre del Navegador</field>
+        <field name="var_type">string</field>
+        <field name="default_value">Chrome</field>
+        <field name="required">False</field>
+        <field name="sequence">55</field>
+        <field name="help">Nombre del navegador simulado en la sesión.</field>
+    </record>
+
+    <record id="template_evolution_api_var_max_sessions" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">max_sessions</field>
+        <field name="display_name">Sesiones Máximas</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">4,8,12,16,24,32</field>
+        <field name="default_value">12</field>
+        <field name="required">False</field>
+        <field name="sequence">60</field>
+        <field name="help">Número máximo de cuentas de WhatsApp simultáneas.</field>
+    </record>
+
+    <record id="template_evolution_api_var_worker_threads" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">worker_threads</field>
+        <field name="display_name">Worker Threads</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">1,2,4,8</field>
+        <field name="default_value">2</field>
+        <field name="required">False</field>
+        <field name="sequence">65</field>
+        <field name="help">Hilos de procesamiento paralelo. Aumentar según carga.</field>
+    </record>
+
+    <record id="template_evolution_api_var_log_level" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">log_level</field>
+        <field name="display_name">Nivel de Log</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">ERROR,WARN,INFO,DEBUG</field>
+        <field name="default_value">WARN</field>
+        <field name="required">False</field>
+        <field name="sequence">70</field>
+    </record>
+
+    <record id="template_evolution_api_var_redis_prefix" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">redis_prefix</field>
+        <field name="display_name">Prefijo Redis</field>
+        <field name="var_type">string</field>
+        <field name="default_value">evolution</field>
+        <field name="required">False</field>
+        <field name="sequence">75</field>
+        <field name="help">Prefijo para las claves en Redis.</field>
+    </record>
+
+    <record id="template_evolution_api_var_del_instance" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">del_instance</field>
+        <field name="display_name">Eliminar Instancias</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">true,false</field>
+        <field name="default_value">false</field>
+        <field name="required">False</field>
+        <field name="sequence">80</field>
+        <field name="help">Permitir eliminar instancias vía API.</field>
+    </record>
+
+    <record id="template_evolution_api_var_save_new_message" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">save_new_message</field>
+        <field name="display_name">Guardar Mensajes Nuevos</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">true,false</field>
+        <field name="default_value">false</field>
+        <field name="required">False</field>
+        <field name="sequence">85</field>
+        <field name="help">Guardar mensajes nuevos en la base de datos.</field>
+    </record>
+
+    <record id="template_evolution_api_var_save_message_update" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">save_message_update</field>
+        <field name="display_name">Guardar Actualizaciones</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">true,false</field>
+        <field name="default_value">false</field>
+        <field name="required">False</field>
+        <field name="sequence">86</field>
+        <field name="help">Guardar actualizaciones de mensajes (leído, entregado, etc.).</field>
+    </record>
+
+    <record id="template_evolution_api_var_save_contacts" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">save_contacts</field>
+        <field name="display_name">Guardar Contactos</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">true,false</field>
+        <field name="default_value">false</field>
+        <field name="required">False</field>
+        <field name="sequence">87</field>
+        <field name="help">Guardar contactos en la base de datos.</field>
+    </record>
+
+    <record id="template_evolution_api_var_save_chats" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">save_chats</field>
+        <field name="display_name">Guardar Chats</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">true,false</field>
+        <field name="default_value">false</field>
+        <field name="required">False</field>
+        <field name="sequence">88</field>
+        <field name="help">Guardar chats en la base de datos.</field>
+    </record>
+
+    <record id="template_evolution_api_var_save_labels" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">save_labels</field>
+        <field name="display_name">Guardar Etiquetas</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">true,false</field>
+        <field name="default_value">false</field>
+        <field name="required">False</field>
+        <field name="sequence">89</field>
+        <field name="help">Guardar etiquetas en la base de datos.</field>
+    </record>
+
+    <record id="template_evolution_api_var_save_historic" model="service.template.variable">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">save_historic</field>
+        <field name="display_name">Guardar Histórico</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">true,false</field>
+        <field name="default_value">false</field>
+        <field name="required">False</field>
+        <field name="sequence">90</field>
+        <field name="help">Guardar datos históricos en la base de datos.</field>
+    </record>
+
+    <!-- Volúmenes del template Evolution API -->
+    <record id="template_evolution_api_vol_postgres" model="service.template.volume">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">Datos PostgreSQL</field>
+        <field name="local_path">./postgres-data</field>
+        <field name="owner">999:999</field>
+        <field name="permissions">755</field>
+        <field name="sequence">10</field>
+        <field name="exclude_from_backup" eval="True"/>
+    </record>
+
+    <record id="template_evolution_api_vol_redis" model="service.template.volume">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">Datos Redis</field>
+        <field name="local_path">./redis-data</field>
+        <field name="owner">999:1000</field>
+        <field name="permissions">755</field>
+        <field name="sequence">20</field>
+        <field name="exclude_from_backup" eval="True"/>
+    </record>
+
+    <record id="template_evolution_api_vol_instances" model="service.template.volume">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">Instancias Evolution</field>
+        <field name="local_path">./evolution-instances</field>
+        <field name="owner">1000:1000</field>
+        <field name="permissions">755</field>
+        <field name="sequence">30</field>
+    </record>
+
+    <record id="template_evolution_api_vol_store" model="service.template.volume">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="name">Store Evolution</field>
+        <field name="local_path">./evolution-store</field>
+        <field name="owner">1000:1000</field>
+        <field name="permissions">755</field>
+        <field name="sequence">40</field>
+    </record>
+
+
+    <!-- Config Docker por servicio — defaults recomendados (VPS 2-8 GB) -->
+    <!-- ========== Evolution API (template_evolution_api) ========== -->
+    <record id="svcfg_evolution_db" model="service.template.service.config">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="service_name">db</field>
+        <field name="sequence">10</field>
+        <field name="memory_limit">512m</field>
+        <field name="cpu_limit">0.5</field>
+        <field name="memory_reservation">256m</field>
+        <field name="log_max_size">20m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+    <record id="svcfg_evolution_redis" model="service.template.service.config">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="service_name">redis</field>
+        <field name="sequence">20</field>
+        <field name="memory_limit">256m</field>
+        <field name="cpu_limit">0.5</field>
+        <field name="memory_reservation">128m</field>
+        <field name="log_max_size">10m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+    <record id="svcfg_evolution_api" model="service.template.service.config">
+        <field name="template_id" ref="template_evolution_api"/>
+        <field name="service_name">evolution-api</field>
+        <field name="sequence">30</field>
+        <field name="memory_limit">512m</field>
+        <field name="cpu_limit">0.5</field>
+        <field name="memory_reservation">256m</field>
+        <field name="log_max_size">20m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+</odoo>

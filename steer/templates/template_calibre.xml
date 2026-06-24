@@ -1,0 +1,96 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'calibre' (imagen linuxserver/calibre:7.26.0) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_calibre" model="service.template">
+        <field name="name">Calibre</field>
+        <field name="code">calibre</field>
+        <field name="service_code">calibre</field>
+        <field name="version">7.26.0</field>
+        <field name="description">Calibre is the de facto standard open-source e-book management suite for organizing, converting, editing, and reading your entire digital library.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Calibre is the de facto standard open-source e-book management suite for organizing, converting, editing, and reading your entire digital library.</p>
+  <p>Created and actively maintained by Kovid Goyal, Calibre handles all major e-book formats and acts as a complete library manager: it catalogs your collection with rich metadata, converts between formats, edits EPUB/AZW3 files, and syncs to a wide range of reader devices. Its built-in Content Server exposes the library over the web with an in-browser reader and OPDS feeds, making Calibre the backbone of most self-hosted ebook stacks (its metadata database also powers front-ends like Calibre-Web).</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Library cataloging with automatic metadata and cover fetching from online sources</li>
+    <li>Format conversion across EPUB, MOBI, AZW3, PDF, FB2, CBZ/CBR and more</li>
+    <li>Built-in Content Server with an in-browser reader, cross-device read-position sync and OPDS feeds</li>
+    <li>Device connectivity and send-to-device support for Kindle, Kobo and other e-readers</li>
+    <li>Integrated EPUB/AZW3 editor and a news-to-ebook engine for fetching periodicals</li>
+    <li>Virtual libraries, saved searches, tags and powerful plugin extensibility</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Readers and digital archivists who want full ownership of their e-book collection, and self-hosters who need a canonical library and Content Server to serve books across devices. When exposed to a network, run it behind a reverse proxy or VPN with a password set, never directly on the public Internet.</p>
+</div>]]></field>
+        <field name="category">media</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/calibre.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_ebooks')])]"/>
+        <field name="website_url">https://calibre-ebook.com/</field>
+        <field name="documentation_url">https://manual.calibre-ebook.com/</field>
+        <field name="source_url">https://github.com/kovidgoyal/calibre</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  calibre:
+    image: linuxserver/calibre:7.26.0
+    restart: unless-stopped
+    environment:
+    - PASSWORD={{ password }}
+    - TZ=Etc/UTC
+    - PUID=1000
+    - PGID=1000
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    volumes:
+    - ./books:/books
+    - ./data:/config
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_calibre_port_http" model="service.template.port">
+        <field name="template_id" ref="template_calibre"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_calibre_var_password" model="service.template.variable">
+        <field name="template_id" ref="template_calibre"/>
+        <field name="name">password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_calibre_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_calibre"/>
+        <field name="name">books</field>
+        <field name="local_path">./books</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_calibre_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_calibre"/>
+        <field name="name">data</field>
+        <field name="local_path">./data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

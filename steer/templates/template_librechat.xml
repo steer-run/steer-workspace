@@ -1,0 +1,435 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'librechat': meilisearch, vectordb, rag_api): revisar backup/red/init.
+           - Owner UID:GID de 'librechat' (imagen ghcr.io/danny-avila/librechat-dev:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'meilisearch' (imagen getmeili/meilisearch:v1.12.3) desconocido → DEFAULT 1000:1000, verificar.
+           - Owner UID:GID de 'vectordb' (imagen pgvector/pgvector:0.8.0-pg15-trixie) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+           - Tiene 1 mount(s) de config: revisar rutas y montaje en el compose.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_librechat" model="service.template">
+        <field name="name">LibreChat</field>
+        <field name="code">librechat</field>
+        <field name="service_code">librechat</field>
+        <field name="version">latest</field>
+        <field name="description">LibreChat is a self-hosted, open-source AI chat platform that unifies every major AI provider behind a single, privacy-focused interface.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">LibreChat is a self-hosted, open-source AI chat platform that unifies every major AI provider behind a single, privacy-focused interface.</p>
+  <p>It works as an enhanced ChatGPT alternative you fully control, connecting to OpenAI, Anthropic, Google, Azure, AWS Bedrock, Mistral, Groq, DeepSeek, OpenRouter, local models via Ollama, and custom endpoints. Beyond plain chat it adds AI agents, Model Context Protocol (MCP) tools, code execution, artifacts, and image generation, with enterprise-grade multi-user authentication. It is aimed at teams and individuals who want to centralize and govern AI access without surrendering control over their prompt data or model choices.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Unified access to many AI providers and models with on-the-fly model switching</li>
+    <li>AI agents, subagents, and MCP tool integration for extensible automated workflows</li>
+    <li>Sandboxed code interpreter and generative UI artifacts (React, HTML, Mermaid)</li>
+    <li>Image generation (DALL-E, Stable Diffusion, Flux) and web search with reranking</li>
+    <li>Secure multi-user authentication: OAuth2, OIDC, SAML, LDAP, and role-based access</li>
+    <li>Conversation search, branching, presets, and import/export of chat history</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Organizations and self-hosting individuals that want a single governed gateway to multiple LLM providers, with agents and tools, while keeping prompt data and credentials on infrastructure they own.</p>
+</div>]]></field>
+        <field name="category">ai</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mongodb</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/librechat.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_chat'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration')])]"/>
+        <field name="website_url">https://librechat.ai</field>
+        <field name="documentation_url">https://docs.librechat.ai</field>
+        <field name="source_url">https://github.com/danny-avila/librechat</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  librechat:
+    image: ghcr.io/danny-avila/librechat-dev:latest
+    restart: always
+    depends_on:
+    - mongodb
+    - rag_api
+    environment:
+    - HOST=0.0.0.0
+    - PORT=${PORT:-3080}
+    - DOMAIN_CLIENT={{ domain_client }}
+    - DOMAIN_SERVER={{ domain_server }}
+    - MONGO_URI=mongodb://mongodb:27017/LibreChat
+    - MEILI_HOST=http://meilisearch:7700
+    - SEARCH=true
+    - NO_INDEX=true
+    - MEILI_NO_ANALYTICS=true
+    - MEILI_MASTER_KEY={{ meili_master_key }}
+    - JWT_SECRET={{ jwt_secret }}
+    - JWT_REFRESH_SECRET={{ jwt_refresh_secret }}
+    - CREDS_KEY={{ creds_key }}
+    - CREDS_IV={{ creds_iv }}
+    - RAG_PORT=${RAG_PORT:-8000}
+    - RAG_API_URL=http://rag_api:${RAG_PORT:-8000}
+    - OPENAI_API_KEY={{ openai_api_key }}
+    - ANTHROPIC_API_KEY={{ anthropic_api_key }}
+    - OPENROUTER_KEY={{ openrouter_key }}
+    - GOOGLE_KEY={{ google_key }}
+    - ENDPOINTS=google,openAI,assistants,azureOpenAI,anthropic
+    - APP_TITLE=${APP_TITLE:-LibreChat}
+    - "CUSTOM_FOOTER=${CUSTOM_FOOTER:-Made with \u2764\uFE0F by LibreChat}"
+    - ALLOW_EMAIL_LOGIN=${ALLOW_EMAIL_LOGIN:-true}
+    - ALLOW_SOCIAL_LOGIN=${ALLOW_SOCIAL_LOGIN:-false}
+    - ALLOW_REGISTRATION=${ALLOW_REGISTRATION:-false}
+    volumes:
+    - type: bind
+      source: ../files/librechat.yaml
+      target: /app/librechat.yaml
+    - ./librechat_data:/app/client/public/images
+    - ./librechat_data:/app/uploads
+    - ./librechat_data:/app/logs
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:3080'
+    networks:
+    - internal
+    - agz-proxy-network
+  mongodb:
+    image: mongo
+    restart: always
+    volumes:
+    - ./mongo_data:/data/db
+    command: mongod --noauth
+    container_name: '{{ INSTANCE_CODE }}_mongodb'
+    networks:
+    - internal
+  meilisearch:
+    image: getmeili/meilisearch:v1.12.3
+    restart: always
+    environment:
+    - MEILI_HOST=http://meilisearch:7700
+    - MEILI_NO_ANALYTICS=true
+    - MEILI_MASTER_KEY={{ meili_master_key }}
+    volumes:
+    - ./meili_data:/meili_data
+    container_name: '{{ INSTANCE_CODE }}_meilisearch'
+    networks:
+    - internal
+  vectordb:
+    image: pgvector/pgvector:0.8.0-pg15-trixie
+    environment:
+    - POSTGRES_DB=${POSTGRES_DB:-mydatabase}
+    - POSTGRES_USER=${POSTGRES_USER:-myuser}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mypassword}
+    restart: always
+    volumes:
+    - ./postgres_data:/var/lib/postgresql/data
+    container_name: '{{ INSTANCE_CODE }}_vectordb'
+    networks:
+    - internal
+  rag_api:
+    image: ghcr.io/danny-avila/librechat-rag-api-dev-lite:latest
+    environment:
+    - DB_HOST=vectordb
+    - VECTOR_DB_TYPE=pgvector
+    - POSTGRES_DB=${POSTGRES_DB:-mydatabase}
+    - POSTGRES_USER=${POSTGRES_USER:-myuser}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD:-mypassword}
+    - RAG_PORT=${RAG_PORT:-8000}
+    - OPENAI_API_KEY={{ openai_api_key }}
+    - RAG_OPENAI_API_KEY={{ rag_openai_api_key }}
+    - GOOGLE_KEY={{ google_key }}
+    - RAG_GOOGLE_API_KEY={{ rag_google_api_key }}
+    - JWT_SECRET={{ jwt_secret }}
+    - COLLECTION_NAME=${COLLECTION_NAME:-librechat_collection}
+    - CHUNK_SIZE=${CHUNK_SIZE:-1500}
+    - CHUNK_OVERLAP=${CHUNK_OVERLAP:-100}
+    - EMBEDDINGS_PROVIDER=${EMBEDDINGS_PROVIDER:-openai}
+    - EMBEDDINGS_MODEL=${EMBEDDINGS_MODEL:-text-embedding-3-small}
+    - DEBUG_RAG_API=false
+    - DEBUG_PGVECTOR_QUERIES=false
+    - CONSOLE_JSON=false
+    restart: always
+    depends_on:
+    - vectordb
+    container_name: '{{ INSTANCE_CODE }}_rag_api'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose exec -T mongodb sh -c 'mongodump --archive' > "$BACKUP_DATA_DIR/db.archive"
+echo "mongodump OK ($(wc -c < "$BACKUP_DATA_DIR/db.archive") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d mongodb
+sleep 8
+docker compose exec -T mongodb sh -c 'mongorestore --drop --archive' < "$RESTORE_DATA_DIR/db.archive"
+echo "mongorestore OK"
+]]></field>
+    </record>
+    <record id="template_librechat_port_http" model="service.template.port">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_librechat_var_jwt_secret" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">jwt_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_librechat_var_jwt_refresh_secret" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">jwt_refresh_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_librechat_var_creds_key" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">creds_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_librechat_var_creds_iv" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">creds_iv</field>
+        <field name="var_type">string</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_librechat_var_meili_master_key" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">meili_master_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_librechat_var_mongo_password" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">mongo_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_librechat_var_postgresql_password" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">postgresql_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_librechat_var_host" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">host</field>
+        <field name="var_type">string</field>
+        <field name="default_value">0.0.0.0</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_librechat_var_port" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">port</field>
+        <field name="var_type">string</field>
+        <field name="default_value">3080</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_librechat_var_domain_client" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">domain_client</field>
+        <field name="var_type">string</field>
+        <field name="default_value">https://${main_domain}</field>
+        <field name="sequence">100</field>
+    </record>
+    <record id="template_librechat_var_domain_server" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">domain_server</field>
+        <field name="var_type">string</field>
+        <field name="default_value">https://${main_domain}</field>
+        <field name="sequence">110</field>
+    </record>
+    <record id="template_librechat_var_openai_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">openai_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">120</field>
+    </record>
+    <record id="template_librechat_var_anthropic_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">anthropic_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">130</field>
+    </record>
+    <record id="template_librechat_var_google_key" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">google_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">140</field>
+    </record>
+    <record id="template_librechat_var_openrouter_key" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">openrouter_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">150</field>
+    </record>
+    <record id="template_librechat_var_postgres_db" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">postgres_db</field>
+        <field name="var_type">string</field>
+        <field name="default_value">librechat_db</field>
+        <field name="sequence">160</field>
+    </record>
+    <record id="template_librechat_var_postgres_user" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">postgres_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">librechat_user</field>
+        <field name="sequence">170</field>
+    </record>
+    <record id="template_librechat_var_app_title" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">app_title</field>
+        <field name="var_type">string</field>
+        <field name="default_value">LibreChat</field>
+        <field name="sequence">180</field>
+    </record>
+    <record id="template_librechat_var_custom_footer" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">custom_footer</field>
+        <field name="var_type">string</field>
+        <field name="default_value">Made with ❤️ by LibreChat</field>
+        <field name="sequence">190</field>
+    </record>
+    <record id="template_librechat_var_allow_email_login" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">allow_email_login</field>
+        <field name="var_type">string</field>
+        <field name="default_value">true</field>
+        <field name="sequence">200</field>
+    </record>
+    <record id="template_librechat_var_allow_registration" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">allow_registration</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">210</field>
+    </record>
+    <record id="template_librechat_var_allow_social_login" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">allow_social_login</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">220</field>
+    </record>
+    <record id="template_librechat_var_rag_openai_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">rag_openai_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">230</field>
+    </record>
+    <record id="template_librechat_var_rag_google_api_key" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">rag_google_api_key</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">240</field>
+    </record>
+    <record id="template_librechat_var_embeddings_provider" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">embeddings_provider</field>
+        <field name="var_type">string</field>
+        <field name="default_value">openai</field>
+        <field name="sequence">250</field>
+    </record>
+    <record id="template_librechat_var_embeddings_model" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">embeddings_model</field>
+        <field name="var_type">string</field>
+        <field name="default_value">text-embedding-3-small</field>
+        <field name="sequence">260</field>
+    </record>
+    <record id="template_librechat_var_chunk_size" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">chunk_size</field>
+        <field name="var_type">string</field>
+        <field name="default_value">1500</field>
+        <field name="sequence">270</field>
+    </record>
+    <record id="template_librechat_var_chunk_overlap" model="service.template.variable">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">chunk_overlap</field>
+        <field name="var_type">string</field>
+        <field name="default_value">100</field>
+        <field name="sequence">280</field>
+    </record>
+    <record id="template_librechat_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">librechat_data</field>
+        <field name="local_path">./librechat_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_librechat_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">mongo_data</field>
+        <field name="local_path">./mongo_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_librechat_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">meili_data</field>
+        <field name="local_path">./meili_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_librechat_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">postgres_data</field>
+        <field name="local_path">./postgres_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_librechat_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_librechat"/>
+        <field name="name">librechat.yaml</field>
+        <field name="filename">librechat.yaml</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[### librechat.yaml configs ###
+
+version: 1.2.8
+cache: true
+endpoints:
+  custom:
+    - name: "OpenRouter"
+      apiKey: "${OPENROUTER_KEY}"
+      baseURL: "https://openrouter.ai/api/v1"
+      models:
+        default: ["meta-llama/llama-3.3-70b-instruct:free"]
+        fetch: true
+      titleConvo: true
+      titleModel: "current_model"
+      summarize: false
+      summaryModel: "current_model"
+      forcePrompt: false
+      dropParams: ["stop"]
+      modelDisplayLabel: "OpenRouter"
+]]></field>
+    </record>
+</odoo>

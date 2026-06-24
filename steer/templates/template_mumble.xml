@@ -1,0 +1,99 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'mumble-server' (imagen mumblevoip/mumble-server:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_mumble" model="service.template">
+        <field name="name">Mumble</field>
+        <field name="code">mumble</field>
+        <field name="service_code">mumble</field>
+        <field name="version">latest</field>
+        <field name="description">Mumble is an open-source, low-latency, high-quality voice chat platform that you fully self-host for private and public real-time voice communication.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Mumble is an open-source, low-latency, high-quality voice chat platform that you fully self-host for private and public real-time voice communication.</p>
+  <p>Mumble pairs a cross-platform client with a self-hosted server (mumble-server, formerly Murmur), built on Qt and the Opus codec. Originally popular for in-game voice, it is equally suited to remote meetings, radio and podcast production, and community voice channels. A single server daemon can run multiple virtual servers, each with its own hierarchical channel tree and fine-grained access control lists.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>High-quality, low-latency audio powered by the Opus codec</li>
+    <li>Encrypted by default: TLS control channel and AES-encrypted audio with Perfect Forward Secrecy</li>
+    <li>Hierarchical channels with granular per-channel permissions and access control groups (ACLs)</li>
+    <li>Multiple virtual servers from a single daemon, each on its own port</li>
+    <li>Remote administration via ZeroC Ice and gRPC RPC interfaces</li>
+    <li>Native clients for Windows, Linux, macOS, FreeBSD and OpenBSD</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams, communities and organizations that need a private, privacy-respecting voice server they control end-to-end: gaming groups, remote teams, radio/podcast workflows and any deployment requiring scalable, permission-driven voice channels.</p>
+</div>]]></field>
+        <field name="category">communication</field>
+        <field name="is_web_app">False</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/mumble.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_chat'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_voip')])]"/>
+        <field name="website_url">https://www.mumble.info/</field>
+        <field name="documentation_url">https://wiki.mumble.info/</field>
+        <field name="source_url">https://github.com/mumble-voip/mumble</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  mumble-server:
+    image: mumblevoip/mumble-server:latest
+    restart: unless-stopped
+    ports:
+    - 64738
+    - 64738/udp
+    volumes:
+    - ./mumble_data:/data
+    environment:
+    - MUMBLE_SUPERUSER_PASSWORD={{ superuser_password }}
+    - MUMBLE_CONFIG_WELCOMETEXT={{ welcome_text }}
+    - MUMBLE_CONFIG_USERS={{ max_users }}
+    container_name: '{{ INSTANCE_CODE }}_mumble_server'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_mumble_port_http" model="service.template.port">
+        <field name="template_id" ref="template_mumble"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_mumble_var_superuser_password" model="service.template.variable">
+        <field name="template_id" ref="template_mumble"/>
+        <field name="name">superuser_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_mumble_var_welcome_text" model="service.template.variable">
+        <field name="template_id" ref="template_mumble"/>
+        <field name="name">welcome_text</field>
+        <field name="var_type">string</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_mumble_var_max_users" model="service.template.variable">
+        <field name="template_id" ref="template_mumble"/>
+        <field name="name">max_users</field>
+        <field name="var_type">string</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_mumble_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_mumble"/>
+        <field name="name">mumble-data</field>
+        <field name="local_path">./mumble_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

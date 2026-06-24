@@ -1,0 +1,255 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (además de 'seafile': memcached): revisar backup/red/init.
+           - Owner UID:GID de 'seafile' (imagen seafileltd/seafile-mc:12.0-latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_seafile" model="service.template">
+        <field name="name">Seafile</field>
+        <field name="code">seafile</field>
+        <field name="service_code">seafile</field>
+        <field name="version">12.0-latest</field>
+        <field name="description">Seafile is a high-performance, self-hosted file sync and share platform that keeps your data on your own infrastructure.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Seafile is a high-performance, self-hosted file sync and share platform that keeps your data on your own infrastructure.</p>
+  <p>Built around a distinctive library-based architecture that stores files as encrypted blocks, Seafile delivers fast incremental synchronization that transfers only changed content rather than whole files. It targets teams and organizations that need data sovereignty without giving up modern collaboration, offering cross-platform desktop, mobile, and virtual-drive clients alongside a Django-based web interface. A Community Edition under AGPLv3 covers the core features, with an optional proprietary Pro Edition for advanced enterprise needs.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Library-based storage with reliable, delta-only incremental sync and selective folder syncing</li>
+    <li>Client-side end-to-end encryption so even server administrators cannot read library contents</li>
+    <li>Virtual drive client that keeps files in the cloud and downloads them on demand</li>
+    <li>File sharing via links and groups with granular permissions, plus WebDAV access</li>
+    <li>Online document editing and collaboration through SeaDoc, OnlyOffice, or Collabora integration</li>
+    <li>LDAP/SSO authentication and cross-platform clients for Windows, macOS, Linux, Android, and iOS</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams, businesses, and self-hosting enthusiasts that want a private, reliable alternative to public cloud storage for syncing, sharing, and collaborating on files with strong privacy controls.</p>
+</div>]]></field>
+        <field name="category">storage</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/seafile.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_backup'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="website_url">https://seafile.com</field>
+        <field name="documentation_url">https://manual.seafile.com/12.0</field>
+        <field name="source_url">https://github.com/haiwen/seafile</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  seafile-db:
+    image: mariadb:10.11
+    environment:
+    - MYSQL_ROOT_PASSWORD=${INIT_SEAFILE_MYSQL_ROOT_PASSWORD:-}
+    - MYSQL_LOG_CONSOLE=true
+    - MARIADB_AUTO_UPGRADE=1
+    volumes:
+    - ./seafile_mysql_db:/var/lib/mysql"
+    networks:
+    - internal
+    healthcheck:
+      test:
+      - CMD
+      - /usr/local/bin/healthcheck.sh
+      - --connect
+      - --mariadbupgrade
+      - --innodb_initialized
+      interval: 20s
+      start_period: 30s
+      timeout: 5s
+      retries: 10
+    container_name: '{{ INSTANCE_CODE }}_seafile_db'
+    restart: unless-stopped
+  memcached:
+    image: memcached:1.6.29
+    entrypoint: memcached -m 256
+    networks:
+    - internal
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - bash -c "echo version | (exec 3<>/dev/tcp/localhost/11211; cat >&3; timeout 0.5 cat <&3; exec
+        3<&-)"
+      interval: 20s
+      timeout: 5s
+      retries: 10
+    container_name: '{{ INSTANCE_CODE }}_memcached'
+    restart: unless-stopped
+  seafile:
+    image: seafileltd/seafile-mc:12.0-latest
+    volumes:
+    - ./seafile_data:/shared
+    environment:
+    - DB_HOST=${SEAFILE_MYSQL_DB_HOST:-seafile-db}
+    - DB_PORT=${SEAFILE_MYSQL_DB_PORT:-3306}
+    - DB_USER=${SEAFILE_MYSQL_DB_USER:-seafile}
+    - DB_ROOT_PASSWD=${INIT_SEAFILE_MYSQL_ROOT_PASSWORD:-}
+    - DB_PASSWORD=${SEAFILE_MYSQL_DB_PASSWORD:?Variable is not set or empty}
+    - SEAFILE_MYSQL_DB_CCNET_DB_NAME=${SEAFILE_MYSQL_DB_CCNET_DB_NAME:-ccnet_db}
+    - SEAFILE_MYSQL_DB_SEAFILE_DB_NAME=${SEAFILE_MYSQL_DB_SEAFILE_DB_NAME:-seafile_db}
+    - SEAFILE_MYSQL_DB_SEAHUB_DB_NAME=${SEAFILE_MYSQL_DB_SEAHUB_DB_NAME:-seahub_db}
+    - TIME_ZONE=${TIME_ZONE:-Etc/UTC}
+    - INIT_SEAFILE_ADMIN_EMAIL=${INIT_SEAFILE_ADMIN_EMAIL:-me@example.com}
+    - INIT_SEAFILE_ADMIN_PASSWORD=${INIT_SEAFILE_ADMIN_PASSWORD:-asecret}
+    - SEAFILE_SERVER_HOSTNAME=${SEAFILE_SERVER_HOSTNAME:?Variable is not set or empty}
+    - SEAFILE_SERVER_PROTOCOL=${SEAFILE_SERVER_PROTOCOL:-http}
+    - SITE_ROOT=${SITE_ROOT:-/}
+    - NON_ROOT=${NON_ROOT:-false}
+    - JWT_PRIVATE_KEY=${JWT_PRIVATE_KEY:?Variable is not set or empty}
+    - SEAFILE_LOG_TO_STDOUT=${SEAFILE_LOG_TO_STDOUT:-true}
+    depends_on:
+      seafile-db:
+        condition: service_healthy
+      memcached:
+        condition: service_started
+    networks:
+    - internal
+    - agz-proxy-network
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - -f
+      - http://127.0.0.1:80/api2/ping
+      interval: 20s
+      timeout: 5s
+      retries: 10
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:80'
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T seafile-db sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d seafile-db
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T seafile-db sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_seafile_port_http" model="service.template.port">
+        <field name="template_id" ref="template_seafile"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_seafile_var_mysql_root_password" model="service.template.variable">
+        <field name="template_id" ref="template_seafile"/>
+        <field name="name">mysql_root_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_seafile_var_mysql_user_password" model="service.template.variable">
+        <field name="template_id" ref="template_seafile"/>
+        <field name="name">mysql_user_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_seafile_var_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_seafile"/>
+        <field name="name">admin_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_seafile_var_jwt_private_key" model="service.template.variable">
+        <field name="template_id" ref="template_seafile"/>
+        <field name="name">jwt_private_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_seafile_var_seafile_mysql_db_host" model="service.template.variable">
+        <field name="template_id" ref="template_seafile"/>
+        <field name="name">seafile_mysql_db_host</field>
+        <field name="var_type">string</field>
+        <field name="default_value">seafile-db</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_seafile_var_seafile_mysql_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_seafile"/>
+        <field name="name">seafile_mysql_db_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">seafile</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_seafile_var_time_zone" model="service.template.variable">
+        <field name="template_id" ref="template_seafile"/>
+        <field name="name">time_zone</field>
+        <field name="var_type">string</field>
+        <field name="default_value">Etc/UTC</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_seafile_var_seafile_server_protocol" model="service.template.variable">
+        <field name="template_id" ref="template_seafile"/>
+        <field name="name">seafile_server_protocol</field>
+        <field name="var_type">string</field>
+        <field name="default_value">https</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_seafile_var_init_seafile_admin_email" model="service.template.variable">
+        <field name="template_id" ref="template_seafile"/>
+        <field name="name">init_seafile_admin_email</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin@example.com</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_seafile_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_seafile"/>
+        <field name="name">seafile-mysql-db</field>
+        <field name="local_path">./seafile_mysql_db</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_seafile_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_seafile"/>
+        <field name="name">seafile-data</field>
+        <field name="local_path">./seafile_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

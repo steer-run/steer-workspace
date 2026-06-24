@@ -1,0 +1,161 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'linkwarden' (imagen ghcr.io/linkwarden/linkwarden:v2.9.3) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_linkwarden" model="service.template">
+        <field name="name">Linkwarden</field>
+        <field name="code">linkwarden</field>
+        <field name="service_code">linkwarden</field>
+        <field name="version">2.9.3</field>
+        <field name="description">Linkwarden is a self-hosted collaborative bookmark manager that collects, organizes, reads and permanently preserves the webpages that matter to you.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Linkwarden is a self-hosted collaborative bookmark manager that collects, organizes, reads and permanently preserves the webpages that matter to you.</p>
+  <p>It is built to fight link rot: every saved link is automatically archived as a screenshot, PDF and single-file HTML, so the content survives even when the original page disappears. Beyond plain bookmarking, it adds a reader view with highlighting and annotations, organization by collections, sub-collections and tags, and collaboration so teams can curate shared link libraries. It positions itself as a self-hosted alternative to cloud services like Raindrop.io.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Automatic web archiving of each link as screenshot, PDF and HTML, plus optional Wayback Machine snapshots</li>
+    <li>Reader view with full-text search, highlighting and annotations</li>
+    <li>Organization by collections, sub-collections, nested folders and multiple tags</li>
+    <li>AI-based automatic tagging that classifies links by their content</li>
+    <li>Collaborative shared collections with per-user permissions and bulk actions</li>
+    <li>Browser extensions, native iOS/Android apps, RSS feed subscriptions and SSO integration</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals, researchers and teams who want a privacy-respecting, self-hosted home for their bookmarks and reading material, with durable archiving and shared curation instead of relying on a third-party cloud service.</p>
+</div>]]></field>
+        <field name="category">knowledge</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/linkwarden.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_documentation'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_bookmarks')])]"/>
+        <field name="website_url">https://linkwarden.app/</field>
+        <field name="documentation_url">https://docs.linkwarden.app/</field>
+        <field name="source_url">https://github.com/linkwarden/linkwarden</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  linkwarden:
+    environment:
+    - NEXTAUTH_SECRET
+    - NEXTAUTH_URL
+    - DATABASE_URL=postgresql://linkwarden:{{ postgres_password }}@postgres:5432/linkwarden
+    restart: unless-stopped
+    image: ghcr.io/linkwarden/linkwarden:v2.9.3
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    volumes:
+    - ./linkwarden_data:/data/data
+    depends_on:
+    - postgres
+    healthcheck:
+      test: curl --fail http://localhost:3000 || exit 1
+      interval: 60s
+      retries: 2
+      start_period: 60s
+      timeout: 15s
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    user: postgres
+    environment:
+      POSTGRES_USER: linkwarden
+      POSTGRES_DB: linkwarden
+      POSTGRES_PASSWORD: {{ postgres_password }}
+    volumes:
+    - ./postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_linkwarden_port_http" model="service.template.port">
+        <field name="template_id" ref="template_linkwarden"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_linkwarden_var_next_secret" model="service.template.variable">
+        <field name="template_id" ref="template_linkwarden"/>
+        <field name="name">next_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_linkwarden_var_postgres_password" model="service.template.variable">
+        <field name="template_id" ref="template_linkwarden"/>
+        <field name="name">postgres_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">15</field>
+    </record>
+    <record id="template_linkwarden_var_nextauth_url" model="service.template.variable">
+        <field name="template_id" ref="template_linkwarden"/>
+        <field name="name">nextauth_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">http://${main_domain}/api/v1/auth</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_linkwarden_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_linkwarden"/>
+        <field name="name">linkwarden-data</field>
+        <field name="local_path">./linkwarden_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_linkwarden_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_linkwarden"/>
+        <field name="name">postgres-data</field>
+        <field name="local_path">./postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

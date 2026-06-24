@@ -1,0 +1,84 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'meilisearch' (imagen getmeili/meilisearch:v1.35.1) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_meilisearch" model="service.template">
+        <field name="name">Meilisearch</field>
+        <field name="code">meilisearch</field>
+        <field name="service_code">meilisearch</field>
+        <field name="version">v1.35.1</field>
+        <field name="description">Meilisearch is a lightning-fast, developer-friendly open-source search engine that adds relevant, instant search to any application.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Meilisearch is a lightning-fast, developer-friendly open-source search engine that adds relevant, instant search to any application.</p>
+  <p>Written in Rust, Meilisearch delivers search-as-you-type results in under 50 milliseconds through a simple RESTful API and official SDKs for most popular languages. It combines traditional keyword search with semantic vector search in a single index, so teams can build modern AI-powered search experiences without running a separate vector database. It is a self-hostable alternative to hosted services like Algolia and a lighter operational option than Elasticsearch for front-facing search.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Sub-50ms search-as-you-type with built-in typo tolerance and fuzzy matching</li>
+    <li>Hybrid search combining BM25 full-text and vector/semantic search (OpenAI, Hugging Face, Ollama embedders)</li>
+    <li>Advanced filtering, faceted search and geosearch in a single query</li>
+    <li>Multi-tenancy with fine-grained API keys and tenant tokens</li>
+    <li>Optimized multi-language support, including Chinese, Japanese and Hebrew</li>
+    <li>Clean RESTful API plus official SDKs for JavaScript, Python, Go, PHP, Ruby, Rust and more</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Developers and teams adding fast, relevant search to e-commerce sites, content platforms, documentation portals, SaaS products and internal tools who want instant search and AI-ready relevance without the operational complexity of Elasticsearch.</p>
+</div>]]></field>
+        <field name="category">database</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/meilisearch.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="website_url">https://www.meilisearch.com/</field>
+        <field name="documentation_url">https://docs.meilisearch.com/</field>
+        <field name="source_url">https://github.com/meilisearch/meilisearch</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  meilisearch:
+    image: getmeili/meilisearch:v1.35.1
+    volumes:
+    - ./meili_data:/meili_data
+    environment:
+      MEILI_MASTER_KEY: {{ meili_master_key }}
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:7700'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_meilisearch_port_http" model="service.template.port">
+        <field name="template_id" ref="template_meilisearch"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">7700</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_meilisearch_var_master_key" model="service.template.variable">
+        <field name="template_id" ref="template_meilisearch"/>
+        <field name="name">master_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_meilisearch_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_meilisearch"/>
+        <field name="name">meili_data</field>
+        <field name="local_path">./meili_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

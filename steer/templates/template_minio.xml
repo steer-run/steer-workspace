@@ -1,0 +1,111 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'minio' (imagen minio/minio) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_minio" model="service.template">
+        <field name="name">Minio</field>
+        <field name="code">minio</field>
+        <field name="service_code">minio</field>
+        <field name="version">latest</field>
+        <field name="description">MinIO is a high-performance, S3-compatible object storage server you run on your own infrastructure.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">MinIO is a high-performance, S3-compatible object storage server you run on your own infrastructure.</p>
+  <p>Written in Go, MinIO exposes the Amazon S3 API so existing S3 SDKs, tools and applications work against it unchanged. It is designed for speed and scale, with built-in erasure coding for data durability, and powers AI/ML, analytics, backup and data-lake workloads on commodity hardware. Note: the original open-source project has been placed in maintenance and is no longer actively developed upstream, so production users typically rely on a community-maintained fork or the vendor's hosted edition.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Full Amazon S3 API compatibility for drop-in use with existing S3 clients and SDKs</li>
+    <li>Erasure coding and bit-rot protection for resilient, durable storage across drives and nodes</li>
+    <li>Distributed, horizontally scalable deployment for high throughput and capacity</li>
+    <li>Identity and access policies, bucket policies and fine-grained access keys</li>
+    <li>Server-side encryption, versioning, object locking and lifecycle rules</li>
+    <li>Site-to-site bucket replication and event notifications</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams that need a private, S3-compatible object store for application data, backups, media, analytics and AI/ML pipelines, and DevOps platforms that want to embed self-hosted S3 storage without a public-cloud dependency.</p>
+</div>]]></field>
+        <field name="category">storage</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/minio.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_backup'), ref('agz_infra_suite.tag_object_storage')])]"/>
+        <field name="website_url">https://minio.io/</field>
+        <field name="documentation_url">https://docs.minio.io/</field>
+        <field name="source_url">https://github.com/pgsty/minio</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  minio:
+    image: minio/minio
+    restart: unless-stopped
+    volumes:
+    - ./minio_data:/data
+    environment:
+    - MINIO_ROOT_USER={{ minio_root_user }}
+    - MINIO_ROOT_PASSWORD={{ minio_root_password }}
+    - MINIO_BROWSER_REDIRECT_URL={{ minio_browser_redirect_url }}
+    command: server /data --console-address ":9001"
+    ports:
+    - '{{ PORT_HTTP }}:9001'
+    expose:
+    - 9001
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_minio_port_http" model="service.template.port">
+        <field name="template_id" ref="template_minio"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">9001</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_minio_var_minio_root_user" model="service.template.variable">
+        <field name="template_id" ref="template_minio"/>
+        <field name="name">minio_root_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">minioadmin</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_minio_var_minio_root_password" model="service.template.variable">
+        <field name="template_id" ref="template_minio"/>
+        <field name="name">minio_root_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_minio_var_minio_browser_redirect_url" model="service.template.variable">
+        <field name="template_id" ref="template_minio"/>
+        <field name="name">minio_browser_redirect_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">http://${main_domain}</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_minio_var_minio_browser_redirect" model="service.template.variable">
+        <field name="template_id" ref="template_minio"/>
+        <field name="name">minio_browser_redirect</field>
+        <field name="var_type">string</field>
+        <field name="default_value">false</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_minio_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_minio"/>
+        <field name="name">minio-data</field>
+        <field name="local_path">./minio_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

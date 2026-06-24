@@ -1,0 +1,169 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ============================================== -->
+    <!-- Template: Nginx Web Server / Static Site      -->
+    <!-- ============================================== -->
+    <record id="template_nginx" model="service.template">
+        <field name="name">Nginx Web Server</field>
+        <field name="code">nginx</field>
+        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/nginx.png"/>
+        <field name="description">Servidor web Nginx para sitios estáticos o como reverse proxy.</field>
+        <field name="category">networking</field>
+        <field name="version">alpine</field>
+        <field name="service_code">nginx</field>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_proxy'), ref('agz_infra_suite.tag_networking')])]"/>
+        <field name="is_web_app">True</field>
+        <field name="is_global">True</field>
+        <field name="active">True</field>
+        <field name="requires_database">False</field>
+        <field name="database_type">none</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  nginx:
+    image: nginx:{{ version | default('alpine') }}
+    container_name: {{ INSTANCE_CODE }}
+    ports:
+      - "{{ PORT_HTTP }}:80"
+      - "{{ PORT_HTTPS }}:443"
+    volumes:
+      - ./html:/usr/share/nginx/html:ro
+      - ./conf.d:/etc/nginx/conf.d:ro
+      - ./ssl:/etc/nginx/ssl:ro
+    restart: unless-stopped
+    networks:
+      - agz-proxy-network
+    healthcheck:
+      # Liveness, no content-check: pasa con CUALQUIER respuesta HTTP (incluido 403 de
+      # un webroot vacío recién desplegado, 404 de un SPA o 5xx de un reverse-proxy con
+      # upstream caído) y falla solo si nginx no responde (connection refused / hung).
+      # 'curl -f' rompía esto: marcaba unhealthy cualquier deploy que no devolviera 2xx.
+      test: ["CMD-SHELL", "curl -s -o /dev/null --max-time 5 http://localhost:80/ || exit 1"]
+      interval: 30s
+      timeout: 10s
+      retries: 3
+      start_period: 10s
+
+networks:
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"></field>
+        <field name="restore_script"></field>
+    </record>
+
+    <!-- Puertos del template Nginx -->
+    <record id="template_nginx_port_http" model="service.template.port">
+        <field name="template_id" ref="template_nginx"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="sequence">10</field>
+        <field name="traefik_routed" eval="True"/>
+        <field name="expose_to_host" eval="True"/>
+    </record>
+
+    <record id="template_nginx_port_https" model="service.template.port">
+        <field name="template_id" ref="template_nginx"/>
+        <field name="code">https</field>
+        <field name="name">HTTPS</field>
+        <field name="default_port">443</field>
+        <field name="sequence">20</field>
+        <field name="expose_to_host" eval="True"/>
+    </record>
+
+    <!-- Variables del template Nginx -->
+    <record id="template_nginx_var_version" model="service.template.variable">
+        <field name="template_id" ref="template_nginx"/>
+        <field name="name">version</field>
+        <field name="display_name">Versión de Nginx</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">alpine,latest,1.25,1.24,1.23</field>
+        <field name="default_value">alpine</field>
+        <field name="required">False</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <!-- Volúmenes del template Nginx -->
+    <record id="template_nginx_vol_html" model="service.template.volume">
+        <field name="template_id" ref="template_nginx"/>
+        <field name="name">Contenido Web</field>
+        <field name="local_path">./html</field>
+        <field name="owner">101:101</field>
+        <field name="permissions">755</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <record id="template_nginx_vol_conf" model="service.template.volume">
+        <field name="template_id" ref="template_nginx"/>
+        <field name="name">Configuración Nginx</field>
+        <field name="local_path">./conf.d</field>
+        <field name="owner">101:101</field>
+        <field name="permissions">755</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <record id="template_nginx_vol_ssl" model="service.template.volume">
+        <field name="template_id" ref="template_nginx"/>
+        <field name="name">Certificados SSL</field>
+        <field name="local_path">./ssl</field>
+        <field name="owner">101:101</field>
+        <field name="permissions">700</field>
+        <field name="sequence">30</field>
+    </record>
+
+    <!-- Archivos de configuración del template Nginx -->
+    <record id="template_nginx_config_default" model="service.template.config.file">
+        <field name="template_id" ref="template_nginx"/>
+        <field name="name">Configuración Nginx por Defecto</field>
+        <field name="filename">default.conf</field>
+        <field name="path">./conf.d/</field>
+        <field name="syntax_mode">nginx</field>
+        <field name="sequence">10</field>
+        <field name="description">Configuración del servidor Nginx para el sitio</field>
+        <field name="content_template"><![CDATA[# Configuración generada para {{ instance.name }}
+# {{ generated_at }}
+
+server {
+    listen 80;
+    server_name {{ instance.full_domain | default('localhost') }};
+
+    root /usr/share/nginx/html;
+    index index.html index.htm;
+
+    # Logs
+    access_log /var/log/nginx/access.log;
+    error_log /var/log/nginx/error.log;
+
+    # Gzip
+    gzip on;
+    gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
+
+    location / {
+        try_files $uri $uri/ =404;
+    }
+
+    # Cache de archivos estáticos
+    location ~* \.(jpg|jpeg|png|gif|ico|css|js|woff|woff2)$ {
+        expires 30d;
+        add_header Cache-Control "public, immutable";
+    }
+}
+]]></field>
+    </record>
+
+
+    <!-- Config Docker por servicio — defaults recomendados (VPS 2-8 GB) -->
+    <!-- ========== Nginx (template_nginx) ========== -->
+    <record id="svcfg_nginx_nginx" model="service.template.service.config">
+        <field name="template_id" ref="template_nginx"/>
+        <field name="service_name">nginx</field>
+        <field name="sequence">10</field>
+        <field name="memory_limit">256m</field>
+        <field name="cpu_limit">0.5</field>
+        <field name="memory_reservation">128m</field>
+        <field name="log_max_size">20m</field>
+        <field name="log_max_file">3</field>
+        <field name="restart_policy">unless-stopped</field>
+    </record>
+</odoo>

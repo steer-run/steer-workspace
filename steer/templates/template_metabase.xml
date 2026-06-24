@@ -1,0 +1,114 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'metabase' (imagen metabase/metabase:v0.50.8) desconocido → DEFAULT 1000:1000, verificar.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_metabase" model="service.template">
+        <field name="name">Metabase</field>
+        <field name="code">metabase</field>
+        <field name="service_code">metabase</field>
+        <field name="version">v0.50.8</field>
+        <field name="description">Metabase is an open-source business intelligence platform that lets anyone explore data and build dashboards without writing SQL.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Metabase is an open-source business intelligence platform that lets anyone explore data and build dashboards without writing SQL.</p>
+  <p>It connects to your relational and analytical databases and turns them into self-service analytics: a visual query builder lets non-technical users ask questions, while analysts can drop into a full SQL editor when they need it. Results become charts, dashboards and shareable reports, with an AI assistant (Metabot) to help draft queries and a data modeling layer to define canonical metrics. It is designed for fast, broad adoption across a whole team rather than a small group of specialists.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Visual question builder plus a full SQL editor for power users</li>
+    <li>Interactive dashboards with filters, drill-through and scheduled subscriptions</li>
+    <li>Broad database support (PostgreSQL, MySQL, BigQuery, Snowflake, ClickHouse and many more)</li>
+    <li>Granular permissions, groups and data sandboxing for controlled access</li>
+    <li>Embedded analytics to surface charts and dashboards inside other applications</li>
+    <li>AI-assisted querying and a data modeling layer for reusable metrics</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams and companies that want self-service analytics and dashboards over their existing databases, giving non-technical users data access while keeping SQL power available for analysts. A strong self-hosted alternative to tools like Looker, Tableau or Power BI.</p>
+</div>]]></field>
+        <field name="category">analytics</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/metabase.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_dashboard')])]"/>
+        <field name="website_url">https://www.metabase.com/</field>
+        <field name="documentation_url">https://www.metabase.com/docs/</field>
+        <field name="source_url">https://github.com/metabase/metabase</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  metabase:
+    image: metabase/metabase:v0.50.8
+    volumes:
+    - /dev/urandom:/dev/random:ro
+    environment:
+      MB_DB_TYPE: postgres
+      MB_DB_DBNAME: metabaseappdb
+      MB_DB_PORT: 5432
+      MB_DB_USER: metabase
+      MB_DB_PASS: mysecretpassword
+      MB_DB_HOST: postgres
+    healthcheck:
+      test: curl --fail -I http://localhost:3000/api/health || exit 1
+      interval: 15s
+      timeout: 5s
+      retries: 5
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:3000'
+    networks:
+    - internal
+    - agz-proxy-network
+  postgres:
+    image: postgres:14
+    environment:
+      POSTGRES_USER: metabase
+      POSTGRES_DB: metabaseappdb
+      POSTGRES_PASSWORD: mysecretpassword
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    restart: unless-stopped
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_metabase_port_http" model="service.template.port">
+        <field name="template_id" ref="template_metabase"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

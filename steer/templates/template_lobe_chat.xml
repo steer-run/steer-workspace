@@ -1,0 +1,63 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="template_lobe_chat" model="service.template">
+        <field name="name">Lobe Chat</field>
+        <field name="code">lobe_chat</field>
+        <field name="service_code">lobe_chat</field>
+        <field name="version">v1.26.1</field>
+        <field name="description">LobeChat is a modern, open-source AI chat and agent framework that gives you a polished, self-hosted interface to dozens of LLM providers.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">LobeChat is a modern, open-source AI chat and agent framework that gives you a polished, self-hosted interface to dozens of LLM providers.</p>
+  <p>It is model-agnostic, connecting to OpenAI, Anthropic Claude, Google Gemini, DeepSeek, Qwen, Ollama and many other providers through a single unified interface, so you can switch models mid-conversation and keep full control of your data. Built with TypeScript and Next.js, it has evolved from a sleek multi-provider chat UI into a broader AI agent platform with knowledge bases, plugins and multimodal support. It suits individuals running a private ChatGPT alternative as well as teams that need data sovereignty.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Unified access to many AI providers (OpenAI, Claude, Gemini, DeepSeek, Qwen, Ollama and more), including local models</li>
+    <li>Knowledge base with file uploads and retrieval-augmented generation (RAG)</li>
+    <li>Multimodal capabilities: vision, text-to-speech and speech-to-text, plus image generation</li>
+    <li>Extensible plugin system based on the Model Context Protocol (MCP) with a plugin marketplace</li>
+    <li>Artifacts and chain-of-thought visualization for richer, more transparent interactions</li>
+    <li>Self-hosting via Docker Compose with server-side database, authentication and S3-compatible storage</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals and teams who want a private, self-hosted ChatGPT-style assistant with multi-provider model access, knowledge bases and full control over their conversations and data.</p>
+</div>]]></field>
+        <field name="category">ai</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/lobe_chat.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_chat'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_documentation')])]"/>
+        <field name="website_url">https://chat-preview.lobehub.com/</field>
+        <field name="documentation_url">https://lobehub.com/docs/self-hosting/platform/docker-compose</field>
+        <field name="source_url">https://github.com/lobehub/lobe-chat</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  lobe-chat:
+    image: lobehub/lobe-chat:v1.26.1
+    restart: always
+    ports:
+    - '{{ PORT_HTTP }}:3210'
+    environment:
+      OPENAI_API_KEY: sk-xxxx
+      OPENAI_PROXY_URL: https://api-proxy.com/v1
+      ACCESS_CODE: lobe66
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_lobe_chat_port_http" model="service.template.port">
+        <field name="template_id" ref="template_lobe_chat"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3210</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

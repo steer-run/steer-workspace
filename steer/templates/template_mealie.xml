@@ -1,0 +1,202 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'mealie' (imagen ghcr.io/mealie-recipes/mealie:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Sin servicio de DB: si la app usa SQLite, pasá backup_mode=custom con `sqlite3 .backup` y exclude_from_backup en el volumen del .db.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_mealie" model="service.template">
+        <field name="name">Mealie (sqlite version)</field>
+        <field name="code">mealie</field>
+        <field name="service_code">mealie</field>
+        <field name="version">latest</field>
+        <field name="description">Mealie is a self-hosted recipe manager and meal planner that turns scattered cooking links and family recipes into one organized, searchable kitchen hub.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Mealie is a self-hosted recipe manager and meal planner that turns scattered cooking links and family recipes into one organized, searchable kitchen hub.</p>
+  <p>Built with a FastAPI backend and a reactive Vue frontend, Mealie lets you import recipes simply by pasting a URL: its scraper extracts ingredients, instructions and images automatically. It is designed for households and shared groups, with multi-user support, meal planning and shopping lists, and a documented REST API for integrations and automation.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Import recipes from any website via URL scraping, or add them with the built-in editor</li>
+    <li>Weekly, monthly and yearly meal planning</li>
+    <li>Shopping lists organized into supermarket sections</li>
+    <li>Cookbooks and tags to group and filter your collection</li>
+    <li>Multi-user accounts with groups for sharing across the family</li>
+    <li>Full REST API, automatic backups and 35+ interface languages</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Families, couples and home cooks who want to own their recipe collection, plan meals and generate shopping lists from a single private instance, as well as tinkerers who want to automate their kitchen via the API.</p>
+</div>]]></field>
+        <field name="category">productivity</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/mealie.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration')])]"/>
+        <field name="website_url">https://mealie.io/</field>
+        <field name="documentation_url">https://docs.mealie.io/</field>
+        <field name="source_url">https://github.com/mealie-recipes/mealie</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  mealie:
+    image: ghcr.io/mealie-recipes/mealie:latest
+    deploy:
+      resources:
+        limits:
+          memory: 1000M
+    volumes:
+    - ./mealie_data:/app/data/
+    environment:
+      PUID: 1000
+      PGID: 1000
+      BASE_URL: {{ base_url }}
+      API_DOCS: {{ api_docs }}
+      ALLOW_SIGNUP: {{ allow_signup }}
+      DEFAULT_GROUP: {{ default_group }}
+      DEFAULT_HOUSEHOLD: {{ default_household }}
+      TZ: {{ tz }}
+      SECURITY_MAX_LOGIN_ATTEMPTS: {{ security_max_login_attempts }}
+      SECURITY_USER_LOCKOUT_TIME: {{ security_user_lockout_time }}
+      DAILY_SCHEDULE_TIME: {{ daily_schedule_time }}
+      SMTP_HOST: {{ smtp_host }}
+      SMTP_PORT: {{ smtp_port }}
+      SMTP_AUTH_STRATEGY: {{ smtp_auth_strategy }}
+      SMTP_FROM_NAME: {{ smtp_from_name }}
+      SMTP_FROM_EMAIL: {{ smtp_from_email }}
+      SMTP_USER: {{ smtp_user }}
+      SMTP_PASSWORD: {{ smtp_password }}
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:9000'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_mealie_port_http" model="service.template.port">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">9000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_mealie_var_tz" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">tz</field>
+        <field name="var_type">string</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_mealie_var_base_url" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">base_url</field>
+        <field name="var_type">string</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_mealie_var_smtp_host" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">smtp_host</field>
+        <field name="var_type">string</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_mealie_var_smtp_port" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">smtp_port</field>
+        <field name="var_type">string</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_mealie_var_smtp_auth_strategy" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">smtp_auth_strategy</field>
+        <field name="var_type">string</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_mealie_var_smtp_from_name" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">smtp_from_name</field>
+        <field name="var_type">string</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_mealie_var_smtp_from_email" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">smtp_from_email</field>
+        <field name="var_type">string</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_mealie_var_smtp_user" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">smtp_user</field>
+        <field name="var_type">string</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_mealie_var_smtp_password" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">smtp_password</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_mealie_var_api_docs" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">api_docs</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">100</field>
+    </record>
+    <record id="template_mealie_var_allow_signup" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">allow_signup</field>
+        <field name="var_type">string</field>
+        <field name="sequence">110</field>
+    </record>
+    <record id="template_mealie_var_default_group" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">default_group</field>
+        <field name="var_type">string</field>
+        <field name="default_value">Home</field>
+        <field name="sequence">120</field>
+    </record>
+    <record id="template_mealie_var_default_household" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">default_household</field>
+        <field name="var_type">string</field>
+        <field name="default_value">Family</field>
+        <field name="sequence">130</field>
+    </record>
+    <record id="template_mealie_var_security_max_login_attempts" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">security_max_login_attempts</field>
+        <field name="var_type">string</field>
+        <field name="default_value">10</field>
+        <field name="sequence">140</field>
+    </record>
+    <record id="template_mealie_var_security_user_lockout_time" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">security_user_lockout_time</field>
+        <field name="var_type">string</field>
+        <field name="default_value">24</field>
+        <field name="sequence">150</field>
+    </record>
+    <record id="template_mealie_var_daily_schedule_time" model="service.template.variable">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">daily_schedule_time</field>
+        <field name="var_type">string</field>
+        <field name="default_value">01:00</field>
+        <field name="sequence">160</field>
+    </record>
+    <record id="template_mealie_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_mealie"/>
+        <field name="name">mealie-data</field>
+        <field name="local_path">./mealie_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

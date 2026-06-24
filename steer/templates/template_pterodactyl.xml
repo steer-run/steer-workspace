@@ -1,0 +1,212 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'panel' (imagen ghcr.io/pterodactyl/panel:latest) desconocido → DEFAULT 1000:1000, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_pterodactyl" model="service.template">
+        <field name="name">Pterodactyl</field>
+        <field name="code">pterodactyl</field>
+        <field name="service_code">pterodactyl</field>
+        <field name="version">latest</field>
+        <field name="description">Pterodactyl is a free, open-source game server management panel that runs every game server in its own isolated Docker container.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Pterodactyl is a free, open-source game server management panel that runs every game server in its own isolated Docker container.</p>
+  <p>Built with PHP (Laravel), React and a Go control-plane daemon called Wings, Pterodactyl lets administrators provision, deploy and manage multiple game servers from a single secure web interface, while giving end users a clean dashboard to control their own instances. Container isolation gives each game tailored dependencies, strict resource limits and a reduced attack surface. It is the long-standing standard for hobbyists, gaming communities and commercial hosting providers who run game servers at scale.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Per-server isolation: every game server runs in its own Docker container with strict CPU, memory and disk limits</li>
+    <li>Extensible game support via "eggs" and "nests" — Minecraft, source-engine games, voice servers and hundreds of community-defined templates</li>
+    <li>Multi-node architecture: the Panel orchestrates many remote nodes through the Wings daemon</li>
+    <li>Granular user management with subusers, role permissions, two-factor authentication and per-server SFTP access</li>
+    <li>Live console, real-time resource graphs, scheduled tasks, backups and file manager from the browser</li>
+    <li>Full REST API for automation, billing integrations and white-label hosting platforms</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Gaming communities, server administrators and hosting companies that need to deploy and manage many game servers securely, with multi-tenant access and resource isolation, on their own infrastructure.</p>
+</div>]]></field>
+        <field name="category">gaming</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">mysqladmin ping --silent</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/pterodactyl.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_gaming')])]"/>
+        <field name="website_url">https://pterodactyl.io</field>
+        <field name="documentation_url">https://pterodactyl.io/project/introduction.html</field>
+        <field name="source_url">https://github.com/pterodactyl/panel</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  database:
+    image: mariadb:10.5
+    restart: always
+    command: --default-authentication-plugin=mysql_native_password
+    volumes:
+    - ./pterodb:/var/lib/mysql
+    environment:
+      MYSQL_DATABASE: panel
+      MYSQL_USER: pterodactyl
+      MYSQL_PASSWORD: null
+      MYSQL_ROOT_PASSWORD: null
+    container_name: '{{ INSTANCE_CODE }}_database'
+    networks:
+    - internal
+  cache:
+    image: redis:alpine
+    restart: always
+    container_name: '{{ INSTANCE_CODE }}_cache'
+    networks:
+    - internal
+  panel:
+    image: ghcr.io/pterodactyl/panel:latest
+    restart: always
+    links:
+    - database
+    - cache
+    volumes:
+    - ./pterovar:/app/var/
+    - ./pteronginx:/etc/nginx/http.d/
+    - ./pterocerts:/etc/letsencrypt/
+    - ./pterologs:/app/storage/logs
+    environment:
+      APP_ENV: production
+      APP_ENVIRONMENT_ONLY: 'false'
+      CACHE_DRIVER: null
+      SESSION_DRIVER: null
+      QUEUE_DRIVER: null
+      REDIS_HOST: null
+      DB_HOST: null
+      DB_PASSWORD: ${MYSQL_PASSWORD}
+      DB_PORT: null
+      MYSQL_PASSWORD: null
+      MYSQL_ROOT_PASSWORD: null
+      DB_CONNECTION: mysql
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T database sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d database
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T database sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_pterodactyl_port_http" model="service.template.port">
+        <field name="template_id" ref="template_pterodactyl"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_pterodactyl_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_pterodactyl"/>
+        <field name="name">db_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_pterodactyl_var_db_root_password" model="service.template.variable">
+        <field name="template_id" ref="template_pterodactyl"/>
+        <field name="name">db_root_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_pterodactyl_var_secret_key" model="service.template.variable">
+        <field name="template_id" ref="template_pterodactyl"/>
+        <field name="name">secret_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_pterodactyl_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_pterodactyl"/>
+        <field name="name">pterodb</field>
+        <field name="local_path">./pterodb</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_pterodactyl_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_pterodactyl"/>
+        <field name="name">pterovar</field>
+        <field name="local_path">./pterovar</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_pterodactyl_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_pterodactyl"/>
+        <field name="name">pteronginx</field>
+        <field name="local_path">./pteronginx</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_pterodactyl_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_pterodactyl"/>
+        <field name="name">pterocerts</field>
+        <field name="local_path">./pterocerts</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_pterodactyl_vol_4" model="service.template.volume">
+        <field name="template_id" ref="template_pterodactyl"/>
+        <field name="name">pterologs</field>
+        <field name="local_path">./pterologs</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_pterodactyl_var_mysql_password" model="service.template.variable">
+        <field name="template_id" ref="template_pterodactyl"/>
+        <field name="name">MYSQL_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">40</field>
+    </record>
+</odoo>
