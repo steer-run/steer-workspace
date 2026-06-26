@@ -1,8 +1,9 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://steer.run/schema/service-template.schema.json",
+  "x-schema-version": "1.0",
   "title": "Steer service template",
-  "description": "Logical structure of a Steer application template (service.template) and its sub-records. Templates are authored as Odoo XML; this schema describes the data a valid template must contain. The harness parses the XML into this shape and validates it.",
+  "description": "Logical structure of a Steer application template (service.template) and its sub-records. Templates are authored as Odoo XML; this schema describes the data a valid template must contain. The harness parses the XML into this shape and validates it. CONTRACT VERSIONING: 'x-schema-version' is the version of THIS contract (not the app's 'version' label). A template MAY declare which contract version it targets with an XML comment '<!-- steer-schema-version: 1.0 -->' (Odoo ignores comments, so it never affects install); the harness rejects a version it does not support. No marker = assumed current.",
   "type": "object",
   "required": ["name", "code", "docker_compose_template"],
   "additionalProperties": false,

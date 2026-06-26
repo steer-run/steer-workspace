@@ -28,6 +28,34 @@ try:
 except ImportError:
     _HAVE_JSONSCHEMA = False
 
+
+def _load_schema_version():
+    """Current contract version, read from the template schema's 'x-schema-version'."""
+    try:
+        with open(TEMPLATE_SCHEMA, encoding="utf-8") as fh:
+            return json.load(fh).get("x-schema-version", "1.0")
+    except Exception:
+        return "1.0"
+
+
+# Versión actual del contrato + las que el harness aún sabe validar. Al evolucionar el
+# contrato (agregar/deprecar campos) se sube CURRENT y se mantienen acá las compatibles.
+CURRENT_SCHEMA_VERSION = _load_schema_version()
+SUPPORTED_SCHEMA_VERSIONS = {CURRENT_SCHEMA_VERSION}
+# Marcador opcional que una plantilla puede declarar (comentario XML; Odoo lo ignora):
+#   <!-- steer-schema-version: 1.0 -->
+_SCHEMA_VERSION_RE = re.compile(r"<!--\s*steer-schema-version:\s*([0-9][0-9.]*)\s*-->", re.I)
+
+
+def declared_schema_version(path):
+    """Versión de contrato que declara el archivo (marcador XML) o None si no declara."""
+    try:
+        with open(path, encoding="utf-8") as fh:
+            m = _SCHEMA_VERSION_RE.search(fh.read())
+        return m.group(1) if m else None
+    except Exception:
+        return None
+
 # ---------------------------------------------------------------- XML → dict
 
 _BOOL = {"true": True, "false": False, "1": True, "0": False}
@@ -64,7 +92,9 @@ def _record_to_dict(rec):
         if not name or name == "template_id":
             continue
         if f.get("ref") is not None or f.get("eval") is not None:
-            continue  # relational/eval fields (tags, image, fk) — skip for the logical view
+            continue  # relational/eval fields (tags, fk) — skip for the logical view
+        if f.get("type") == "base64" or f.get("file") is not None:
+            continue  # binarios (logo 'image'): no son parte del contrato lógico
         out[name] = _coerce(name, f.text)
     return out
 
@@ -143,6 +173,12 @@ def validate_file(path):
             errs = schema_errors(t, TEMPLATE_SCHEMA)
             cerrs, warns = convention_errors(t)
             errs += cerrs
+            declared = declared_schema_version(path)
+            if declared and declared not in SUPPORTED_SCHEMA_VERSIONS:
+                errs.append(
+                    "unknown contract schema version %r (this harness supports: %s). "
+                    "Update the harness/schema, or fix the '<!-- steer-schema-version: ... -->' marker."
+                    % (declared, ", ".join(sorted(SUPPORTED_SCHEMA_VERSIONS))))
         elif path.endswith(".json"):
             with open(path, encoding="utf-8") as fh:
                 d = json.load(fh)
