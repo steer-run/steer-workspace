@@ -1,0 +1,374 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (postgres + redis/valkey + netbox + worker + housekeeping):
+             revisar backup/red/orden de arranque (worker y housekeeping dependen de netbox healthy).
+           - Owner UID:GID de media/reports/scripts: la imagen corre como 'unit' (default 1000:1000);
+             verificar contra la imagen publicada si hay errores de escritura en media.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_netbox" model="service.template">
+        <field name="name">NetBox</field>
+        <field name="code">netbox</field>
+        <field name="service_code">netbox</field>
+        <field name="version">latest</field>
+        <field name="description">NetBox is a self-hosted, open-source IPAM and DCIM platform that models your network and data center as a single, authoritative source of truth.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">NetBox is a self-hosted, open-source IPAM and DCIM platform that models your network and data center as a single, authoritative source of truth.</p>
+  <p>NetBox lets infrastructure teams document everything about their environment: IP addresses and prefixes, VLANs and VRFs, racks and devices, cabling and circuits, tenants, contacts and services. It replaces spreadsheets and tribal knowledge with a structured, queryable database and a full REST and GraphQL API, so both people and automation pipelines can rely on the same accurate model of the network.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>IP address management (IPAM) with hierarchical prefixes, VLANs, VRFs and RIR/aggregate tracking</li>
+    <li>Data center infrastructure management (DCIM): sites, racks, devices, modules, power and cabling</li>
+    <li>Circuits, tenants, contacts and virtualization inventory for a complete asset picture</li>
+    <li>REST and GraphQL APIs, webhooks and custom scripts to drive network automation</li>
+    <li>Custom fields, tags, config contexts and change logging on every object</li>
+    <li>Granular permissions, token-based auth and a full audit trail of who changed what</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Network and infrastructure teams that need an authoritative source of truth for IPs, racks and devices, and want to feed that model into automation. Restrict ALLOWED_HOSTS to your real domain and back it up often, as it quickly becomes critical documentation.</p>
+</div>]]></field>
+        <field name="category">networking</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/netbox.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_documentation')])]"/>
+        <field name="website_url">https://netboxlabs.com/netbox/</field>
+        <field name="documentation_url">https://netboxlabs.com/docs/netbox/</field>
+        <field name="source_url">https://github.com/netbox-community/netbox</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  postgres:
+    image: postgres:17-alpine
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -q -d $${POSTGRES_DB} -U $${POSTGRES_USER}
+      start_period: 20s
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    environment:
+      POSTGRES_DB: {{ db_name }}
+      POSTGRES_USER: {{ db_user }}
+      POSTGRES_PASSWORD: {{ db_pass }}
+    volumes:
+    - ./database:/var/lib/postgresql/data
+    expose:
+    - 5432
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    networks:
+    - internal
+  redis:
+    image: valkey/valkey:8.1-alpine
+    restart: unless-stopped
+    command:
+    - sh
+    - -c
+    - valkey-server --appendonly yes --requirepass "$$REDIS_PASSWORD"
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - valkey-cli --pass "$${REDIS_PASSWORD}" ping | grep -q PONG
+      start_period: 10s
+      interval: 10s
+      timeout: 3s
+      retries: 5
+    environment:
+      REDIS_PASSWORD: {{ redis_pass }}
+    volumes:
+    - ./redis:/data
+    expose:
+    - 6379
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    networks:
+    - internal
+  netbox:
+    image: netboxcommunity/netbox:latest
+    restart: unless-stopped
+    user: unit:root
+    environment:
+      DB_HOST: postgres
+      DB_NAME: {{ db_name }}
+      DB_USER: {{ db_user }}
+      DB_PASSWORD: {{ db_pass }}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: {{ redis_pass }}
+      REDIS_DATABASE: '0'
+      REDIS_SSL: 'false'
+      REDIS_CACHE_HOST: redis
+      REDIS_CACHE_PASSWORD: {{ redis_pass }}
+      REDIS_CACHE_DATABASE: '1'
+      REDIS_CACHE_SSL: 'false'
+      SECRET_KEY: {{ secret_key }}
+      ALLOWED_HOSTS: '{{ allowed_hosts }}'
+      SUPERUSER_NAME: {{ superuser_name }}
+      SUPERUSER_EMAIL: {{ superuser_email }}
+      SUPERUSER_PASSWORD: {{ superuser_password }}
+      SKIP_SUPERUSER: 'false'
+      HOUSEKEEPING_INTERVAL: '86400'
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl -f http://localhost:8080/login/ || exit 1
+      start_period: 120s
+      interval: 30s
+      timeout: 5s
+      retries: 5
+    volumes:
+    - ./media:/opt/netbox/netbox/media
+    - ./reports:/opt/netbox/netbox/reports
+    - ./scripts:/opt/netbox/netbox/scripts
+    expose:
+    - 8080
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    networks:
+    - internal
+    - agz-proxy-network
+  netbox-worker:
+    image: netboxcommunity/netbox:latest
+    restart: unless-stopped
+    user: unit:root
+    command:
+    - /opt/netbox/venv/bin/python
+    - /opt/netbox/netbox/manage.py
+    - rqworker
+    environment:
+      DB_HOST: postgres
+      DB_NAME: {{ db_name }}
+      DB_USER: {{ db_user }}
+      DB_PASSWORD: {{ db_pass }}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: {{ redis_pass }}
+      REDIS_DATABASE: '0'
+      REDIS_SSL: 'false'
+      REDIS_CACHE_HOST: redis
+      REDIS_CACHE_PASSWORD: {{ redis_pass }}
+      REDIS_CACHE_DATABASE: '1'
+      REDIS_CACHE_SSL: 'false'
+      SECRET_KEY: {{ secret_key }}
+      ALLOWED_HOSTS: '{{ allowed_hosts }}'
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - ps -aux | grep -v grep | grep -q rqworker || exit 1
+      start_period: 20s
+      interval: 30s
+      timeout: 3s
+      retries: 5
+    volumes:
+    - ./media:/opt/netbox/netbox/media
+    - ./reports:/opt/netbox/netbox/reports
+    - ./scripts:/opt/netbox/netbox/scripts
+    depends_on:
+      netbox:
+        condition: service_healthy
+    container_name: '{{ INSTANCE_CODE }}_worker'
+    networks:
+    - internal
+  netbox-housekeeping:
+    image: netboxcommunity/netbox:latest
+    restart: unless-stopped
+    user: unit:root
+    command:
+    - /opt/netbox/housekeeping.sh
+    environment:
+      DB_HOST: postgres
+      DB_NAME: {{ db_name }}
+      DB_USER: {{ db_user }}
+      DB_PASSWORD: {{ db_pass }}
+      REDIS_HOST: redis
+      REDIS_PASSWORD: {{ redis_pass }}
+      REDIS_DATABASE: '0'
+      REDIS_SSL: 'false'
+      REDIS_CACHE_HOST: redis
+      REDIS_CACHE_PASSWORD: {{ redis_pass }}
+      REDIS_CACHE_DATABASE: '1'
+      REDIS_CACHE_SSL: 'false'
+      SECRET_KEY: {{ secret_key }}
+      ALLOWED_HOSTS: '{{ allowed_hosts }}'
+      HOUSEKEEPING_INTERVAL: '86400'
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - ps -aux | grep -v grep | grep -q housekeeping || exit 1
+      start_period: 20s
+      interval: 30s
+      timeout: 3s
+      retries: 5
+    volumes:
+    - ./media:/opt/netbox/netbox/media
+    - ./reports:/opt/netbox/netbox/reports
+    - ./scripts:/opt/netbox/netbox/scripts
+    depends_on:
+      netbox:
+        condition: service_healthy
+    container_name: '{{ INSTANCE_CODE }}_housekeeping'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump lógico consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR.
+# Con POSTGRES_USER/DB vacíos caemos a 'netbox' (default del template), evitando
+# que pg_dump intente el rol "root" del SO y falle con «role "root" does not exist».
+docker compose exec -T postgres sh -c 'pg_dump -U "${POSTGRES_USER:-netbox}" -d "${POSTGRES_DB:-${POSTGRES_USER:-netbox}}" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura (mismo default a 'netbox')
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "${POSTGRES_USER:-netbox}"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "${POSTGRES_USER:-netbox}" -d "${POSTGRES_DB:-${POSTGRES_USER:-netbox}}" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \${POSTGRES_USER:-netbox} -d \${POSTGRES_DB:-netbox} -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_netbox_port_http" model="service.template.port">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_netbox_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">db_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">netbox</field>
+        <field name="description">PostgreSQL role NetBox connects with.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_netbox_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">db_name</field>
+        <field name="var_type">string</field>
+        <field name="default_value">netbox</field>
+        <field name="description">PostgreSQL database that stores the NetBox data.</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_netbox_var_db_pass" model="service.template.variable">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">db_pass</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the PostgreSQL role.</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_netbox_var_redis_pass" model="service.template.variable">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">redis_pass</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password protecting the Redis/Valkey queue and cache.</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_netbox_var_secret_key" model="service.template.variable">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">secret_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Django SECRET_KEY used for cryptographic signing.</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_netbox_var_superuser_name" model="service.template.variable">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">superuser_name</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin</field>
+        <field name="description">Username of the initial administrator account.</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_netbox_var_superuser_email" model="service.template.variable">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">superuser_email</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin@example.com</field>
+        <field name="description">Email address of the initial administrator account.</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_netbox_var_superuser_password" model="service.template.variable">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">superuser_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the initial administrator account.</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_netbox_var_allowed_hosts" model="service.template.variable">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">allowed_hosts</field>
+        <field name="var_type">string</field>
+        <field name="default_value">*</field>
+        <field name="description">Space-separated hostnames NetBox will answer to. Set your real domain in production instead of '*'.</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_netbox_vol_database" model="service.template.volume">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">database</field>
+        <field name="local_path">./database</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_netbox_vol_redis" model="service.template.volume">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">redis</field>
+        <field name="local_path">./redis</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_netbox_vol_media" model="service.template.volume">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">media</field>
+        <field name="local_path">./media</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_netbox_vol_reports" model="service.template.volume">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">reports</field>
+        <field name="local_path">./reports</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_netbox_vol_scripts" model="service.template.volume">
+        <field name="template_id" ref="template_netbox"/>
+        <field name="name">scripts</field>
+        <field name="local_path">./scripts</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">50</field>
+    </record>
+</odoo>

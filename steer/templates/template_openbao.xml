@@ -1,0 +1,108 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID del volumen raft: la imagen openbao/openbao corre como usuario 'openbao'
+             (uid 100, gid 1000). Se usa 100:1000 para que /openbao/data sea escribible; verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+           - Flujo obligatorio init/unseal: tras instalar NO queda "listo" hasta ejecutar init y unseal.
+             Backup CRÍTICO de las unseal/recovery keys (no se pueden recuperar si se pierden).
+           - Tiene 1 mount de config (openbao.hcl): revisar ruta y montaje en el compose.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_openbao" model="service.template">
+        <field name="name">OpenBao</field>
+        <field name="code">openbao</field>
+        <field name="service_code">openbao</field>
+        <field name="version">latest</field>
+        <field name="description">OpenBao is an open source tool to store and manage secrets, certificates, keys, and other sensitive data — a community-driven fork of HashiCorp Vault.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">OpenBao is an open source tool to store and manage secrets, certificates, keys, and other sensitive data — a community-driven fork of HashiCorp Vault.</p>
+  <p>Governed by the Linux Foundation, OpenBao provides a unified API, CLI, and web UI to centralize credentials across an organization while enforcing fine-grained, policy-based access and recording a detailed audit log. Beyond static key/value storage, it can issue short-lived dynamic credentials for databases and cloud providers, act as encryption-as-a-service, and run a built-in PKI to sign and rotate TLS certificates. It is a drop-in, community-governed alternative for teams that want to standardize secrets management without vendor lock-in.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Centralized, encrypted storage and lifecycle management for secrets, certificates, and keys</li>
+    <li>Dynamic, short-lived credentials generated on demand for databases and cloud platforms</li>
+    <li>Encryption-as-a-service (transit) to encrypt and decrypt data without exposing keys</li>
+    <li>Built-in PKI secrets engine to issue, sign, and rotate TLS certificates</li>
+    <li>Pluggable authentication methods with fine-grained, policy-based access control</li>
+    <li>Integrated Raft storage with snapshots and detailed audit logging for compliance</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Platform, security, and DevOps teams that want a self-hosted, community-governed secrets manager to centralize credentials, PKI, and encryption across apps and infrastructure. Note: OpenBao ships sealed — after install you must run the one-time initialization and unseal flow and securely back up the unseal/recovery keys, since they cannot be recovered if lost.</p>
+</div>]]></field>
+        <field name="category">security</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/openbao.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_secrets')])]"/>
+        <field name="website_url">https://openbao.org/</field>
+        <field name="documentation_url">https://openbao.org/docs/</field>
+        <field name="source_url">https://github.com/openbao/openbao</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  openbao:
+    image: openbao/openbao:latest
+    container_name: '{{ INSTANCE_CODE }}'
+    cap_add:
+    - IPC_LOCK
+    command: server -config=/etc/openbao/openbao.hcl
+    environment:
+      BAO_ADDR: http://127.0.0.1:8200
+    ports:
+    - '{{ PORT_HTTP }}:8200'
+    volumes:
+    - ./openbao_data:/openbao/data
+    - ./openbao.hcl:/etc/openbao/openbao.hcl:ro
+    restart: unless-stopped
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_openbao_port_http" model="service.template.port">
+        <field name="template_id" ref="template_openbao"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8200</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_openbao_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_openbao"/>
+        <field name="name">openbao_data</field>
+        <field name="local_path">./openbao_data</field>
+        <field name="owner">100:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_openbao_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_openbao"/>
+        <field name="name">openbao.hcl</field>
+        <field name="filename">openbao.hcl</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[ui = true
+
+disable_mlock = true
+
+storage "raft" {
+  path    = "/openbao/data"
+  node_id = "openbao-1"
+}
+
+listener "tcp" {
+  address     = "0.0.0.0:8200"
+  tls_disable = true
+}
+
+api_addr     = "https://${main_domain}"
+cluster_addr = "http://openbao:8201"
+]]></field>
+    </record>
+</odoo>

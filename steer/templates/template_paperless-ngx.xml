@@ -1,0 +1,298 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="template_paperless-ngx" model="service.template">
+        <field name="name">Paperless-ngx</field>
+        <field name="code">paperless-ngx</field>
+        <field name="service_code">paperless-ngx</field>
+        <field name="version">latest</field>
+        <field name="description">Paperless-ngx is a self-hosted document management system that scans, OCRs, tags and full-text-searches your paper and PDFs into a private digital archive.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Paperless-ngx is a self-hosted document management system that scans, OCRs, tags and full-text-searches your paper and PDFs into a private digital archive.</p>
+  <p>It turns physical paper, scans and PDFs into a searchable, organized digital archive that you fully own. Every incoming file is run through OCR so its text becomes searchable, then classified with tags, correspondents, document types and storage paths — automatically or with matching rules you define. Documents arrive from a watched consume folder, email fetching, scanner uploads or the mobile apps, and the modern web UI lets you find any invoice, contract or record in seconds. It is the community-driven successor to Paperless and Paperless-ng.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>OCR on every incoming scan and PDF, making the full text searchable within seconds</li>
+    <li>Automatic classification with tags, correspondents, document types and storage paths</li>
+    <li>Multiple ingestion paths: a watched consume folder, email fetching and scanner/mobile uploads</li>
+    <li>Fast full-text search with filters, saved views, bulk editing and a clean web interface</li>
+    <li>Office and complex-PDF conversion via the bundled Apache Tika and Gotenberg services</li>
+    <li>Fine-grained users, groups and permissions plus a full REST API for automation</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Individuals, families and businesses that want a paperless office: a private, searchable archive of invoices, contracts and personal records they fully control. Keep it behind HTTPS and never expose the consume folder as a public resource.</p>
+</div>]]></field>
+        <field name="category">productivity</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/paperless-ngx.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_documentation')])]"/>
+        <field name="website_url">https://docs.paperless-ngx.com/</field>
+        <field name="documentation_url">https://docs.paperless-ngx.com/setup/</field>
+        <field name="source_url">https://github.com/paperless-ngx/paperless-ngx</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  broker:
+    image: docker.io/library/redis:7-alpine
+    restart: unless-stopped
+    command: --save 60 1 --loglevel warning
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - redis-cli ping | grep PONG
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 3s
+    volumes:
+    - ./redis:/data
+    expose:
+    - 6379
+    container_name: '{{ INSTANCE_CODE }}_broker'
+    networks:
+    - internal
+  db:
+    image: docker.io/library/postgres:17-alpine
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -d $${POSTGRES_DB} -U $${POSTGRES_USER}
+      start_period: 20s
+      interval: 30s
+      retries: 5
+      timeout: 5s
+    volumes:
+    - ./database:/var/lib/postgresql/data
+    environment:
+      POSTGRES_DB: {{ pg_db }}
+      POSTGRES_USER: {{ pg_user }}
+      POSTGRES_PASSWORD: {{ pg_pass }}
+    expose:
+    - 5432
+    container_name: '{{ INSTANCE_CODE }}_db'
+    networks:
+    - internal
+  gotenberg:
+    image: docker.io/gotenberg/gotenberg:8
+    restart: unless-stopped
+    command:
+    - gotenberg
+    - --chromium-disable-javascript=true
+    - --chromium-allow-list=file:///tmp/.*
+    expose:
+    - 3000
+    container_name: '{{ INSTANCE_CODE }}_gotenberg'
+    networks:
+    - internal
+  tika:
+    image: docker.io/apache/tika:latest
+    restart: unless-stopped
+    expose:
+    - 9998
+    container_name: '{{ INSTANCE_CODE }}_tika'
+    networks:
+    - internal
+  webserver:
+    image: ghcr.io/paperless-ngx/paperless-ngx:latest
+    restart: unless-stopped
+    environment:
+      PAPERLESS_REDIS: redis://broker:6379
+      PAPERLESS_DBHOST: db
+      PAPERLESS_DBNAME: {{ pg_db }}
+      PAPERLESS_DBUSER: {{ pg_user }}
+      PAPERLESS_DBPASS: {{ pg_pass }}
+      PAPERLESS_SECRET_KEY: {{ secret_key }}
+      PAPERLESS_ADMIN_USER: {{ admin_user }}
+      PAPERLESS_ADMIN_PASSWORD: {{ admin_password }}
+      PAPERLESS_ADMIN_MAIL: {{ admin_mail }}
+      PAPERLESS_OCR_LANGUAGE: {{ ocr_language }}
+      PAPERLESS_TIME_ZONE: {{ time_zone }}
+      PAPERLESS_TIKA_ENABLED: 1
+      PAPERLESS_TIKA_GOTENBERG_ENDPOINT: http://gotenberg:3000
+      PAPERLESS_TIKA_ENDPOINT: http://tika:9998
+    volumes:
+    - ./data:/usr/src/paperless/data
+    - ./media:/usr/src/paperless/media
+    - ./export:/usr/src/paperless/export
+    - ./consume:/usr/src/paperless/consume
+    expose:
+    - 8000
+    depends_on:
+      db:
+        condition: service_healthy
+      broker:
+        condition: service_healthy
+      gotenberg:
+        condition: service_started
+      tika:
+        condition: service_started
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8000'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR.
+# Los documentos (media) y la data de la app los archiva Steer desde los volúmenes.
+docker compose exec -T db sh -c 'pg_dump -U "${POSTGRES_USER:-paperless}" -d "${POSTGRES_DB:-paperless}" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura el dump.
+docker compose up -d db
+for i in $(seq 1 30); do
+  docker compose exec -T db sh -c 'pg_isready -U "${POSTGRES_USER:-paperless}"' && break
+  sleep 2
+done
+docker compose exec -T db sh -c 'pg_restore -U "${POSTGRES_USER:-paperless}" -d "${POSTGRES_DB:-paperless}" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T db sh -c "psql -U \${POSTGRES_USER:-paperless} -d \${POSTGRES_DB:-paperless} -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_paperless-ngx_port_http" model="service.template.port">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_paperless-ngx_var_pg_user" model="service.template.variable">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">pg_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">paperless</field>
+        <field name="description">PostgreSQL role that Paperless-ngx uses to connect to its database.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_paperless-ngx_var_pg_db" model="service.template.variable">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">pg_db</field>
+        <field name="var_type">string</field>
+        <field name="default_value">paperless</field>
+        <field name="description">Name of the PostgreSQL database that stores document metadata.</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_paperless-ngx_var_pg_pass" model="service.template.variable">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">pg_pass</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the PostgreSQL user.</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_paperless-ngx_var_secret_key" model="service.template.variable">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">secret_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Django secret key used to sign sessions and tokens; keep it private.</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_paperless-ngx_var_admin_user" model="service.template.variable">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">admin_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin</field>
+        <field name="description">Login of the superuser created on first start.</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_paperless-ngx_var_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">admin_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the initial administrator account.</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_paperless-ngx_var_admin_mail" model="service.template.variable">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">admin_mail</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin@example.com</field>
+        <field name="description">Email address of the initial administrator account.</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_paperless-ngx_var_ocr_language" model="service.template.variable">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">ocr_language</field>
+        <field name="var_type">string</field>
+        <field name="default_value">eng</field>
+        <field name="description">Tesseract OCR language code(s), e.g. eng or spa+eng.</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_paperless-ngx_var_time_zone" model="service.template.variable">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">time_zone</field>
+        <field name="var_type">string</field>
+        <field name="default_value">Etc/UTC</field>
+        <field name="description">Time zone used for dates and scheduled tasks (e.g. America/Argentina/Cordoba).</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_paperless-ngx_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">database</field>
+        <field name="local_path">./database</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_paperless-ngx_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">redis</field>
+        <field name="local_path">./redis</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_paperless-ngx_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">data</field>
+        <field name="local_path">./data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_paperless-ngx_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">media</field>
+        <field name="local_path">./media</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_paperless-ngx_vol_4" model="service.template.volume">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">export</field>
+        <field name="local_path">./export</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_paperless-ngx_vol_5" model="service.template.volume">
+        <field name="template_id" ref="template_paperless-ngx"/>
+        <field name="name">consume</field>
+        <field name="local_path">./consume</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">60</field>
+    </record>
+</odoo>

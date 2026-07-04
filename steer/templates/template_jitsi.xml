@@ -1,0 +1,227 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="template_jitsi" model="service.template">
+        <field name="name">Jitsi Meet</field>
+        <field name="code">jitsi</field>
+        <field name="service_code">jitsi</field>
+        <field name="version">stable</field>
+        <field name="description">Jitsi Meet is a fully open-source, self-hosted video conferencing platform for secure, browser-based meetings with no accounts or plugins required.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Jitsi Meet is a fully open-source, self-hosted video conferencing platform for secure, browser-based meetings with no accounts or plugins required.</p>
+  <p>Jitsi Meet turns your own server into a private videoconferencing service for internal meetings, remote support or training, without depending on external platforms like Zoom or Google Meet. Participants join HD audio/video rooms straight from a browser or mobile app; behind the scenes the Prosody XMPP server, the Jicofo conference focus and the Jitsi Videobridge (JVB) route media through a Selective Forwarding Unit that keeps client bandwidth low even on large calls. It is aimed at organizations that want data residency and full control over their meetings on their own domain.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>HD video meetings from any browser or mobile device, with screen sharing, chat, raise-hand and reactions</li>
+    <li>Password-protected rooms and optional internal authentication so only trusted users can start meetings</li>
+    <li>Scalable JVB media bridge (SFU) that forwards streams instead of meshing peers, keeping client bandwidth low</li>
+    <li>Moderator controls, lobby/waiting room and end-to-end encryption for participants</li>
+    <li>Optional add-ons for dial-in telephony, live streaming and recording (Jigasi/Jibri)</li>
+    <li>Fully self-hosted on your own domain, so meetings and metadata never leave your servers</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams, schools and support desks that want a private, self-hosted alternative to Zoom or Google Meet on their own domain. Jitsi is an advanced multi-service stack (web, Prosody XMPP, Jicofo and the JVB video bridge): it must run behind a real public HTTPS domain, needs its UDP media port (default 10000) published and reachable from the internet for audio and video to flow, consumes significant bandwidth, and should keep authentication enabled so strangers cannot open rooms. Recording (Jibri) is best added later.</p>
+</div>]]></field>
+        <field name="category">communication</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="health_check_command">curl -fsS -o /dev/null http://localhost:80/ || exit 1</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/jitsi.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_voip'), ref('agz_infra_suite.tag_media')])]"/>
+        <field name="website_url">https://jitsi.org/jitsi-meet/</field>
+        <field name="documentation_url">https://jitsi.github.io/handbook/docs/devops-guide/devops-guide-docker/</field>
+        <field name="source_url">https://github.com/jitsi/docker-jitsi-meet</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  web:
+    image: jitsi/web:stable
+    restart: unless-stopped
+    depends_on:
+    - prosody
+    environment:
+    - PUBLIC_URL=https://{{ instance.full_domain }}
+    - TZ={{ TZ }}
+    - ENABLE_AUTH={{ ENABLE_AUTH }}
+    - ENABLE_GUESTS={{ ENABLE_GUESTS }}
+    - ENABLE_LETSENCRYPT=0
+    - ENABLE_HTTP_REDIRECT=0
+    - ENABLE_HSTS=0
+    - DISABLE_HTTPS=1
+    - AUTH_TYPE=internal
+    - XMPP_DOMAIN=meet.jitsi
+    - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+    - XMPP_BOSH_URL_BASE=http://prosody:5280
+    - XMPP_GUEST_DOMAIN=guest.meet.jitsi
+    - XMPP_MUC_DOMAIN=muc.meet.jitsi
+    - XMPP_RECORDER_DOMAIN=recorder.meet.jitsi
+    - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.meet.jitsi
+    - JICOFO_AUTH_USER=focus
+    - BRIDGE_AVG_MANAGEMENT_CONNECTIONS=1
+    volumes:
+    - ./config/web:/config
+    - ./config/web/crontabs:/var/spool/cron/crontabs
+    - ./config/transcripts:/usr/share/jitsi-meet/transcripts
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+  prosody:
+    image: jitsi/prosody:stable
+    restart: unless-stopped
+    environment:
+    - TZ={{ TZ }}
+    - AUTH_TYPE=internal
+    - ENABLE_AUTH={{ ENABLE_AUTH }}
+    - ENABLE_GUESTS={{ ENABLE_GUESTS }}
+    - XMPP_DOMAIN=meet.jitsi
+    - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+    - XMPP_GUEST_DOMAIN=guest.meet.jitsi
+    - XMPP_MUC_DOMAIN=muc.meet.jitsi
+    - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.meet.jitsi
+    - XMPP_RECORDER_DOMAIN=recorder.meet.jitsi
+    - XMPP_MODULES=
+    - XMPP_MUC_MODULES=
+    - XMPP_INTERNAL_MUC_MODULES=
+    - JICOFO_COMPONENT_SECRET={{ JICOFO_COMPONENT_SECRET }}
+    - JICOFO_AUTH_USER=focus
+    - JICOFO_AUTH_PASSWORD={{ JICOFO_AUTH_PASSWORD }}
+    - JVB_AUTH_USER=jvb
+    - JVB_AUTH_PASSWORD={{ JVB_AUTH_PASSWORD }}
+    volumes:
+    - ./config/prosody/config:/config
+    - ./config/prosody/prosody-plugins-custom:/prosody-plugins-custom
+    expose:
+    - '5222'
+    - '5347'
+    - '5280'
+    container_name: '{{ INSTANCE_CODE }}_prosody'
+    networks:
+    - internal
+  jicofo:
+    image: jitsi/jicofo:stable
+    restart: unless-stopped
+    depends_on:
+    - prosody
+    environment:
+    - TZ={{ TZ }}
+    - ENABLE_AUTH={{ ENABLE_AUTH }}
+    - XMPP_DOMAIN=meet.jitsi
+    - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+    - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.meet.jitsi
+    - XMPP_SERVER=prosody
+    - JICOFO_COMPONENT_SECRET={{ JICOFO_COMPONENT_SECRET }}
+    - JICOFO_AUTH_USER=focus
+    - JICOFO_AUTH_PASSWORD={{ JICOFO_AUTH_PASSWORD }}
+    - JVB_BREWERY_MUC=jvbbrewery
+    volumes:
+    - ./config/jicofo:/config
+    container_name: '{{ INSTANCE_CODE }}_jicofo'
+    networks:
+    - internal
+  jvb:
+    image: jitsi/jvb:stable
+    restart: unless-stopped
+    depends_on:
+    - prosody
+    environment:
+    - TZ={{ TZ }}
+    - XMPP_AUTH_DOMAIN=auth.meet.jitsi
+    - XMPP_INTERNAL_MUC_DOMAIN=internal-muc.meet.jitsi
+    - XMPP_SERVER=prosody
+    - JVB_AUTH_USER=jvb
+    - JVB_AUTH_PASSWORD={{ JVB_AUTH_PASSWORD }}
+    - JVB_BREWERY_MUC=jvbbrewery
+    - JVB_PORT={{ PORT_JVB }}
+    - JVB_TCP_HARVESTER_DISABLED=true
+    - PUBLIC_URL=https://{{ instance.full_domain }}
+    volumes:
+    - ./config/jvb:/config
+    ports:
+    - '{{ PORT_JVB }}:{{ PORT_JVB }}/udp'
+    container_name: '{{ INSTANCE_CODE }}_jvb'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_jitsi_port_http" model="service.template.port">
+        <field name="template_id" ref="template_jitsi"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_jitsi_port_jvb" model="service.template.port">
+        <field name="template_id" ref="template_jitsi"/>
+        <field name="code">jvb</field>
+        <field name="name">JVB media (UDP)</field>
+        <field name="default_port">10000</field>
+        <field name="traefik_routed">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_jitsi_var_jicofo_component_secret" model="service.template.variable">
+        <field name="template_id" ref="template_jitsi"/>
+        <field name="name">JICOFO_COMPONENT_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Shared secret between Prosody and the Jicofo conference focus component.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_jitsi_var_jicofo_auth_password" model="service.template.variable">
+        <field name="template_id" ref="template_jitsi"/>
+        <field name="name">JICOFO_AUTH_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">XMPP password for the internal Jicofo (focus) user.</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_jitsi_var_jvb_auth_password" model="service.template.variable">
+        <field name="template_id" ref="template_jitsi"/>
+        <field name="name">JVB_AUTH_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">XMPP password for the internal Jitsi Videobridge (jvb) user.</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_jitsi_var_tz" model="service.template.variable">
+        <field name="template_id" ref="template_jitsi"/>
+        <field name="name">TZ</field>
+        <field name="var_type">string</field>
+        <field name="description">Container timezone.</field>
+        <field name="default_value">America/Argentina/Cordoba</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_jitsi_var_enable_auth" model="service.template.variable">
+        <field name="template_id" ref="template_jitsi"/>
+        <field name="name">ENABLE_AUTH</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">1,0</field>
+        <field name="description">Require internal authentication to create meetings (1 = on, recommended).</field>
+        <field name="default_value">1</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_jitsi_var_enable_guests" model="service.template.variable">
+        <field name="template_id" ref="template_jitsi"/>
+        <field name="name">ENABLE_GUESTS</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">1,0</field>
+        <field name="description">Allow anonymous guests to join existing meetings (1 = on).</field>
+        <field name="default_value">1</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_jitsi_vol_config" model="service.template.volume">
+        <field name="template_id" ref="template_jitsi"/>
+        <field name="name">config</field>
+        <field name="local_path">./config</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

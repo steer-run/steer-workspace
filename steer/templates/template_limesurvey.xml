@@ -1,0 +1,217 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - No hay imagen Docker oficial del core: se usa la comunitaria martialblog/limesurvey
+             (activa, con releases por versión mayor) — validar el upgrade entre versiones.
+           - Owner UID:GID del volumen 'upload' (imagen martialblog/limesurvey:6-apache) desconocido
+             → DEFAULT 1000:1000, verificar (la imagen apache corre como www-data).
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_limesurvey" model="service.template">
+        <field name="name">LimeSurvey</field>
+        <field name="code">limesurvey</field>
+        <field name="service_code">limesurvey</field>
+        <field name="version">latest</field>
+        <field name="description">LimeSurvey is a self-hosted platform for building advanced surveys, forms, questionnaires and assessments, and collecting structured responses at scale.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">LimeSurvey is a self-hosted platform for building advanced surveys, forms, questionnaires and assessments, and collecting structured responses at scale.</p>
+  <p>Written in PHP, LimeSurvey lets you design sophisticated questionnaires with conditional logic, quotas and dozens of question types, then publish them to unlimited respondents while keeping every answer on your own infrastructure. It is a mature choice for HR, market and academic research, customer feedback, education and internal data collection, where privacy and full control over sensitive response data matter.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Dozens of question types with branching logic, quotas and validation</li>
+    <li>Unlimited surveys and responses, with anonymous or tracked participation</li>
+    <li>Participant management, invitations, reminders and token-based access</li>
+    <li>Statistics, charts and exports to CSV, Excel, PDF, SPSS and R</li>
+    <li>Multi-language surveys, custom themes and a template editor</li>
+    <li>Optional response encryption, REST/RPC API and granular user permissions</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>HR teams, researchers, educators and organizations that need a powerful, privacy-respecting survey tool for structured data collection while keeping respondent data self-hosted. Serve it over HTTPS and take care with response exports.</p>
+</div>]]></field>
+        <field name="category">business</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">php -v</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/limesurvey.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_forms'), ref('agz_infra_suite.tag_business')])]"/>
+        <field name="website_url">https://www.limesurvey.org/</field>
+        <field name="documentation_url">https://www.limesurvey.org/</field>
+        <field name="source_url">https://github.com/LimeSurvey/LimeSurvey</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  limesurvey:
+    image: martialblog/limesurvey:6-apache
+    restart: unless-stopped
+    environment:
+    - DB_TYPE=mysql
+    - DB_HOST=db
+    - DB_PORT=3306
+    - DB_NAME={{ db_name }}
+    - DB_USERNAME={{ db_user }}
+    - DB_PASSWORD={{ db_password }}
+    - ADMIN_USER={{ admin_user }}
+    - ADMIN_NAME=Administrator
+    - ADMIN_PASSWORD={{ admin_password }}
+    - ADMIN_EMAIL={{ admin_email }}
+    - PUBLICURL=https://{{ domain }}
+    volumes:
+    - ./upload:/var/www/html/upload/surveys
+    depends_on:
+      db:
+        condition: service_healthy
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    networks:
+    - internal
+    - agz-proxy-network
+  db:
+    image: mariadb:11
+    restart: unless-stopped
+    environment:
+    - MYSQL_ROOT_PASSWORD={{ db_root_password }}
+    - MYSQL_DATABASE={{ db_name }}
+    - MYSQL_USER={{ db_user }}
+    - MYSQL_PASSWORD={{ db_password }}
+    volumes:
+    - ./db_data:/var/lib/mysql
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - healthcheck.sh --connect --innodb_initialized
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    container_name: '{{ INSTANCE_CODE }}_db'
+    expose:
+    - '3306'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con `-p` y
+# password vacío (apps con MYSQL_RANDOM_ROOT_PASSWORD) mysql espera un prompt por stdin
+# y CUELGA. Prefiere el usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si
+# no hay usuario de app (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T db sh -c '
+  # MariaDB 11+ renombró mysqldump→mariadb-dump y mysql→mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d db
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T db sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_limesurvey_port_http" model="service.template.port">
+        <field name="template_id" ref="template_limesurvey"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_limesurvey_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_limesurvey"/>
+        <field name="name">db_name</field>
+        <field name="var_type">string</field>
+        <field name="default_value">limesurvey</field>
+        <field name="description">Name of the MariaDB database LimeSurvey uses.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_limesurvey_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_limesurvey"/>
+        <field name="name">db_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">limesurvey</field>
+        <field name="description">Application database user for LimeSurvey.</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_limesurvey_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_limesurvey"/>
+        <field name="name">db_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the LimeSurvey application database user.</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_limesurvey_var_db_root_password" model="service.template.variable">
+        <field name="template_id" ref="template_limesurvey"/>
+        <field name="name">db_root_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Root password for the MariaDB server.</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_limesurvey_var_admin_user" model="service.template.variable">
+        <field name="template_id" ref="template_limesurvey"/>
+        <field name="name">admin_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin</field>
+        <field name="description">Login name for the initial LimeSurvey administrator.</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_limesurvey_var_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_limesurvey"/>
+        <field name="name">admin_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the initial LimeSurvey administrator account.</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_limesurvey_var_admin_email" model="service.template.variable">
+        <field name="template_id" ref="template_limesurvey"/>
+        <field name="name">admin_email</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin@example.com</field>
+        <field name="description">Contact email for the initial LimeSurvey administrator.</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_limesurvey_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_limesurvey"/>
+        <field name="name">upload</field>
+        <field name="local_path">./upload</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_limesurvey_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_limesurvey"/>
+        <field name="name">db_data</field>
+        <field name="local_path">./db_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

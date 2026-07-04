@@ -1,0 +1,502 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - App avanzada, multi-servicio (postgresql, redis, registry, registryctl, core,
+             portal, jobservice, proxy): revisar red, orden de arranque y dependencias.
+           - Harbor se despliega OFICIALMENTE con su instalador (install.sh / harbor prepare),
+             que genera los secretos, certificados y la config por servicio. Este template es
+             una BASE best-effort de topología + volúmenes persistentes; para push/pull
+             autenticado con token/cert y HTTPS real, validar/completar la config generada.
+           - Owners: los servicios harbor corren como UID 10000; harbor-db (postgres) como 999.
+           - Tag fijado a v2.12.2 vía ${HARBOR_TAG:-v2.12.2}; subir de versión con cuidado.
+           - CSRF_KEY debe tener 32 caracteres exactos; el password autogenerado puede requerir ajuste.
+           - Requiere HTTPS real y políticas de retención / garbage collection (el disco crece rápido).
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_harbor" model="service.template">
+        <field name="name">Harbor</field>
+        <field name="code">harbor</field>
+        <field name="service_code">harbor</field>
+        <field name="version">latest</field>
+        <field name="description">Harbor is a CNCF-graduated, open-source container registry that stores and secures OCI images and artifacts with RBAC, vulnerability scanning, signing and replication.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Harbor is a CNCF-graduated, open-source container registry that stores and secures OCI images and artifacts with RBAC, vulnerability scanning, signing and replication.</p>
+  <p>Harbor extends a plain OCI registry with the governance an organization needs to run container images in production. It groups images into projects with role-based access control and quotas, scans every artifact for known vulnerabilities, signs and verifies content, and replicates images between registries and remote Harbor instances. Graduated by the CNCF and battle-tested at scale, it is the standard self-hosted alternative to hosted registries like Docker Hub, Amazon ECR or GitHub Container Registry.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Private registry for Docker/OCI images, Helm charts and arbitrary artifacts, organized into projects</li>
+    <li>Role-based access control with projects, quotas, robot accounts and OIDC/LDAP single sign-on</li>
+    <li>Vulnerability scanning with Trivy plus CVE allow-lists to block risky images</li>
+    <li>Content trust: image signing and verification with Cosign / Notation</li>
+    <li>Replication policies to mirror and sync images across registries and remote Harbors</li>
+    <li>Tag retention, tag immutability, garbage collection and event webhooks</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Platform and DevOps teams that need a governed, self-hosted registry as the trusted image source for their CI/CD pipelines and clusters. Harbor is an advanced, multi-service stack: it must run behind real HTTPS, is officially initialized with its own installer (which generates the per-service secrets, certificates and configuration), needs roughly 4 GB of RAM, and should have retention and garbage-collection policies in place since image storage grows quickly.</p>
+</div>]]></field>
+        <field name="category">dev_tools</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="health_check_command">pg_isready -U postgres</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/harbor.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_storage')])]"/>
+        <field name="website_url">https://goharbor.io/</field>
+        <field name="documentation_url">https://goharbor.io/docs/</field>
+        <field name="source_url">https://github.com/goharbor/harbor</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  postgresql:
+    image: goharbor/harbor-db:${HARBOR_TAG:-v2.12.2}
+    restart: unless-stopped
+    environment:
+      POSTGRES_PASSWORD: {{ db_password }}
+    volumes:
+    - ./data/database:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U postgres
+      interval: 30s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    expose:
+    - 5432
+    container_name: '{{ INSTANCE_CODE }}_postgresql'
+    networks:
+    - internal
+  redis:
+    image: goharbor/redis-photon:${HARBOR_TAG:-v2.12.2}
+    restart: unless-stopped
+    volumes:
+    - ./data/redis:/var/lib/redis
+    expose:
+    - 6379
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    networks:
+    - internal
+  registry:
+    image: goharbor/registry-photon:${HARBOR_TAG:-v2.12.2}
+    restart: unless-stopped
+    environment:
+      REGISTRY_HTTP_SECRET: {{ registry_http_secret }}
+    volumes:
+    - ./data/registry:/storage
+    - ./harbor-registry.yml:/etc/registry/config.yml:ro
+    depends_on:
+    - redis
+    expose:
+    - 5000
+    container_name: '{{ INSTANCE_CODE }}_registry'
+    networks:
+    - internal
+  registryctl:
+    image: goharbor/harbor-registryctl:${HARBOR_TAG:-v2.12.2}
+    restart: unless-stopped
+    environment:
+      CORE_SECRET: {{ core_secret }}
+      JOBSERVICE_SECRET: {{ jobservice_secret }}
+      REGISTRY_HTTP_SECRET: {{ registry_http_secret }}
+    volumes:
+    - ./data/registry:/storage
+    - ./harbor-registry.yml:/etc/registry/config.yml:ro
+    - ./harbor-registryctl.yml:/etc/registryctl/config.yml:ro
+    depends_on:
+    - registry
+    expose:
+    - 8080
+    container_name: '{{ INSTANCE_CODE }}_registryctl'
+    networks:
+    - internal
+  core:
+    image: goharbor/harbor-core:${HARBOR_TAG:-v2.12.2}
+    restart: unless-stopped
+    environment:
+      CORE_SECRET: {{ core_secret }}
+      JOBSERVICE_SECRET: {{ jobservice_secret }}
+      CORE_URL: http://core:8080
+      JOBSERVICE_URL: http://jobservice:8080
+      REGISTRY_URL: http://registry:5000
+      REGISTRYCTL_URL: http://registryctl:8080
+      REGISTRY_CONTROLLER_URL: http://registryctl:8080
+      TOKEN_SERVICE_URL: http://core:8080/service/token
+      PORTAL_URL: http://portal:8080
+      EXT_ENDPOINT: https://{{ instance.full_domain }}
+      LOG_LEVEL: info
+      CONFIG_PATH: /etc/core/app.conf
+      DATABASE_TYPE: postgresql
+      POSTGRESQL_HOST: postgresql
+      POSTGRESQL_PORT: "5432"
+      POSTGRESQL_USERNAME: postgres
+      POSTGRESQL_PASSWORD: {{ db_password }}
+      POSTGRESQL_DATABASE: registry
+      POSTGRESQL_SSLMODE: disable
+      POSTGRESQL_MAX_IDLE_CONNS: "100"
+      POSTGRESQL_MAX_OPEN_CONNS: "900"
+      HARBOR_ADMIN_PASSWORD: {{ harbor_admin_password }}
+      CSRF_KEY: {{ csrf_key }}
+      REGISTRY_STORAGE_PROVIDER_NAME: filesystem
+      REGISTRY_CREDENTIAL_USERNAME: harbor_registry_user
+      REGISTRY_CREDENTIAL_PASSWORD: {{ registry_http_secret }}
+      _REDIS_URL_CORE: redis://redis:6379/0
+      _REDIS_URL_REG: redis://redis:6379/1
+      CHART_CACHE_DRIVER: redis
+      WITH_TRIVY: "false"
+      WITH_NOTARY: "false"
+      PERMITTED_REGISTRY_TYPES_FOR_PROXY_CACHE: docker-hub,harbor,azure-acr,aws-ecr,google-gcr,quay,docker-registry,github-ghcr,jfrog-artifactory
+    volumes:
+    - ./harbor-core.conf:/etc/core/app.conf:ro
+    - ./data/core:/data
+    depends_on:
+    - postgresql
+    - redis
+    - registry
+    expose:
+    - 8080
+    container_name: '{{ INSTANCE_CODE }}_core'
+    networks:
+    - internal
+  portal:
+    image: goharbor/harbor-portal:${HARBOR_TAG:-v2.12.2}
+    restart: unless-stopped
+    expose:
+    - 8080
+    container_name: '{{ INSTANCE_CODE }}_portal'
+    networks:
+    - internal
+  jobservice:
+    image: goharbor/harbor-jobservice:${HARBOR_TAG:-v2.12.2}
+    restart: unless-stopped
+    environment:
+      CORE_SECRET: {{ core_secret }}
+      JOBSERVICE_SECRET: {{ jobservice_secret }}
+      CORE_URL: http://core:8080
+      REGISTRY_CONTROLLER_URL: http://registryctl:8080
+      HARBOR_ADMIN_PASSWORD: {{ harbor_admin_password }}
+      JOBSERVICE_WEBHOOK_JOB_MAX_RETRY: "3"
+    volumes:
+    - ./harbor-jobservice.yml:/etc/jobservice/config.yml:ro
+    - ./data/job_logs:/var/log/jobs
+    depends_on:
+    - core
+    expose:
+    - 8080
+    container_name: '{{ INSTANCE_CODE }}_jobservice'
+    networks:
+    - internal
+  proxy:
+    image: goharbor/nginx-photon:${HARBOR_TAG:-v2.12.2}
+    restart: unless-stopped
+    volumes:
+    - ./harbor-nginx.conf:/etc/nginx/nginx.conf:ro
+    depends_on:
+    - core
+    - portal
+    - registry
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_harbor_port_http" model="service.template.port">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_harbor_var_harbor_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">harbor_admin_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Initial password for the built-in 'admin' account of the Harbor UI.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_harbor_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">db_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the internal PostgreSQL (harbor-db) superuser.</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_harbor_var_core_secret" model="service.template.variable">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">core_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Shared secret authenticating the core service against the other Harbor components.</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_harbor_var_jobservice_secret" model="service.template.variable">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">jobservice_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Shared secret authenticating the jobservice against the core service.</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_harbor_var_registry_http_secret" model="service.template.variable">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">registry_http_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Shared secret used by the registry HTTP layer and the core registry credential.</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_harbor_var_csrf_key" model="service.template.variable">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">csrf_key</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">CSRF protection key for the core service (Harbor requires exactly 32 characters).</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_harbor_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">database</field>
+        <field name="local_path">./data/database</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_harbor_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">registry</field>
+        <field name="local_path">./data/registry</field>
+        <field name="owner">10000:10000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_harbor_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">core</field>
+        <field name="local_path">./data/core</field>
+        <field name="owner">10000:10000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_harbor_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">redis</field>
+        <field name="local_path">./data/redis</field>
+        <field name="owner">10000:10000</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_harbor_vol_4" model="service.template.volume">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">job_logs</field>
+        <field name="local_path">./data/job_logs</field>
+        <field name="owner">10000:10000</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_harbor_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">harbor-nginx.conf</field>
+        <field name="filename">harbor-nginx.conf</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[worker_processes auto;
+pid /tmp/nginx.pid;
+
+events {
+    worker_connections 1024;
+}
+
+http {
+    client_body_temp_path /tmp/client_body_temp;
+    proxy_temp_path /tmp/proxy_temp;
+    fastcgi_temp_path /tmp/fastcgi_temp;
+    uwsgi_temp_path /tmp/uwsgi_temp;
+    scgi_temp_path /tmp/scgi_temp;
+
+    tcp_nodelay on;
+
+    upstream core {
+        server core:8080;
+    }
+    upstream portal {
+        server portal:8080;
+    }
+
+    log_format timed_combined '$remote_addr - "$request" $status $body_bytes_sent';
+    access_log /dev/stdout timed_combined;
+
+    server {
+        listen 8080;
+        server_tokens off;
+        client_max_body_size 0;
+
+        location / {
+            proxy_pass http://portal/;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_buffering off;
+        }
+
+        location /c/ {
+            proxy_pass http://core/c/;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /api/ {
+            proxy_pass http://core/api/;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /chartrepo/ {
+            proxy_pass http://core/chartrepo/;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /service/ {
+            proxy_pass http://core/service/;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+        }
+
+        location /v2/ {
+            proxy_pass http://core/v2/;
+            proxy_set_header Host $http_host;
+            proxy_set_header X-Real-IP $remote_addr;
+            proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
+            proxy_set_header X-Forwarded-Proto $scheme;
+            proxy_buffering off;
+            proxy_request_buffering off;
+            client_max_body_size 0;
+        }
+    }
+}
+]]></field>
+    </record>
+    <record id="template_harbor_cfg_1" model="service.template.config.file">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">harbor-registry.yml</field>
+        <field name="filename">harbor-registry.yml</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[version: 0.1
+log:
+  level: info
+  fields:
+    service: registry
+storage:
+  filesystem:
+    rootdirectory: /storage
+  cache:
+    layerinfo: redis
+  maintenance:
+    uploadpurging:
+      enabled: false
+  delete:
+    enabled: true
+redis:
+  addr: redis:6379
+  db: 1
+  readtimeout: 10s
+  writetimeout: 10s
+  dialtimeout: 10s
+  pool:
+    maxidle: 100
+    maxactive: 500
+    idletimeout: 60s
+http:
+  addr: :5000
+  debug:
+    addr: localhost:5001
+  headers:
+    X-Content-Type-Options:
+    - nosniff
+validation:
+  disabled: true
+compatibility:
+  schema1:
+    enabled: true
+]]></field>
+    </record>
+    <record id="template_harbor_cfg_2" model="service.template.config.file">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">harbor-registryctl.yml</field>
+        <field name="filename">harbor-registryctl.yml</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[---
+protocol: "http"
+port: 8080
+log_level: "INFO"
+registry_config: "/etc/registry/config.yml"
+]]></field>
+    </record>
+    <record id="template_harbor_cfg_3" model="service.template.config.file">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">harbor-jobservice.yml</field>
+        <field name="filename">harbor-jobservice.yml</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[---
+protocol: "http"
+port: 8080
+worker_pool:
+  workers: 10
+  backend: "redis"
+  redis_pool:
+    redis_url: "redis://redis:6379/2"
+    namespace: "harbor_job_service_namespace"
+    idle_timeout_second: 3600
+job_loggers:
+  - name: "STD_OUTPUT"
+    level: "INFO"
+  - name: "FILE"
+    level: "INFO"
+    settings:
+      base_dir: "/var/log/jobs"
+    sweeper:
+      duration: 14
+      settings:
+        work_dir: "/var/log/jobs"
+metric:
+  enabled: false
+  path: /metrics
+  port: 8001
+loggers:
+  - name: "STD_OUTPUT"
+    level: "INFO"
+]]></field>
+    </record>
+    <record id="template_harbor_cfg_4" model="service.template.config.file">
+        <field name="template_id" ref="template_harbor"/>
+        <field name="name">harbor-core.conf</field>
+        <field name="filename">harbor-core.conf</field>
+        <field name="path">./</field>
+        <field name="content_template"><![CDATA[appname = Harbor
+runmode = prod
+enablegzip = true
+
+[prod]
+httpport = 8080
+]]></field>
+    </record>
+</odoo>

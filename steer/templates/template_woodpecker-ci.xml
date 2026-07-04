@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (woodpecker-server + woodpecker-agent): revisar red/backup/init.
+           - El agente monta /var/run/docker.sock → poder alto sobre el host: aislar el runner
+             en un host dedicado para clientes sensibles y no permitir repos arbitrarios.
+           - Requiere un forge (Gitea/Forgejo/GitHub/GitLab) con una OAuth app: el server no
+             arranca del todo hasta cargar WOODPECKER_HOST + client/secret del forge y redeployar.
+           - Owner UID:GID de las imágenes woodpeckerci/* desconocido → DEFAULT 1000:1000, verificar.
+           - Imágenes en 'latest': fijá un tag estable antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_woodpecker-ci" model="service.template">
+        <field name="name">Woodpecker CI</field>
+        <field name="code">woodpecker-ci</field>
+        <field name="service_code">woodpecker-ci</field>
+        <field name="version">latest</field>
+        <field name="description">Woodpecker CI is a simple, lightweight CI/CD engine that runs pipelines inside containers, wired to your Gitea, Forgejo, GitHub or GitLab repositories.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Woodpecker CI is a simple, lightweight CI/CD engine that runs pipelines inside containers, wired to your Gitea, Forgejo, GitHub or GitLab repositories.</p>
+  <p>Woodpecker is a community fork of Drone that keeps continuous integration deliberately small and container-first. You connect it to a Git forge over OAuth, commit a plain YAML pipeline (.woodpecker.yml) next to your code, and every push or pull request runs its steps as isolated containers. Its server/agent design lets a tiny server coordinate work while one or more agents execute the actual builds, so it scales by simply adding agents and stays light enough to self-host on modest hardware.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Container-native pipelines defined as YAML committed alongside your source code</li>
+    <li>Native OAuth integration with Gitea, Forgejo, GitHub, GitLab and Bitbucket forges</li>
+    <li>Server/agent architecture: lightweight agents pick up workflows and run each step in its own container</li>
+    <li>Matrix builds, parallel and conditional steps, and per-repository encrypted secrets</li>
+    <li>Reusable plugins packaged as containers for publishing, notifications and deployments</li>
+    <li>Small, resource-light footprint that scales horizontally by adding more agents</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Small teams and self-hosters who want a lightweight, container-first CI/CD engine sitting next to a self-hosted Git forge. Woodpecker must be paired with a forge: register an OAuth application there, set WOODPECKER_HOST to the instance's public URL and fill the forge client/secret before the first login. Note that the agent mounts the host Docker socket, which grants it high privilege, so isolate the runner on a dedicated host for sensitive workloads.</p>
+</div>]]></field>
+        <field name="category">ci_cd</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/woodpecker-ci.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_ci_cd'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_git')])]"/>
+        <field name="website_url">https://woodpecker-ci.org/</field>
+        <field name="documentation_url">https://woodpecker-ci.org/docs/administration/installation/docker-compose</field>
+        <field name="source_url">https://github.com/woodpecker-ci/woodpecker</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  woodpecker-server:
+    image: woodpeckerci/woodpecker-server:latest
+    environment:
+      WOODPECKER_OPEN: "true"
+      WOODPECKER_HOST: {{ woodpecker_host }}
+      WOODPECKER_AGENT_SECRET: {{ woodpecker_agent_secret }}
+      WOODPECKER_GITEA: "true"
+      WOODPECKER_GITEA_URL: {{ woodpecker_gitea_url }}
+      WOODPECKER_GITEA_CLIENT: {{ woodpecker_gitea_client }}
+      WOODPECKER_GITEA_SECRET: {{ woodpecker_gitea_secret }}
+    volumes:
+    - ./woodpecker_server_data:/var/lib/woodpecker
+    ports:
+    - '{{ PORT_HTTP }}:8000'
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    networks:
+    - internal
+    - agz-proxy-network
+  woodpecker-agent:
+    image: woodpeckerci/woodpecker-agent:latest
+    command: agent
+    restart: unless-stopped
+    depends_on:
+    - woodpecker-server
+    environment:
+      WOODPECKER_SERVER: woodpecker-server:9000
+      WOODPECKER_AGENT_SECRET: {{ woodpecker_agent_secret }}
+      WOODPECKER_MAX_WORKFLOWS: "2"
+    volumes:
+    - ./woodpecker_agent_config:/etc/woodpecker
+    - /var/run/docker.sock:/var/run/docker.sock
+    container_name: '{{ INSTANCE_CODE }}_agent'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_woodpecker-ci_port_http" model="service.template.port">
+        <field name="template_id" ref="template_woodpecker-ci"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_woodpecker-ci_var_woodpecker_host" model="service.template.variable">
+        <field name="template_id" ref="template_woodpecker-ci"/>
+        <field name="name">woodpecker_host</field>
+        <field name="var_type">string</field>
+        <field name="default_value">https://ci.example.com</field>
+        <field name="description">Public base URL of this Woodpecker instance, used for OAuth callbacks and pipeline links.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_woodpecker-ci_var_woodpecker_agent_secret" model="service.template.variable">
+        <field name="template_id" ref="template_woodpecker-ci"/>
+        <field name="name">woodpecker_agent_secret</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Shared secret that authenticates agents to the Woodpecker server.</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_woodpecker-ci_var_woodpecker_gitea_url" model="service.template.variable">
+        <field name="template_id" ref="template_woodpecker-ci"/>
+        <field name="name">woodpecker_gitea_url</field>
+        <field name="var_type">string</field>
+        <field name="default_value">https://git.example.com</field>
+        <field name="description">Base URL of the Gitea/Forgejo forge Woodpecker connects to.</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_woodpecker-ci_var_woodpecker_gitea_client" model="service.template.variable">
+        <field name="template_id" ref="template_woodpecker-ci"/>
+        <field name="name">woodpecker_gitea_client</field>
+        <field name="var_type">string</field>
+        <field name="description">OAuth application client ID issued by the forge for Woodpecker.</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_woodpecker-ci_var_woodpecker_gitea_secret" model="service.template.variable">
+        <field name="template_id" ref="template_woodpecker-ci"/>
+        <field name="name">woodpecker_gitea_secret</field>
+        <field name="var_type">string</field>
+        <field name="description">OAuth application client secret issued by the forge for Woodpecker.</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_woodpecker-ci_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_woodpecker-ci"/>
+        <field name="name">woodpecker-server-data</field>
+        <field name="local_path">./woodpecker_server_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_woodpecker-ci_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_woodpecker-ci"/>
+        <field name="name">woodpecker-agent-config</field>
+        <field name="local_path">./woodpecker_agent_config</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

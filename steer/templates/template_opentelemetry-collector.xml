@@ -1,0 +1,150 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Imagen oficial 'contrib' distroless (FROM scratch): NO trae shell ni wget,
+             por eso NO se define healthcheck de compose ni health_check_command
+             (correrían `sh -c`/`wget` inexistentes y darían falso «unhealthy»). La salud
+             se expone por la extensión health_check en el puerto 13133 (sondeo externo).
+           - Imagen en 'latest': fijá un tag estable antes de producción.
+           - Servicio SIN estado por defecto (solo enruta telemetría) → sin volumen de datos.
+             Si activás colas persistentes (file_storage/sending_queue), agregá un bind mount.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_opentelemetry-collector" model="service.template">
+        <field name="name">OpenTelemetry Collector</field>
+        <field name="code">opentelemetry-collector</field>
+        <field name="service_code">opentelemetry-collector</field>
+        <field name="version">latest</field>
+        <field name="description">OpenTelemetry Collector receives, processes and exports metrics, logs and traces, acting as a vendor-neutral hub between your apps and any observability backend.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">OpenTelemetry Collector receives, processes and exports metrics, logs and traces, acting as a vendor-neutral hub between your apps and any observability backend.</p>
+  <p>The OpenTelemetry Collector is the reference telemetry pipeline for the OpenTelemetry project: a single, vendor-neutral agent that ingests OTLP (and many other formats), batches and transforms the data through processors, then fans it out to the destinations you choose. It decouples your instrumented applications from your observability stack, so you can point every service at one endpoint and route metrics, logs and traces to Grafana, Prometheus, Loki, Jaeger, Tempo or any OTLP-compatible platform without touching application code. This entry deploys the official "contrib" distribution, which bundles the common receivers, processors and exporters most teams need.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Native OTLP receiver over gRPC (4317) and HTTP (4318) for metrics, logs and traces</li>
+    <li>Vendor-neutral pipelines that export to Prometheus, Loki, Tempo, Jaeger, OTLP remotes and more</li>
+    <li>Built-in processors for batching, memory limiting, filtering and attribute transformation</li>
+    <li>"contrib" build with a broad catalog of community receivers and exporters out of the box</li>
+    <li>Single YAML configuration editable from the panel, with a health_check extension on port 13133</li>
+    <li>Lightweight, stateless agent that runs on a private network and scales from homelab to production</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>DevOps and platform teams that want one central, provider-independent collection point to normalize and route telemetry into their observability stack. Keep OTLP on a private/VPN network only, as it may carry sensitive application data and ships without authentication by default.</p>
+</div>]]></field>
+        <field name="category">monitoring</field>
+        <field name="is_web_app">False</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">False</field>
+        <field name="backup_mode">standard</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/opentelemetry-collector.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_monitoring')])]"/>
+        <field name="website_url">https://opentelemetry.io/</field>
+        <field name="documentation_url">https://opentelemetry.io/docs/collector/</field>
+        <field name="source_url">https://github.com/open-telemetry/opentelemetry-collector</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  otel-collector:
+    image: otel/opentelemetry-collector-contrib:latest
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    command: ["--config=/etc/otelcol-contrib/config.yaml"]
+    volumes:
+    - ./config/otel-collector-config.yaml:/etc/otelcol-contrib/config.yaml:ro
+    expose:
+    - '4317'
+    - '4318'
+    - '13133'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+]]></field>
+    </record>
+    <record id="template_opentelemetry-collector_port_otlp_grpc" model="service.template.port">
+        <field name="template_id" ref="template_opentelemetry-collector"/>
+        <field name="code">otlp_grpc</field>
+        <field name="name">OTLP gRPC</field>
+        <field name="default_port">4317</field>
+        <field name="traefik_routed">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_opentelemetry-collector_port_otlp_http" model="service.template.port">
+        <field name="template_id" ref="template_opentelemetry-collector"/>
+        <field name="code">otlp_http</field>
+        <field name="name">OTLP HTTP</field>
+        <field name="default_port">4318</field>
+        <field name="traefik_routed">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_opentelemetry-collector_port_health" model="service.template.port">
+        <field name="template_id" ref="template_opentelemetry-collector"/>
+        <field name="code">health</field>
+        <field name="name">Health Check</field>
+        <field name="default_port">13133</field>
+        <field name="traefik_routed">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_opentelemetry-collector_var_debug_verbosity" model="service.template.variable">
+        <field name="template_id" ref="template_opentelemetry-collector"/>
+        <field name="name">debug_verbosity</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">basic,normal,detailed</field>
+        <field name="default_value">normal</field>
+        <field name="description">Verbosity of the built-in debug exporter (basic, normal or detailed). Boots the collector unattended with a safe local exporter until you wire real backends.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_opentelemetry-collector_cfg_config" model="service.template.config.file">
+        <field name="template_id" ref="template_opentelemetry-collector"/>
+        <field name="name">Collector Config</field>
+        <field name="filename">otel-collector-config.yaml</field>
+        <field name="path">./config/</field>
+        <field name="syntax_mode">yaml</field>
+        <field name="sequence">10</field>
+        <field name="description">Pipeline configuration: OTLP receivers, processors and exporters. Edit to route telemetry to your backends (Prometheus, Loki, Tempo, Jaeger, OTLP remotes).</field>
+        <field name="content_template"><![CDATA[# OpenTelemetry Collector configuration
+# Receives OTLP (gRPC 4317 / HTTP 4318), batches, and exports.
+# Replace the 'debug' exporter with real backends (prometheus, loki, otlphttp, ...).
+
+receivers:
+  otlp:
+    protocols:
+      grpc:
+        endpoint: 0.0.0.0:4317
+      http:
+        endpoint: 0.0.0.0:4318
+
+processors:
+  memory_limiter:
+    check_interval: 5s
+    limit_percentage: 80
+    spike_limit_percentage: 25
+  batch: {}
+
+exporters:
+  # Safe default: logs telemetry so the collector boots without an external backend.
+  debug:
+    verbosity: {{ debug_verbosity | default('normal') }}
+
+extensions:
+  health_check:
+    endpoint: 0.0.0.0:13133
+
+service:
+  extensions: [health_check]
+  pipelines:
+    traces:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+    metrics:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+    logs:
+      receivers: [otlp]
+      processors: [memory_limiter, batch]
+      exporters: [debug]
+]]></field>
+    </record>
+</odoo>

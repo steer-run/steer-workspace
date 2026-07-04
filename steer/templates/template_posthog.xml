@@ -1,0 +1,426 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Stack pesado multi-servicio (posthog web/worker/plugins + db + redis + clickhouse
+             + zookeeper + kafka + object_storage): alto consumo de RAM/CPU/disco, hacer preflight.
+           - Owner UID:GID de kafka (bitnami) y clickhouse (101:101) según imagen: verificar.
+           - ClickHouse usa ReplicatedMergeTree → depende de ZooKeeper (config/clickhouse-config.xml).
+           - Producción: PostHog recomienda su instalador oficial «deploy-hobby»; este template es
+             best-effort para self-host controlado.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_posthog" model="service.template">
+        <field name="name">PostHog</field>
+        <field name="code">posthog</field>
+        <field name="service_code">posthog</field>
+        <field name="version">latest</field>
+        <field name="description">PostHog is an open-source product analytics platform with event tracking, funnels, session replay, feature flags, experiments and surveys.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">PostHog is an open-source product analytics platform with event tracking, funnels, session replay, feature flags, experiments and surveys.</p>
+  <p>It bundles the tools a software team needs to understand how people use a product into a single self-hostable suite, positioning itself as an all-in-one alternative to stitching together Amplitude, Mixpanel, LaunchDarkly, Hotjar and Optimizely. The stack is built on Django, ClickHouse for event storage, PostgreSQL for application data, Redis for queues and Kafka for ingestion, so every event and recording stays on your own infrastructure. It targets engineering, product and growth teams that want to own their user data and run analysis without shipping it to third parties.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Product analytics with events, trends, funnels, retention and user paths</li>
+    <li>Session replay to watch real user interactions and debug UX issues</li>
+    <li>Feature flags and staged rollouts, plus A/B tests and experiments</li>
+    <li>Surveys, cohorts, group analytics and an interactive SQL query editor</li>
+    <li>Autocapture and SDKs for web, mobile and server, plus a REST API and webhooks</li>
+    <li>Fully self-hosted: PostgreSQL, ClickHouse, Redis and Kafka keep data in-house</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Engineering, product and growth teams that need a complete, privacy-owned product-analytics suite and are comfortable operating a heavy multi-service stack. It is resource intensive (several GB of RAM and ample disk); for simple cookie-free web stats a lighter tool like Plausible or Matomo is a better fit. For large production deployments PostHog's official installer is the recommended path.</p>
+</div>]]></field>
+        <field name="category">analytics</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">curl -fsS -o /dev/null http://localhost:8000/_health || exit 1</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/posthog.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="website_url">https://posthog.com/</field>
+        <field name="documentation_url">https://posthog.com/docs/self-host</field>
+        <field name="source_url">https://github.com/PostHog/posthog</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  db:
+    image: postgres:16-alpine
+    restart: unless-stopped
+    environment:
+    - POSTGRES_USER=${POSTGRES_USER}
+    - POSTGRES_DB=${POSTGRES_DB}
+    - POSTGRES_PASSWORD=${POSTGRES_PASSWORD}
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+    - ./postgres_data:/var/lib/postgresql/data
+    container_name: '{{ INSTANCE_CODE }}_db'
+    expose:
+    - '5432'
+    networks:
+    - internal
+  redis:
+    image: redis:6.2.7-alpine
+    restart: unless-stopped
+    command: redis-server --maxmemory-policy allkeys-lru --maxmemory 200mb
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 5s
+      timeout: 5s
+      retries: 12
+    volumes:
+    - ./redis_data:/data
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    expose:
+    - '6379'
+    networks:
+    - internal
+  zookeeper:
+    image: zookeeper:3.7.1
+    restart: unless-stopped
+    environment:
+    - ZOO_AUTOPURGE_INTERVAL=1
+    volumes:
+    - ./zookeeper_data:/data
+    container_name: '{{ INSTANCE_CODE }}_zookeeper'
+    expose:
+    - '2181'
+    networks:
+    - internal
+  kafka:
+    image: bitnami/kafka:2.8.1
+    restart: unless-stopped
+    depends_on:
+    - zookeeper
+    environment:
+    - KAFKA_BROKER_ID=1001
+    - KAFKA_CFG_RESERVED_BROKER_MAX_ID=1001
+    - KAFKA_CFG_LISTENERS=PLAINTEXT://:9092
+    - KAFKA_CFG_ADVERTISED_LISTENERS=PLAINTEXT://kafka:9092
+    - KAFKA_CFG_ZOOKEEPER_CONNECT=zookeeper:2181
+    - ALLOW_PLAINTEXT_LISTENER=yes
+    - KAFKA_CFG_MESSAGE_MAX_BYTES=52428800
+    volumes:
+    - ./kafka_data:/bitnami/kafka
+    container_name: '{{ INSTANCE_CODE }}_kafka'
+    expose:
+    - '9092'
+    networks:
+    - internal
+  clickhouse:
+    image: clickhouse/clickhouse-server:24.3.3.102-alpine
+    restart: unless-stopped
+    depends_on:
+    - zookeeper
+    environment:
+    - CLICKHOUSE_DB=posthog
+    volumes:
+    - ./clickhouse_data:/var/lib/clickhouse
+    - ./config/clickhouse-config.xml:/etc/clickhouse-server/config.d/default.xml:ro
+    - ./config/clickhouse-users.xml:/etc/clickhouse-server/users.d/default.xml:ro
+    ulimits:
+      nofile:
+        soft: 262144
+        hard: 262144
+    container_name: '{{ INSTANCE_CODE }}_clickhouse'
+    expose:
+    - '8123'
+    - '9000'
+    networks:
+    - internal
+  object_storage:
+    image: minio/minio:latest
+    restart: unless-stopped
+    command: server --address :19000 --console-address :19001 /data
+    environment:
+    - MINIO_ROOT_USER=${OBJECT_STORAGE_ACCESS_KEY_ID}
+    - MINIO_ROOT_PASSWORD=${OBJECT_STORAGE_SECRET_ACCESS_KEY}
+    volumes:
+    - ./object_storage:/data
+    container_name: '{{ INSTANCE_CODE }}_object_storage'
+    expose:
+    - '19000'
+    - '19001'
+    networks:
+    - internal
+  web:
+    image: posthog/posthog:latest
+    restart: unless-stopped
+    command: ./bin/docker-server
+    depends_on:
+      db:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      clickhouse:
+        condition: service_started
+      kafka:
+        condition: service_started
+      object_storage:
+        condition: service_started
+    environment: &app_env
+    - SECRET_KEY=${POSTHOG_SECRET}
+    - ENCRYPTION_SALT_KEYS=${ENCRYPTION_SALT_KEYS}
+    - SITE_URL=https://{{ DOMAIN }}
+    - DATABASE_URL=postgres://${POSTGRES_USER}:${POSTGRES_PASSWORD}@db:5432/${POSTGRES_DB}
+    - REDIS_URL=redis://redis:6379/
+    - CLICKHOUSE_HOST=clickhouse
+    - CLICKHOUSE_DATABASE=posthog
+    - CLICKHOUSE_USER=default
+    - CLICKHOUSE_PASSWORD=
+    - CLICKHOUSE_SECURE=false
+    - CLICKHOUSE_VERIFY=false
+    - KAFKA_HOSTS=kafka:9092
+    - KAFKA_URL=kafka://kafka:9092
+    - OBJECT_STORAGE_ENABLED=true
+    - OBJECT_STORAGE_ENDPOINT=http://object_storage:19000
+    - OBJECT_STORAGE_ACCESS_KEY_ID=${OBJECT_STORAGE_ACCESS_KEY_ID}
+    - OBJECT_STORAGE_SECRET_ACCESS_KEY=${OBJECT_STORAGE_SECRET_ACCESS_KEY}
+    - OBJECT_STORAGE_BUCKET=posthog
+    - DISABLE_SECURE_SSL_REDIRECT=true
+    - IS_BEHIND_PROXY=true
+    - TRUST_ALL_PROXIES=true
+    - DEBUG=0
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8000'
+    networks:
+    - internal
+    - agz-proxy-network
+  worker:
+    image: posthog/posthog:latest
+    restart: unless-stopped
+    command: ./bin/docker-worker-celery --with-scheduler
+    depends_on:
+    - db
+    - redis
+    - clickhouse
+    - kafka
+    - object_storage
+    environment: *app_env
+    container_name: '{{ INSTANCE_CODE }}_worker'
+    networks:
+    - internal
+  plugins:
+    image: posthog/posthog:latest
+    restart: unless-stopped
+    command: ./bin/plugin-server
+    depends_on:
+    - db
+    - redis
+    - clickhouse
+    - kafka
+    - object_storage
+    environment: *app_env
+    container_name: '{{ INSTANCE_CODE }}_plugins'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (datos de aplicación) → $BACKUP_DATA_DIR.
+# ClickHouse/object_storage/kafka se respaldan por tar de sus volúmenes (no excluidos).
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d db
+for i in $(seq 1 30); do
+  docker compose exec -T db sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T db sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_posthog_port_http" model="service.template.port">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8000</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_posthog_var_posthog_secret" model="service.template.variable">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">POSTHOG_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Django SECRET_KEY used to sign sessions, cookies and tokens.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_posthog_var_encryption_salt_keys" model="service.template.variable">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">ENCRYPTION_SALT_KEYS</field>
+        <field name="var_type">fernet_key</field>
+        <field name="is_secret">True</field>
+        <field name="description">Fernet key used to encrypt sensitive fields at rest (integrations, credentials).</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_posthog_var_postgres_password" model="service.template.variable">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">POSTGRES_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the internal PostgreSQL application database.</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_posthog_var_object_storage_secret" model="service.template.variable">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">OBJECT_STORAGE_SECRET_ACCESS_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Secret key for the internal MinIO object storage (session recordings, exports).</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_posthog_var_postgres_user" model="service.template.variable">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">POSTGRES_USER</field>
+        <field name="var_type">string</field>
+        <field name="default_value">posthog</field>
+        <field name="description">User for the internal PostgreSQL application database.</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_posthog_var_postgres_db" model="service.template.variable">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">POSTGRES_DB</field>
+        <field name="var_type">string</field>
+        <field name="default_value">posthog</field>
+        <field name="description">Name of the internal PostgreSQL application database.</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_posthog_var_object_storage_access_key" model="service.template.variable">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">OBJECT_STORAGE_ACCESS_KEY_ID</field>
+        <field name="var_type">string</field>
+        <field name="default_value">object_storage_root_user</field>
+        <field name="description">Access key ID for the internal MinIO object storage.</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_posthog_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">postgres-data</field>
+        <field name="local_path">./postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_posthog_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">clickhouse-data</field>
+        <field name="local_path">./clickhouse_data</field>
+        <field name="owner">101:101</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_posthog_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">object-storage</field>
+        <field name="local_path">./object_storage</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_posthog_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">redis-data</field>
+        <field name="local_path">./redis_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_posthog_vol_4" model="service.template.volume">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">kafka-data</field>
+        <field name="local_path">./kafka_data</field>
+        <field name="owner">1001:1001</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_posthog_vol_5" model="service.template.volume">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">zookeeper-data</field>
+        <field name="local_path">./zookeeper_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_posthog_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">ClickHouse Server Config</field>
+        <field name="filename">clickhouse-config.xml</field>
+        <field name="path">./config/</field>
+        <field name="syntax_mode">xml</field>
+        <field name="content_template"><![CDATA[<clickhouse>
+  <logger>
+    <level>warning</level>
+    <console>true</console>
+  </logger>
+  <listen_host>0.0.0.0</listen_host>
+  <!-- Coordinación para tablas ReplicatedMergeTree que crea PostHog -->
+  <zookeeper>
+    <node>
+      <host>zookeeper</host>
+      <port>2181</port>
+    </node>
+  </zookeeper>
+  <macros>
+    <shard>01</shard>
+    <replica>replica-01</replica>
+  </macros>
+  <!-- Reducir logging interno para ahorrar disco -->
+  <query_thread_log remove="remove"/>
+  <query_log remove="remove"/>
+  <text_log remove="remove"/>
+  <trace_log remove="remove"/>
+  <metric_log remove="remove"/>
+  <asynchronous_metric_log remove="remove"/>
+  <session_log remove="remove"/>
+  <part_log remove="remove"/>
+</clickhouse>
+]]></field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_posthog_cfg_1" model="service.template.config.file">
+        <field name="template_id" ref="template_posthog"/>
+        <field name="name">ClickHouse Users Config</field>
+        <field name="filename">clickhouse-users.xml</field>
+        <field name="path">./config/</field>
+        <field name="syntax_mode">xml</field>
+        <field name="content_template"><![CDATA[<clickhouse>
+  <profiles>
+    <default>
+      <log_queries>0</log_queries>
+      <log_query_threads>0</log_query_threads>
+      <allow_experimental_object_type>1</allow_experimental_object_type>
+      <max_execution_time>300</max_execution_time>
+    </default>
+  </profiles>
+</clickhouse>
+]]></field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

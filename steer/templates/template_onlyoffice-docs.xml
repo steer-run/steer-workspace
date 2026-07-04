@@ -1,0 +1,124 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - El entrypoint de la imagen 'onlyoffice/documentserver' fija los permisos de los
+             bind-mounts por su cuenta → owner DEFAULT 1000:1000 en los volúmenes, verificar.
+           - Imagen en 'latest': fijá un tag estable (variable selection) antes de producción.
+           - Requiere >= 4 GB RAM y siempre detrás de HTTPS con JWT activado.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_onlyoffice-docs" model="service.template">
+        <field name="name">ONLYOFFICE Docs</field>
+        <field name="code">onlyoffice-docs</field>
+        <field name="service_code">onlyoffice-docs</field>
+        <field name="version">latest</field>
+        <field name="description">ONLYOFFICE Docs is a self-hosted online office suite for editing documents, spreadsheets, presentations and PDFs in the browser, with real-time co-authoring.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">ONLYOFFICE Docs is a self-hosted online office suite for editing documents, spreadsheets, presentations and PDFs in the browser, with real-time co-authoring.</p>
+  <p>Also known as ONLYOFFICE Document Server, it is a single-container editing engine that renders and edits Office formats with high fidelity to DOCX, XLSX and PPTX. It is most often plugged into a file platform such as Nextcloud, ownCloud or Seafile so users can open and co-edit their documents directly from the browser, but it also works standalone as a collaborative document server. Because everything runs on your own infrastructure, sensitive files never leave your servers.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Full document, spreadsheet and presentation editors with strong DOCX/XLSX/PPTX compatibility</li>
+    <li>View, edit, fill and convert PDF files right in the browser</li>
+    <li>Real-time co-authoring with track changes, comments, mentions and version history</li>
+    <li>Ready-made connectors for Nextcloud, ownCloud, Seafile, Confluence, WordPress and many more</li>
+    <li>JWT-secured API so only authorized document management systems can start editing sessions</li>
+    <li>Runs entirely on your own server, keeping documents inside your infrastructure</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Ideal as the online editing engine behind a file platform like Nextcloud, ownCloud or Seafile, or as a standalone document server for teams that need Office-compatible collaborative editing on their own infrastructure. Plan for at least 4 GB RAM and always front it with HTTPS and JWT enabled.</p>
+</div>]]></field>
+        <field name="category">productivity</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="health_check_command">curl -f http://localhost/healthcheck</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/onlyoffice-docs.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration')])]"/>
+        <field name="website_url">https://www.onlyoffice.com/docs.aspx</field>
+        <field name="documentation_url">https://helpcenter.onlyoffice.com/docs/installation/docs-community-docker-compose.aspx</field>
+        <field name="source_url">https://github.com/ONLYOFFICE/Docker-DocumentServer</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  onlyoffice-docs:
+    image: onlyoffice/documentserver:latest
+    environment:
+    - JWT_ENABLED=true
+    - JWT_SECRET={{ JWT_SECRET }}
+    volumes:
+    - ./onlyoffice_data:/var/www/onlyoffice/Data
+    - ./onlyoffice_log:/var/log/onlyoffice
+    - ./onlyoffice_lib:/var/lib/onlyoffice
+    - ./onlyoffice_db:/var/lib/postgresql
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - curl -f http://127.0.0.1/healthcheck || exit 1
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 60s
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_onlyoffice-docs_port_http" model="service.template.port">
+        <field name="template_id" ref="template_onlyoffice-docs"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_onlyoffice-docs_var_jwt_secret" model="service.template.variable">
+        <field name="template_id" ref="template_onlyoffice-docs"/>
+        <field name="name">JWT_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Shared secret used to sign the JWT tokens exchanged between ONLYOFFICE Docs and the document management system that embeds it. Paste the same value into the connector (e.g. Nextcloud).</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_onlyoffice-docs_vol_data" model="service.template.volume">
+        <field name="template_id" ref="template_onlyoffice-docs"/>
+        <field name="name">onlyoffice_data</field>
+        <field name="local_path">./onlyoffice_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_onlyoffice-docs_vol_lib" model="service.template.volume">
+        <field name="template_id" ref="template_onlyoffice-docs"/>
+        <field name="name">onlyoffice_lib</field>
+        <field name="local_path">./onlyoffice_lib</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_onlyoffice-docs_vol_log" model="service.template.volume">
+        <field name="template_id" ref="template_onlyoffice-docs"/>
+        <field name="name">onlyoffice_log</field>
+        <field name="local_path">./onlyoffice_log</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_onlyoffice-docs_vol_db" model="service.template.volume">
+        <field name="template_id" ref="template_onlyoffice-docs"/>
+        <field name="name">onlyoffice_db</field>
+        <field name="local_path">./onlyoffice_db</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">40</field>
+    </record>
+</odoo>

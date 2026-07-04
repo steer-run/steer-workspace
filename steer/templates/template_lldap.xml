@@ -1,0 +1,125 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID de 'lldap' (imagen lldap/lldap:stable) desconocido → DEFAULT 1000:1000,
+             verificar (el entrypoint hace chown de /data según UID/GID configurados).
+           - LDAP sin TLS: exponé el puerto 3890 solo en redes de confianza; para LDAPS configurá
+             certificados. No exponer LDAP a Internet.
+           - Imagen en 'stable': fijá un tag versionado (p. ej. v0.6) antes de producción.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_lldap" model="service.template">
+        <field name="name">LLDAP</field>
+        <field name="code">lldap</field>
+        <field name="service_code">lldap</field>
+        <field name="version">stable</field>
+        <field name="description">LLDAP is a lightweight LDAP server with a web UI to centralize users and groups for self-hosted apps — a simple alternative to OpenLDAP and Active Directory.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">LLDAP is a lightweight LDAP server with a web UI to centralize users and groups for self-hosted apps — a simple alternative to OpenLDAP and Active Directory.</p>
+  <p>It gives you a single directory of users and groups that your internal applications can authenticate against over LDAP, without the complexity of running a full OpenLDAP or Active Directory deployment. Written in Rust, it ships as one small binary with an opinionated, simplified schema and a clean web interface for managing accounts and memberships. It targets home labs, small teams, and self-hosters who want centralized identity for tools like Authelia, Nextcloud, Grafana, or Gitea while keeping the moving parts to a minimum.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Simple, opinionated LDAP schema focused on users, groups, and memberships</li>
+    <li>Clean web interface to create and manage users, groups, and attributes</li>
+    <li>LDAP bind for application authentication, plus LDAPS when certificates are configured</li>
+    <li>Built-in GraphQL API for automation and scripting</li>
+    <li>Documented integrations with Authelia, Authentik, Nextcloud, Grafana, Gitea, and many more</li>
+    <li>Lightweight single Rust binary with a tiny memory and CPU footprint</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Home labs, small teams, and self-hosters who need one central directory for their internal apps without operating a full OpenLDAP or Active Directory. Keep the LDAP port on trusted networks, since plain LDAP is unencrypted unless you enable LDAPS.</p>
+</div>]]></field>
+        <field name="category">security</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="health_check_command">wget -q --spider http://localhost:17170/</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/lldap.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_identity'), ref('agz_infra_suite.tag_security')])]"/>
+        <field name="website_url">https://lldap.com/</field>
+        <field name="documentation_url">https://github.com/lldap/lldap/blob/main/docs/install.md</field>
+        <field name="source_url">https://github.com/lldap/lldap</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  lldap:
+    image: lldap/lldap:stable
+    restart: unless-stopped
+    environment:
+      LLDAP_JWT_SECRET: ${LLDAP_JWT_SECRET}
+      LLDAP_KEY_SEED: ${LLDAP_KEY_SEED}
+      LLDAP_LDAP_BASE_DN: ${LLDAP_LDAP_BASE_DN}
+      LLDAP_LDAP_USER_PASS: ${LLDAP_LDAP_USER_PASS}
+    volumes:
+    - ./lldap_data:/data
+    ports:
+    - '{{ PORT_HTTP }}:17170'
+    - '{{ PORT_LDAP }}:3890'
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+    </record>
+    <record id="template_lldap_port_http" model="service.template.port">
+        <field name="template_id" ref="template_lldap"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">17170</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_lldap_port_ldap" model="service.template.port">
+        <field name="template_id" ref="template_lldap"/>
+        <field name="code">ldap</field>
+        <field name="name">LDAP</field>
+        <field name="default_port">3890</field>
+        <field name="traefik_routed">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_lldap_var_jwt_secret" model="service.template.variable">
+        <field name="template_id" ref="template_lldap"/>
+        <field name="name">LLDAP_JWT_SECRET</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Secret used to sign session JWT tokens.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_lldap_var_key_seed" model="service.template.variable">
+        <field name="template_id" ref="template_lldap"/>
+        <field name="name">LLDAP_KEY_SEED</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Seed used to derive the server encryption key; keep it stable across restarts.</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_lldap_var_ldap_user_pass" model="service.template.variable">
+        <field name="template_id" ref="template_lldap"/>
+        <field name="name">LLDAP_LDAP_USER_PASS</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the built-in LDAP administrator account.</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_lldap_var_ldap_base_dn" model="service.template.variable">
+        <field name="template_id" ref="template_lldap"/>
+        <field name="name">LLDAP_LDAP_BASE_DN</field>
+        <field name="var_type">string</field>
+        <field name="default_value">dc=example,dc=com</field>
+        <field name="description">Base distinguished name (DN) for the LDAP directory tree.</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_lldap_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_lldap"/>
+        <field name="name">lldap-data</field>
+        <field name="local_path">./lldap_data</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

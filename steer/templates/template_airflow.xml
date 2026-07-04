@@ -1,0 +1,368 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (app avanzada / alto operativo):
+           - Stack pesado (CeleryExecutor: web + scheduler + worker + triggerer + PostgreSQL + Redis):
+             preflight de RAM/CPU/disco antes de desplegar (varios GB de RAM).
+           - No apta para usuarios no técnicos: los DAGs ejecutan código Python arbitrario.
+           - Primer arranque: el contenedor init migra la DB y crea el usuario admin; login con
+             airflow_admin_username + AIRFLOW_ADMIN_PASSWORD; los DAGs se cargan en ./dags.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_airflow" model="service.template">
+        <field name="name">Apache Airflow</field>
+        <field name="code">airflow</field>
+        <field name="service_code">airflow</field>
+        <field name="version">latest</field>
+        <field name="description">Apache Airflow is an open-source platform to programmatically author, schedule and monitor data pipelines and workflows defined as Python code.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Apache Airflow is an open-source platform to programmatically author, schedule and monitor data pipelines and workflows defined as Python code.</p>
+  <p>Created at Airbnb and now a top-level Apache project, Airflow models each workflow as a Directed Acyclic Graph (DAG) of tasks written in Python, so pipelines become version-controlled, testable code instead of opaque cron jobs. It is a de facto standard for orchestrating ETL/ELT jobs, machine-learning pipelines and recurring automations across data warehouses, APIs and cloud services, with a rich web UI to visualise runs, inspect logs and retry failures. This deployment runs the CeleryExecutor stack (web server, scheduler, worker and triggerer) backed by PostgreSQL and Redis.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Workflows as Python code: DAGs with dependencies, branching, dynamic tasks and backfills</li>
+    <li>Rich web UI to trigger, monitor, inspect logs and retry runs with graph and Gantt views</li>
+    <li>Hundreds of provider packages: operators and hooks for databases, clouds, APIs and messaging</li>
+    <li>Distributed execution with a Celery worker pool plus a triggerer for deferrable async tasks</li>
+    <li>Flexible scheduling with cron, data intervals, sensors, SLAs, retries and alerting</li>
+    <li>REST API, pluggable executors, connections, variables and Fernet-encrypted secrets</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Data and platform engineers who need to orchestrate reliable, observable pipelines on their own infrastructure. This is an advanced, resource-hungry stack (plan for several GB of RAM and adequate CPU) and is not meant for non-technical users, since DAGs execute arbitrary Python. On first boot an init container migrates the database and creates the admin user; sign in at the web UI with the admin username and the generated password, then drop your DAG files into the ./dags folder. Keep it behind HTTPS and protect your connection credentials.</p>
+</div>]]></field>
+        <field name="category">automation</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">curl -fsS http://localhost:8080/health</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/airflow.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="website_url">https://airflow.apache.org/</field>
+        <field name="documentation_url">https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html</field>
+        <field name="source_url">https://github.com/apache/airflow</field>
+        <field name="docker_compose_template"><![CDATA[x-airflow-common:
+  &airflow-common
+  image: apache/airflow:2.10.5
+  environment:
+    &airflow-common-env
+    AIRFLOW__CORE__EXECUTOR: CeleryExecutor
+    AIRFLOW__DATABASE__SQL_ALCHEMY_CONN: postgresql+psycopg2://{{ postgres_user }}:${AIRFLOW_DB_PASSWORD}@postgres/{{ postgres_db }}
+    AIRFLOW__CELERY__RESULT_BACKEND: db+postgresql://{{ postgres_user }}:${AIRFLOW_DB_PASSWORD}@postgres/{{ postgres_db }}
+    AIRFLOW__CELERY__BROKER_URL: redis://redis:6379/0
+    AIRFLOW__CORE__FERNET_KEY: ${AIRFLOW_FERNET_KEY}
+    AIRFLOW__WEBSERVER__SECRET_KEY: ${AIRFLOW_WEBSERVER_SECRET_KEY}
+    AIRFLOW__CORE__DAGS_ARE_PAUSED_AT_CREATION: 'true'
+    AIRFLOW__CORE__LOAD_EXAMPLES: '{{ load_examples }}'
+    AIRFLOW__API__AUTH_BACKENDS: 'airflow.api.auth.backend.basic_auth,airflow.api.auth.backend.session'
+    AIRFLOW__SCHEDULER__ENABLE_HEALTH_CHECK: 'true'
+    AIRFLOW__WEBSERVER__EXPOSE_CONFIG: 'false'
+  volumes:
+  - ./dags:/opt/airflow/dags
+  - ./logs:/opt/airflow/logs
+  - ./plugins:/opt/airflow/plugins
+  - ./config:/opt/airflow/config
+  user: "{{ airflow_uid }}:0"
+  depends_on:
+    &airflow-common-depends-on
+    postgres:
+      condition: service_healthy
+    redis:
+      condition: service_healthy
+services:
+  postgres:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_USER: {{ postgres_user }}
+      POSTGRES_PASSWORD: ${AIRFLOW_DB_PASSWORD}
+      POSTGRES_DB: {{ postgres_db }}
+    volumes:
+    - ./postgres_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U {{ postgres_user }} -d {{ postgres_db }}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 20s
+    expose:
+    - 5432
+    container_name: '{{ INSTANCE_CODE }}_postgres'
+    networks:
+    - internal
+  redis:
+    image: redis:7-alpine
+    restart: unless-stopped
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 10s
+    expose:
+    - 6379
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    networks:
+    - internal
+  airflow-init:
+    <<: *airflow-common
+    restart: on-failure
+    entrypoint: /bin/bash
+    command:
+    - -c
+    - |
+      airflow db migrate
+      airflow users create --role Admin --username "$${_AIRFLOW_WWW_USER_USERNAME}" --password "$${_AIRFLOW_WWW_USER_PASSWORD}" --firstname Admin --lastname User --email "$${_AIRFLOW_WWW_USER_USERNAME}@example.com" || true
+    environment:
+      <<: *airflow-common-env
+      _AIRFLOW_WWW_USER_USERNAME: '{{ airflow_admin_username }}'
+      _AIRFLOW_WWW_USER_PASSWORD: ${AIRFLOW_ADMIN_PASSWORD}
+    user: "0:0"
+    container_name: '{{ INSTANCE_CODE }}_init'
+    networks:
+    - internal
+  airflow-webserver:
+    <<: *airflow-common
+    restart: unless-stopped
+    command: webserver
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - --fail
+      - http://localhost:8080/health
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    networks:
+    - internal
+    - agz-proxy-network
+  airflow-scheduler:
+    <<: *airflow-common
+    restart: unless-stopped
+    command: scheduler
+    healthcheck:
+      test:
+      - CMD
+      - curl
+      - --fail
+      - http://localhost:8974/health
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    container_name: '{{ INSTANCE_CODE }}_scheduler'
+    networks:
+    - internal
+  airflow-worker:
+    <<: *airflow-common
+    restart: unless-stopped
+    command: celery worker
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - celery --app airflow.providers.celery.executors.celery_executor.app inspect ping -d "celery@$${HOSTNAME}"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    environment:
+      <<: *airflow-common-env
+      DUMB_INIT_SETSID: '0'
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    container_name: '{{ INSTANCE_CODE }}_worker'
+    networks:
+    - internal
+  airflow-triggerer:
+    <<: *airflow-common
+    restart: unless-stopped
+    command: triggerer
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - airflow jobs check --job-type TriggererJob --hostname "$${HOSTNAME}"
+      interval: 30s
+      timeout: 10s
+      retries: 5
+      start_period: 90s
+    depends_on:
+      <<: *airflow-common-depends-on
+      airflow-init:
+        condition: service_completed_successfully
+    container_name: '{{ INSTANCE_CODE }}_triggerer'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T postgres sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d postgres
+for i in $(seq 1 30); do
+  docker compose exec -T postgres sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T postgres sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T postgres sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_airflow_port_http" model="service.template.port">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_airflow_var_airflow_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">AIRFLOW_DB_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">PostgreSQL password for the Airflow metadata database.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_airflow_var_airflow_fernet_key" model="service.template.variable">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">AIRFLOW_FERNET_KEY</field>
+        <field name="var_type">fernet_key</field>
+        <field name="is_secret">True</field>
+        <field name="description">Fernet key used to encrypt connection passwords and variables at rest.</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_airflow_var_airflow_webserver_secret_key" model="service.template.variable">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">AIRFLOW_WEBSERVER_SECRET_KEY</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Flask secret key that signs the web UI session cookies.</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_airflow_var_airflow_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">AIRFLOW_ADMIN_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the initial Airflow admin (web UI) account.</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_airflow_var_postgres_user" model="service.template.variable">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">postgres_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">airflow</field>
+        <field name="description">PostgreSQL role that owns the Airflow metadata database.</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_airflow_var_postgres_db" model="service.template.variable">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">postgres_db</field>
+        <field name="var_type">string</field>
+        <field name="default_value">airflow</field>
+        <field name="description">Name of the Airflow metadata database.</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_airflow_var_airflow_admin_username" model="service.template.variable">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">airflow_admin_username</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin</field>
+        <field name="description">Username for the initial Airflow admin (web UI) account.</field>
+        <field name="sequence">70</field>
+    </record>
+    <record id="template_airflow_var_airflow_uid" model="service.template.variable">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">airflow_uid</field>
+        <field name="var_type">string</field>
+        <field name="default_value">50000</field>
+        <field name="description">Host UID that owns the mounted dags/logs/plugins/config folders.</field>
+        <field name="sequence">80</field>
+    </record>
+    <record id="template_airflow_var_load_examples" model="service.template.variable">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">load_examples</field>
+        <field name="var_type">selection</field>
+        <field name="selection_options">true,false</field>
+        <field name="default_value">false</field>
+        <field name="description">Load the bundled example DAGs on first start.</field>
+        <field name="sequence">90</field>
+    </record>
+    <record id="template_airflow_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">postgres_data</field>
+        <field name="local_path">./postgres_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_airflow_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">dags</field>
+        <field name="local_path">./dags</field>
+        <field name="owner">50000:0</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_airflow_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">logs</field>
+        <field name="local_path">./logs</field>
+        <field name="owner">50000:0</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_airflow_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">plugins</field>
+        <field name="local_path">./plugins</field>
+        <field name="owner">50000:0</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_airflow_vol_4" model="service.template.volume">
+        <field name="template_id" ref="template_airflow"/>
+        <field name="name">config</field>
+        <field name="local_path">./config</field>
+        <field name="owner">50000:0</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">50</field>
+    </record>
+</odoo>

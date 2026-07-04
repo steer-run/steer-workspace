@@ -1,0 +1,162 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Imagen en 'latest': fijá un tag estable antes de producción.
+           - Backend de storage: por defecto filesystem local con retención acotada; para producción seria considerar S3/MinIO.
+           - Tiene 1 mount(s) de config: revisar rutas y montaje en el compose.
+           - App interna (backend de logs): no exponer 3100 público; integrarla con Grafana por la red interna.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_loki" model="service.template">
+        <field name="name">Grafana Loki</field>
+        <field name="code">loki</field>
+        <field name="service_code">loki</field>
+        <field name="version">latest</field>
+        <field name="description">Grafana Loki is a horizontally scalable, cost-efficient log aggregation system that indexes only labels and pairs natively with Grafana to explore your logs.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Grafana Loki is a horizontally scalable, cost-efficient log aggregation system that indexes only labels and pairs natively with Grafana to explore your logs.</p>
+  <p>Inspired by Prometheus, Loki centralizes logs from containers and servers without indexing the full contents of every line: it only indexes a small set of labels and stores the compressed log streams as chunks. That keeps storage and memory use far lower than a full-text search stack like Elasticsearch, making it a practical logging backend for small teams and large fleets alike. It is designed to sit next to Prometheus metrics inside Grafana, so you can pivot from a spike on a dashboard straight to the matching logs.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Indexes only labels and metadata, not full log text — dramatically lower storage cost and RAM</li>
+    <li>LogQL, a Prometheus-inspired query language for filtering and aggregating log streams</li>
+    <li>Native Grafana integration to explore, correlate and dashboard logs alongside metrics</li>
+    <li>Pluggable storage: local filesystem for small setups, S3/MinIO/GCS object storage to scale out</li>
+    <li>Configurable retention and compaction with a built-in compactor and per-tenant limits</li>
+    <li>Ingests from Promtail, Grafana Alloy, Fluentd, Fluent Bit and the Docker logging driver</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams already using Grafana that want centralized, low-cost log aggregation for containers and servers without the operational weight of an Elasticsearch-based stack. Ideal as the logging backend of an observability stack: keep it on the internal network and feed it from Promtail or Grafana Alloy.</p>
+</div>]]></field>
+        <field name="category">monitoring</field>
+        <field name="is_web_app">False</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">standard</field>
+        <field name="health_check_command">wget -q --spider http://localhost:3100/ready</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/loki.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_logging')])]"/>
+        <field name="website_url">https://grafana.com/oss/loki/</field>
+        <field name="documentation_url">https://grafana.com/docs/loki/latest/</field>
+        <field name="source_url">https://github.com/grafana/loki</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  loki:
+    image: grafana/loki:latest
+    restart: unless-stopped
+    command: -config.file=/etc/loki/local-config.yaml
+    volumes:
+    - ./loki_data:/loki
+    - ./config/loki-config.yaml:/etc/loki/local-config.yaml:ro
+    container_name: '{{ INSTANCE_CODE }}'
+    expose:
+    - 3100
+    networks:
+    - internal
+    healthcheck:
+      test:
+      - CMD
+      - wget
+      - -q
+      - --spider
+      - http://localhost:3100/ready
+      interval: 30s
+      timeout: 5s
+      retries: 5
+networks:
+  internal:
+    driver: bridge
+]]></field>
+    </record>
+    <record id="template_loki_port_http" model="service.template.port">
+        <field name="template_id" ref="template_loki"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">3100</field>
+        <field name="traefik_routed">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_loki_var_retention_days" model="service.template.variable">
+        <field name="template_id" ref="template_loki"/>
+        <field name="name">retention_days</field>
+        <field name="var_type">integer</field>
+        <field name="is_secret">False</field>
+        <field name="default_value">30</field>
+        <field name="description">Number of days Loki keeps ingested logs before the compactor deletes them.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_loki_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_loki"/>
+        <field name="name">loki-data</field>
+        <field name="local_path">./loki_data</field>
+        <field name="owner">10001:10001</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_loki_cfg_0" model="service.template.config.file">
+        <field name="template_id" ref="template_loki"/>
+        <field name="name">loki-config.yaml</field>
+        <field name="filename">loki-config.yaml</field>
+        <field name="path">./config</field>
+        <field name="content_template"><![CDATA[# Grafana Loki configuration (single-binary, filesystem storage)
+# https://grafana.com/docs/loki/latest/configure/
+
+auth_enabled: false
+
+server:
+  http_listen_port: 3100
+  grpc_listen_port: 9096
+  log_level: info
+
+common:
+  instance_addr: 127.0.0.1
+  path_prefix: /loki
+  storage:
+    filesystem:
+      chunks_directory: /loki/chunks
+      rules_directory: /loki/rules
+  replication_factor: 1
+  ring:
+    kvstore:
+      store: inmemory
+
+schema_config:
+  configs:
+    - from: 2020-10-24
+      store: tsdb
+      object_store: filesystem
+      schema: v13
+      index:
+        prefix: index_
+        period: 24h
+
+limits_config:
+  retention_period: {{ retention_days }}d
+  reject_old_samples: true
+  reject_old_samples_max_age: 168h
+  ingestion_rate_mb: 10
+  ingestion_burst_size_mb: 20
+
+compactor:
+  working_directory: /loki/compactor
+  delete_request_store: filesystem
+  retention_enabled: true
+  retention_delete_delay: 2h
+  compaction_interval: 10m
+
+ruler:
+  storage:
+    type: local
+    local:
+      directory: /loki/rules
+  rule_path: /loki/rules-temp
+  enable_api: true
+
+# For production scale, replace the filesystem backend above with S3/MinIO/GCS
+# object storage. Do not expose port 3100 publicly; query Loki from Grafana over
+# the internal network.
+analytics:
+  reporting_enabled: false
+]]></field>
+    </record>
+</odoo>

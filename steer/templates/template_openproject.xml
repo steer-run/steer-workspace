@@ -1,0 +1,156 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Owner UID:GID del volumen 'assets' (imagen openproject/openproject) asumido 1000:1000, verificar.
+           - Imagen all-in-one: web + workers + cron + memcached corren dentro del contenedor;
+             al pasar DATABASE_URL a un host externo NO arranca su PostgreSQL interno (usa el servicio 'db').
+           - OPENPROJECT_HTTPS=true asume que Traefik termina TLS; requiere dominio con certificado.
+           - App pesada: recomendar mínimo 4 GB de RAM para uso cómodo.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_openproject" model="service.template">
+        <field name="name">OpenProject</field>
+        <field name="code">openproject</field>
+        <field name="service_code">openproject</field>
+        <field name="version">latest</field>
+        <field name="description">OpenProject is an open-source project management platform for classic, agile and hybrid teams: roadmaps, Gantt charts, boards and time tracking, fully self-hosted.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">OpenProject is an open-source project management platform for classic, agile and hybrid teams: roadmaps, Gantt charts, boards and time tracking, fully self-hosted.</p>
+  <p>OpenProject brings project planning, task management, agile boards, roadmaps, bug tracking and team collaboration into a single self-hosted application. Built on Ruby on Rails and backed by PostgreSQL, it targets companies that want full ownership of their project data and a privacy-friendly alternative to Jira, Trello, Asana or MS Project. Work is organized into projects and work packages, so engineering, product and PMO teams can plan, track and report on cross-functional initiatives from one place.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Work packages with statuses, types, custom fields and hierarchical parent/child tasks</li>
+    <li>Gantt charts and roadmaps for classic project planning and milestones</li>
+    <li>Agile boards for Scrum and Kanban with backlogs, sprints and story points</li>
+    <li>Time and cost tracking, budgets and cost reporting</li>
+    <li>Wikis, forums, document management and per-project role-based permissions</li>
+    <li>REST API, LDAP/SAML/OIDC authentication and email notifications</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Companies and teams that want a self-hosted alternative to Jira, Trello, Asana or MS Project: engineering, product and PMO teams managing roadmaps, sprints and cross-functional work with full data ownership. Plan for at least 4 GB of RAM for comfortable use.</p>
+</div>]]></field>
+        <field name="category">business</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/openproject.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_project_management'), ref('agz_infra_suite.tag_collaboration')])]"/>
+        <field name="website_url">https://www.openproject.org/</field>
+        <field name="documentation_url">https://www.openproject.org/docs/installation-and-operations/installation/docker-compose/</field>
+        <field name="source_url">https://github.com/opf/openproject</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  openproject:
+    image: openproject/openproject:15
+    restart: unless-stopped
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    environment:
+      OPENPROJECT_HOST__NAME: '{{ domain }}'
+      OPENPROJECT_HTTPS: 'true'
+      OPENPROJECT_SECRET_KEY_BASE: '{{ secret_key_base }}'
+      OPENPROJECT_RAILS__RELATIVE__URL__ROOT: ''
+      DATABASE_URL: 'postgres://openproject:{{ db_password }}@db:5432/openproject?pool=20&encoding=unicode&reconnect=true'
+    volumes:
+    - ./assets:/var/openproject/assets
+    depends_on:
+      db:
+        condition: service_healthy
+    container_name: '{{ INSTANCE_CODE }}'
+    networks:
+    - internal
+    - agz-proxy-network
+  db:
+    image: postgres:16
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB: openproject
+      POSTGRES_USER: openproject
+      POSTGRES_PASSWORD: '{{ db_password }}'
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U $${POSTGRES_USER} -d $${POSTGRES_DB}
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    volumes:
+    - ./db_data:/var/lib/postgresql/data
+    container_name: '{{ INSTANCE_CODE }}_db'
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR
+docker compose exec -T db sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d db
+for i in $(seq 1 30); do
+  docker compose exec -T db sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T db sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T db sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_openproject_port_http" model="service.template.port">
+        <field name="template_id" ref="template_openproject"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_openproject_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_openproject"/>
+        <field name="name">db_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">PostgreSQL password for the OpenProject database user.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_openproject_var_secret_key_base" model="service.template.variable">
+        <field name="template_id" ref="template_openproject"/>
+        <field name="name">secret_key_base</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Rails secret key base used to sign sessions and cookies.</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_openproject_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_openproject"/>
+        <field name="name">assets</field>
+        <field name="local_path">./assets</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_openproject_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_openproject"/>
+        <field name="name">db_data</field>
+        <field name="local_path">./db_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>

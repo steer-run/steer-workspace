@@ -1,0 +1,140 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="template_mariadb" model="service.template">
+        <field name="name">MariaDB</field>
+        <field name="code">mariadb</field>
+        <field name="service_code">mariadb</field>
+        <field name="version">11</field>
+        <field name="description">MariaDB is a fast, MySQL-compatible open-source relational database for CMSs, CRMs and business apps that expect a MySQL backend.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">MariaDB is a fast, MySQL-compatible open-source relational database for CMSs, CRMs and business apps that expect a MySQL backend.</p>
+  <p>Created by the original authors of MySQL, MariaDB is a community-developed, GPL-licensed relational database that stays wire- and SQL-compatible with MySQL, so most MySQL applications connect to it unchanged. It is a proven backing store for CMSs, CRMs and administrative systems, and is often the better-tested option for apps that do not support PostgreSQL. This standalone deployment runs on the official image and provisions an application database and a dedicated user on first boot, ready for other services to connect over the internal network.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>MySQL wire and SQL compatibility, so most MySQL apps run without changes</li>
+    <li>Pluggable storage engines including InnoDB for reliable ACID transactions</li>
+    <li>Query optimizer, thread pool and parallel replication for strong performance</li>
+    <li>Official Docker image with unattended setup through MARIADB_* environment variables</li>
+    <li>Automatic creation of an application database and a dedicated user on first start</li>
+    <li>Community-driven, GPL-licensed and a drop-in successor to MySQL</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Teams that need a proven MySQL-compatible database to back apps such as Matomo, SuiteCRM, EspoCRM, WordPress or LimeSurvey, or any service that is better tested against MySQL/MariaDB than PostgreSQL. Deploy it once and connect apps over the internal network with per-app credentials, never exposing port 3306 to the Internet.</p>
+</div>]]></field>
+        <field name="category">database</field>
+        <field name="is_web_app">False</field>
+        <field name="requires_database">False</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">healthcheck.sh --connect</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/mariadb.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database')])]"/>
+        <field name="website_url">https://mariadb.org/</field>
+        <field name="documentation_url">https://mariadb.com/docs/</field>
+        <field name="source_url">https://github.com/MariaDB/server</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  mariadb:
+    image: mariadb:11
+    container_name: '{{ INSTANCE_CODE }}'
+    restart: unless-stopped
+    environment:
+      MARIADB_ROOT_PASSWORD: {{ root_password }}
+      MARIADB_DATABASE: {{ db_name }}
+      MARIADB_USER: {{ db_user }}
+      MARIADB_PASSWORD: {{ db_password }}
+    volumes:
+    - ./data:/var/lib/mysql
+    expose:
+    - 3306
+    networks:
+    - internal
+    healthcheck:
+      test: ["CMD", "healthcheck.sh", "--connect", "--innodb_initialized"]
+      interval: 30s
+      timeout: 10s
+      retries: 5
+networks:
+  internal:
+    driver: bridge
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+# Dump lógico de la base de aplicación. Corre dentro del contenedor con las credenciales
+# del entorno (MARIADB_*), nunca inline. MariaDB 11 usa el binario `mariadb-dump`.
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose exec -T mariadb sh -c \
+  'exec mariadb-dump -uroot -p"$MARIADB_ROOT_PASSWORD" --single-transaction --databases "$MARIADB_DATABASE"' \
+  > "$BACKUP_DATA_DIR/db.sql"
+echo "mariadb-dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+# Restaura el dump lógico. Levanta la BD, espera readiness y reimporta el .sql; luego
+# verifica que la base de aplicación quedó con al menos una tabla.
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d mariadb
+for i in $(seq 1 30); do
+    docker compose exec -T mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -e "SELECT 1"' >/dev/null 2>&1 && break
+    sleep 2
+done
+cat "$RESTORE_DATA_DIR/db.sql" | docker compose exec -T mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD"'
+N=$(docker compose exec -T mariadb sh -c 'exec mariadb -uroot -p"$MARIADB_ROOT_PASSWORD" -N -e "SELECT count(*) FROM information_schema.tables WHERE table_schema=\"$MARIADB_DATABASE\""')
+echo "restored tables: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+
+    <record id="template_mariadb_port_db" model="service.template.port">
+        <field name="template_id" ref="template_mariadb"/>
+        <field name="code">db</field>
+        <field name="name">MariaDB</field>
+        <field name="default_port">3306</field>
+        <field name="traefik_routed">False</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <record id="template_mariadb_var_root_password" model="service.template.variable">
+        <field name="template_id" ref="template_mariadb"/>
+        <field name="name">root_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the MariaDB root superuser.</field>
+        <field name="sequence">10</field>
+    </record>
+
+    <record id="template_mariadb_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_mariadb"/>
+        <field name="name">db_name</field>
+        <field name="var_type">string</field>
+        <field name="default_value">app</field>
+        <field name="description">Application database created on first boot.</field>
+        <field name="sequence">20</field>
+    </record>
+
+    <record id="template_mariadb_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_mariadb"/>
+        <field name="name">db_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">app</field>
+        <field name="description">Application database user created on first boot.</field>
+        <field name="sequence">30</field>
+    </record>
+
+    <record id="template_mariadb_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_mariadb"/>
+        <field name="name">db_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the application database user.</field>
+        <field name="sequence">40</field>
+    </record>
+
+    <record id="template_mariadb_vol_data" model="service.template.volume">
+        <field name="template_id" ref="template_mariadb"/>
+        <field name="name">MariaDB data</field>
+        <field name="local_path">./data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+</odoo>

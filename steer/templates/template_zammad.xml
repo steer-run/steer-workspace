@@ -1,0 +1,325 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <!-- ========================================================
+         REVISAR antes de publicar (heurísticas inciertas):
+           - Multi-servicio (zammad-nginx web + zammad-railsserver, zammad-scheduler,
+             zammad-websocket, zammad-init, y backends postgresql/redis/memcached/elasticsearch):
+             revisar backup/red/init.
+           - zammad-init corre una vez como root (user 0:0) para preparar la BD y permisos;
+             restart: on-failure (no unless-stopped) porque es un one-shot que termina.
+           - Owner UID:GID de los servicios 'zammad' (imagen ghcr.io/zammad/zammad:latest)
+             asumido 1000:1000 → verificar.
+           - Elasticsearch (bitnamilegacy) pide RAM y vm.max_map_count=262144 en el host.
+         Validá con el botón «Validar» y el procedimiento E2E de la guía §6.
+    ======================================================== -->
+    <record id="template_zammad" model="service.template">
+        <field name="name">Zammad</field>
+        <field name="code">zammad</field>
+        <field name="service_code">zammad</field>
+        <field name="version">latest</field>
+        <field name="description">Zammad is an open-source, web-based help desk that unifies email, chat and social channels into one collaborative ticketing workspace for support teams.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">Zammad is an open-source, web-based help desk that unifies email, chat and social channels into one collaborative ticketing workspace for support teams.</p>
+  <p>Zammad is a full-featured customer support and ticketing platform, positioned as a self-hostable alternative to Zendesk and Freshdesk. It consolidates email, live chat, phone (CTI), Telegram, Facebook and X into a single shared inbox, so agents work every conversation from one place with a complete customer history. Built on Ruby on Rails with an Elasticsearch-powered search, it is aimed at support, service and IT teams that want a professional help desk while keeping tickets and customer data on their own infrastructure.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Omnichannel shared inbox: email, live chat widget, phone/CTI, Telegram, Facebook and X</li>
+    <li>Full ticketing with SLAs, triggers, schedulers and automated escalations</li>
+    <li>Fast full-text search across tickets, users and organizations via Elasticsearch</li>
+    <li>Granular roles and permissions, plus a customizable knowledge base</li>
+    <li>Reporting, dashboards and a complete audit trail of every ticket change</li>
+    <li>REST API, webhooks and integrations (GitHub, GitLab, Slack, i-doit) for automation</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Support, service and IT teams that need a professional, self-hosted help desk with omnichannel intake and full data ownership. Note: this is a multi-service stack (Elasticsearch needs RAM and <code>vm.max_map_count=262144</code> on the host); create the first admin from the web UI after install, set the correct FQDN, and configure inbound/outbound email (DNS/MX/SMTP/IMAP) before going live.</p>
+</div>]]></field>
+        <field name="category">business</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">postgres</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/zammad.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_helpdesk'), ref('agz_infra_suite.tag_business')])]"/>
+        <field name="website_url">https://zammad.com/</field>
+        <field name="documentation_url">https://docs.zammad.org/en/latest/install/docker-compose.html</field>
+        <field name="source_url">https://github.com/zammad/zammad</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  zammad-postgresql:
+    image: postgres:17-alpine
+    environment:
+      POSTGRES_DB: ${POSTGRES_DB}
+      POSTGRES_USER: ${POSTGRES_USER}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
+    volumes:
+    - ./zammad_postgresql_data:/var/lib/postgresql/data
+    healthcheck:
+      test:
+      - CMD-SHELL
+      - pg_isready -U "$$POSTGRES_USER" -d "$$POSTGRES_DB"
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}_postgresql'
+    expose:
+    - '5432'
+    networks:
+    - internal
+  zammad-redis:
+    image: redis:7.4-alpine
+    command: redis-server --appendonly yes
+    volumes:
+    - ./zammad_redis_data:/data
+    healthcheck:
+      test:
+      - CMD
+      - redis-cli
+      - ping
+      interval: 10s
+      timeout: 5s
+      retries: 5
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}_redis'
+    expose:
+    - '6379'
+    networks:
+    - internal
+  zammad-memcached:
+    image: memcached:1.6-alpine
+    command: memcached -m 256M
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}_memcached'
+    expose:
+    - '11211'
+    networks:
+    - internal
+  zammad-elasticsearch:
+    image: docker.io/bitnamilegacy/elasticsearch:8.17.4
+    environment:
+      BITNAMI_DEBUG: 'false'
+      ELASTICSEARCH_ENABLE_SECURITY: 'true'
+      ELASTICSEARCH_PASSWORD: ${ELASTICSEARCH_PASSWORD}
+      ELASTICSEARCH_SKIP_TRANSPORT_TLS: 'true'
+      ELASTICSEARCH_ENABLE_REST_TLS: 'false'
+      ELASTICSEARCH_HEAP_SIZE: 512m
+    volumes:
+    - ./zammad_elasticsearch_data:/bitnami/elasticsearch/data
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}_elasticsearch'
+    expose:
+    - '9200'
+    networks:
+    - internal
+  zammad-init:
+    image: ghcr.io/zammad/zammad:latest
+    command:
+    - zammad-init
+    user: 0:0
+    environment: &zammad_env
+      MEMCACHE_SERVERS: zammad-memcached:11211
+      REDIS_URL: redis://zammad-redis:6379
+      POSTGRESQL_HOST: zammad-postgresql
+      POSTGRESQL_PORT: '5432'
+      POSTGRESQL_DB: ${POSTGRES_DB}
+      POSTGRESQL_USER: ${POSTGRES_USER}
+      POSTGRESQL_PASS: ${POSTGRES_PASSWORD}
+      ELASTICSEARCH_HOST: zammad-elasticsearch
+      ELASTICSEARCH_PORT: '9200'
+      ELASTICSEARCH_SCHEMA: http
+      ELASTICSEARCH_USER: elastic
+      ELASTICSEARCH_PASS: ${ELASTICSEARCH_PASSWORD}
+    depends_on:
+      zammad-postgresql:
+        condition: service_healthy
+    volumes:
+    - ./zammad_storage:/opt/zammad/storage
+    restart: on-failure
+    container_name: '{{ INSTANCE_CODE }}_init'
+    networks:
+    - internal
+  zammad-railsserver:
+    image: ghcr.io/zammad/zammad:latest
+    command:
+    - zammad-railsserver
+    environment: *zammad_env
+    depends_on:
+      zammad-init:
+        condition: service_completed_successfully
+      zammad-postgresql:
+        condition: service_healthy
+      zammad-redis:
+        condition: service_healthy
+      zammad-memcached:
+        condition: service_started
+      zammad-elasticsearch:
+        condition: service_started
+    volumes:
+    - ./zammad_storage:/opt/zammad/storage
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}_railsserver'
+    expose:
+    - '3000'
+    networks:
+    - internal
+  zammad-scheduler:
+    image: ghcr.io/zammad/zammad:latest
+    command:
+    - zammad-scheduler
+    environment: *zammad_env
+    depends_on:
+      zammad-init:
+        condition: service_completed_successfully
+      zammad-railsserver:
+        condition: service_started
+    volumes:
+    - ./zammad_storage:/opt/zammad/storage
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}_scheduler'
+    networks:
+    - internal
+  zammad-websocket:
+    image: ghcr.io/zammad/zammad:latest
+    command:
+    - zammad-websocket
+    environment: *zammad_env
+    depends_on:
+      zammad-init:
+        condition: service_completed_successfully
+      zammad-railsserver:
+        condition: service_started
+    volumes:
+    - ./zammad_storage:/opt/zammad/storage
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}_websocket'
+    expose:
+    - '6042'
+    networks:
+    - internal
+  zammad-nginx:
+    image: ghcr.io/zammad/zammad:latest
+    command:
+    - zammad-nginx
+    environment: *zammad_env
+    depends_on:
+      zammad-railsserver:
+        condition: service_started
+      zammad-websocket:
+        condition: service_started
+    volumes:
+    - ./zammad_storage:/opt/zammad/storage
+    restart: unless-stopped
+    container_name: '{{ INSTANCE_CODE }}'
+    ports:
+    - '{{ PORT_HTTP }}:8080'
+    networks:
+    - internal
+    - agz-proxy-network
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump consistente de PostgreSQL (servicio en marcha) → $BACKUP_DATA_DIR.
+# Zammad guarda los adjuntos en la BD por defecto, así que el dump es la fuente de verdad.
+docker compose exec -T zammad-postgresql sh -c 'pg_dump -U "$POSTGRES_USER" -d "$POSTGRES_DB" --no-owner -Fc' \
+  > "$BACKUP_DATA_DIR/db.dump"
+echo "pg_dump OK ($(wc -c < "$BACKUP_DATA_DIR/db.dump") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Levanta solo la DB, espera readiness y restaura
+docker compose up -d zammad-postgresql
+for i in $(seq 1 30); do
+  docker compose exec -T zammad-postgresql sh -c 'pg_isready -U "$POSTGRES_USER"' && break
+  sleep 2
+done
+docker compose exec -T zammad-postgresql sh -c 'pg_restore -U "$POSTGRES_USER" -d "$POSTGRES_DB" --clean --if-exists --no-owner' \
+  < "$RESTORE_DATA_DIR/db.dump"
+# Verificación: la DB no quedó vacía (sh -c con dobles comillas; $VAR del contenedor con \$)
+N=$(docker compose exec -T zammad-postgresql sh -c "psql -U \$POSTGRES_USER -d \$POSTGRES_DB -tAc \"SELECT count(*) FROM information_schema.tables WHERE table_schema='public'\"")
+echo "tablas restauradas: $N"
+test "$N" -gt 0
+]]></field>
+    </record>
+    <record id="template_zammad_port_http" model="service.template.port">
+        <field name="template_id" ref="template_zammad"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">8080</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_zammad_var_postgres_user" model="service.template.variable">
+        <field name="template_id" ref="template_zammad"/>
+        <field name="name">POSTGRES_USER</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">False</field>
+        <field name="default_value">zammad</field>
+        <field name="description">PostgreSQL role that owns the Zammad database.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_zammad_var_postgres_db" model="service.template.variable">
+        <field name="template_id" ref="template_zammad"/>
+        <field name="name">POSTGRES_DB</field>
+        <field name="var_type">string</field>
+        <field name="is_secret">False</field>
+        <field name="default_value">zammad_production</field>
+        <field name="description">Name of the PostgreSQL database used by Zammad.</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_zammad_var_postgres_password" model="service.template.variable">
+        <field name="template_id" ref="template_zammad"/>
+        <field name="name">POSTGRES_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the PostgreSQL role.</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_zammad_var_elasticsearch_password" model="service.template.variable">
+        <field name="template_id" ref="template_zammad"/>
+        <field name="name">ELASTICSEARCH_PASSWORD</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the built-in Elasticsearch 'elastic' user used for search.</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_zammad_vol_0" model="service.template.volume">
+        <field name="template_id" ref="template_zammad"/>
+        <field name="name">zammad-storage</field>
+        <field name="local_path">./zammad_storage</field>
+        <field name="owner">1000:1000</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_zammad_vol_1" model="service.template.volume">
+        <field name="template_id" ref="template_zammad"/>
+        <field name="name">zammad-postgresql-data</field>
+        <field name="local_path">./zammad_postgresql_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_zammad_vol_2" model="service.template.volume">
+        <field name="template_id" ref="template_zammad"/>
+        <field name="name">zammad-redis-data</field>
+        <field name="local_path">./zammad_redis_data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_zammad_vol_3" model="service.template.volume">
+        <field name="template_id" ref="template_zammad"/>
+        <field name="name">zammad-elasticsearch-data</field>
+        <field name="local_path">./zammad_elasticsearch_data</field>
+        <field name="owner">1001:1001</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">40</field>
+    </record>
+</odoo>

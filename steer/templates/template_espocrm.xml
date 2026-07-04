@@ -1,0 +1,207 @@
+<?xml version="1.0" encoding="utf-8"?>
+<odoo>
+    <record id="template_espocrm" model="service.template">
+        <field name="name">EspoCRM</field>
+        <field name="code">espocrm</field>
+        <field name="service_code">espocrm</field>
+        <field name="version">latest</field>
+        <field name="description">EspoCRM is a lightweight, self-hosted CRM for managing accounts, contacts, leads, opportunities, activities and email from one clean web interface.</field>
+        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
+  <p class="agz-app-lead">EspoCRM is a lightweight, self-hosted CRM for managing accounts, contacts, leads, opportunities, activities and email from one clean web interface.</p>
+  <p>EspoCRM is an open-source customer relationship management platform for small and mid-sized businesses that want to track their sales pipeline, organise customer data and coordinate commercial processes without the weight of larger suites. Built on PHP with a fast single-page interface, it covers the full sales cycle — from leads and opportunities to accounts, contacts, calls, meetings and after-sales support — while keeping every record inside your own database.</p>
+  <h6 class="agz-app-subhead">Key features</h6>
+  <ul class="agz-app-feats">
+    <li>Sales automation: leads, opportunities, accounts, contacts and a visual pipeline</li>
+    <li>Activities and calendar: calls, meetings, tasks and shared team scheduling</li>
+    <li>Built-in email client with two-way IMAP/SMTP integration and mass email campaigns</li>
+    <li>Workflows, business process automation (BPM) and custom entities via the layout manager</li>
+    <li>Role-based access control, teams and field-level permissions for sensitive data</li>
+    <li>REST API, import/export, reports, dashboards and a background daemon for scheduled jobs</li>
+  </ul>
+  <h6 class="agz-app-subhead">Best for</h6>
+  <p>Small and mid-sized teams that need a focused, easy-to-run CRM they fully control. Because the CRM holds personal and commercial data, keep it behind HTTPS and configure SMTP and the admin password on first login; the bundled daemon container runs EspoCRM's scheduled jobs and must stay up.</p>
+</div>]]></field>
+        <field name="category">business</field>
+        <field name="is_web_app">True</field>
+        <field name="requires_database">True</field>
+        <field name="database_type">mysql</field>
+        <field name="requires_backup">True</field>
+        <field name="backup_mode">custom</field>
+        <field name="health_check_command">php -v</field>
+        <field name="image" type="base64" file="agz_infra_templates/static/img/templates/espocrm.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_crm'), ref('agz_infra_suite.tag_business')])]"/>
+        <field name="website_url">https://www.espocrm.com/</field>
+        <field name="documentation_url">https://docs.espocrm.com/administration/docker/installation/</field>
+        <field name="source_url">https://github.com/espocrm/espocrm</field>
+        <field name="docker_compose_template"><![CDATA[services:
+  db:
+    image: mysql:8.0
+    container_name: '{{ INSTANCE_CODE }}_db'
+    environment:
+      MYSQL_ROOT_PASSWORD: {{ mysql_root_password }}
+      MYSQL_DATABASE: {{ db_name }}
+      MYSQL_USER: {{ db_user }}
+      MYSQL_PASSWORD: {{ db_password }}
+    volumes:
+    - ./db-data:/var/lib/mysql
+    expose:
+    - 3306
+    healthcheck:
+      test: ["CMD", "mysqladmin", "ping", "-h", "localhost"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 30s
+    restart: unless-stopped
+    networks:
+    - internal
+  espocrm:
+    image: espocrm/espocrm:latest
+    container_name: '{{ INSTANCE_CODE }}'
+    depends_on:
+      db:
+        condition: service_healthy
+    environment:
+      ESPOCRM_DATABASE_PLATFORM: Mysql
+      ESPOCRM_DATABASE_HOST: db
+      ESPOCRM_DATABASE_NAME: {{ db_name }}
+      ESPOCRM_DATABASE_USER: {{ db_user }}
+      ESPOCRM_DATABASE_PASSWORD: {{ db_password }}
+      ESPOCRM_ADMIN_USERNAME: {{ admin_username }}
+      ESPOCRM_ADMIN_PASSWORD: {{ admin_password }}
+      ESPOCRM_SITE_URL: https://{{ domain }}
+    volumes:
+    - ./data:/var/www/html
+    ports:
+    - '{{ PORT_HTTP }}:80'
+    restart: unless-stopped
+    networks:
+    - internal
+    - agz-proxy-network
+  espocrm-daemon:
+    image: espocrm/espocrm:latest
+    container_name: '{{ INSTANCE_CODE }}_daemon'
+    depends_on:
+    - espocrm
+    volumes:
+    - ./data:/var/www/html
+    entrypoint: docker-daemon.sh
+    restart: unless-stopped
+    networks:
+    - internal
+networks:
+  internal:
+    driver: bridge
+  agz-proxy-network:
+    external: true
+]]></field>
+        <field name="backup_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+# Dump de la base de APLICACIÓN de EspoCRM. Clave: usa MYSQL_PWD (env), NUNCA `-p` — con
+# `-p` y password vacío mysql/mariadb espera un prompt por stdin y CUELGA. Prefiere el
+# usuario de app (MYSQL_USER/PASSWORD/DATABASE); cae a root solo si no hay usuario de app
+# (excluye schemas de sistema, que romperían la auth al restaurar).
+docker compose exec -T db sh -c '
+  # MySQL 8 trae mysqldump/mysql; MariaDB renombró a mariadb-dump/mariadb: detectamos el binario.
+  DUMP=$(command -v mysqldump || command -v mariadb-dump); CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ] && [ -n "${MYSQL_DATABASE:-}" ]; then
+    export MYSQL_PWD="$MYSQL_PASSWORD"
+    exec "$DUMP" -u"$MYSQL_USER" --single-transaction --databases "$MYSQL_DATABASE"
+  fi
+  export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"
+  DBS=$("$CLI" -uroot -N -e "SHOW DATABASES" | grep -Ev "^(mysql|sys|information_schema|performance_schema)$")
+  [ -z "$DBS" ] && { echo "REVISAR: sin bases de aplicacion para respaldar" >&2; exit 0; }
+  exec "$DUMP" -uroot --single-transaction --databases $DBS
+' > "$BACKUP_DATA_DIR/db.sql"
+echo "mysqldump OK ($(wc -c < "$BACKUP_DATA_DIR/db.sql") bytes)"
+]]></field>
+        <field name="restore_script"><![CDATA[#!/bin/bash
+set -euo pipefail
+cd "$SERVICE_PATH"
+docker compose up -d db
+# Readiness + restore en UN exec (credenciales DENTRO del contenedor, con MYSQL_PWD →
+# jamás cuelga esperando un prompt de password). Prefiere el usuario de app; cae a root.
+docker compose exec -T db sh -c '
+  CLI=$(command -v mysql || command -v mariadb)
+  if [ -n "${MYSQL_USER:-}" ] && [ -n "${MYSQL_PASSWORD:-}" ]; then U="$MYSQL_USER"; export MYSQL_PWD="$MYSQL_PASSWORD";
+  else U=root; export MYSQL_PWD="${MYSQL_ROOT_PASSWORD:-}"; fi
+  for i in $(seq 1 60); do "$CLI" -u"$U" -e "SELECT 1" >/dev/null 2>&1 && break; sleep 2; done
+  exec "$CLI" -u"$U"
+' < "$RESTORE_DATA_DIR/db.sql"
+echo "restore MySQL OK"
+]]></field>
+    </record>
+    <record id="template_espocrm_port_http" model="service.template.port">
+        <field name="template_id" ref="template_espocrm"/>
+        <field name="code">http</field>
+        <field name="name">HTTP</field>
+        <field name="default_port">80</field>
+        <field name="traefik_routed">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_espocrm_var_mysql_root_password" model="service.template.variable">
+        <field name="template_id" ref="template_espocrm"/>
+        <field name="name">mysql_root_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Root password for the MySQL database server.</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_espocrm_var_db_password" model="service.template.variable">
+        <field name="template_id" ref="template_espocrm"/>
+        <field name="name">db_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the EspoCRM application database user.</field>
+        <field name="sequence">20</field>
+    </record>
+    <record id="template_espocrm_var_admin_password" model="service.template.variable">
+        <field name="template_id" ref="template_espocrm"/>
+        <field name="name">admin_password</field>
+        <field name="var_type">password</field>
+        <field name="is_secret">True</field>
+        <field name="description">Password for the initial EspoCRM administrator account.</field>
+        <field name="sequence">30</field>
+    </record>
+    <record id="template_espocrm_var_db_name" model="service.template.variable">
+        <field name="template_id" ref="template_espocrm"/>
+        <field name="name">db_name</field>
+        <field name="var_type">string</field>
+        <field name="default_value">espocrm</field>
+        <field name="description">Name of the EspoCRM database.</field>
+        <field name="sequence">40</field>
+    </record>
+    <record id="template_espocrm_var_db_user" model="service.template.variable">
+        <field name="template_id" ref="template_espocrm"/>
+        <field name="name">db_user</field>
+        <field name="var_type">string</field>
+        <field name="default_value">espocrm</field>
+        <field name="description">Database user EspoCRM connects with.</field>
+        <field name="sequence">50</field>
+    </record>
+    <record id="template_espocrm_var_admin_username" model="service.template.variable">
+        <field name="template_id" ref="template_espocrm"/>
+        <field name="name">admin_username</field>
+        <field name="var_type">string</field>
+        <field name="default_value">admin</field>
+        <field name="description">Username of the initial EspoCRM administrator account.</field>
+        <field name="sequence">60</field>
+    </record>
+    <record id="template_espocrm_vol_db" model="service.template.volume">
+        <field name="template_id" ref="template_espocrm"/>
+        <field name="name">espocrm-db-data</field>
+        <field name="local_path">./db-data</field>
+        <field name="owner">999:999</field>
+        <field name="exclude_from_backup">True</field>
+        <field name="sequence">10</field>
+    </record>
+    <record id="template_espocrm_vol_data" model="service.template.volume">
+        <field name="template_id" ref="template_espocrm"/>
+        <field name="name">espocrm-data</field>
+        <field name="local_path">./data</field>
+        <field name="owner">33:33</field>
+        <field name="exclude_from_backup">False</field>
+        <field name="sequence">20</field>
+    </record>
+</odoo>
