@@ -6,7 +6,7 @@
   "description": "Logical structure of a Steer application template (service.template) and its sub-records. Templates are authored as Odoo XML; this schema describes the data a valid template must contain. The harness parses the XML into this shape and validates it. CONTRACT VERSIONING: 'x-schema-version' is the version of THIS contract (not the app's 'version' label). A template MAY declare which contract version it targets with an XML comment '<!-- steer-schema-version: 1.0 -->' (Odoo ignores comments, so it never affects install); the harness rejects a version it does not support. No marker = assumed current.",
   "type": "object",
   "required": ["name", "code", "docker_compose_template"],
-  "additionalProperties": false,
+  "additionalProperties": true,
   "properties": {
     "name": { "type": "string", "description": "Display name shown in the catalog." },
     "code": {
@@ -113,7 +113,7 @@
     "port": {
       "type": "object",
       "required": ["code", "default_port"],
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "code": { "type": "string" },
         "name": { "type": "string" },
@@ -127,7 +127,7 @@
     "variable": {
       "type": "object",
       "required": ["name", "var_type"],
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "Must match ${NAME} in the compose exactly." },
         "var_type": {
@@ -151,7 +151,7 @@
     "volume": {
       "type": "object",
       "required": ["name", "local_path"],
-      "additionalProperties": false,
+      "additionalProperties": true,
       "properties": {
         "name": { "type": "string" },
         "local_path": { "type": "string", "description": "Relative bind-mount path, e.g. './data'." },
@@ -162,12 +162,20 @@
     },
     "config_file": {
       "type": "object",
-      "required": ["filename", "content_template"],
+      "required": ["name", "filename", "content_template"],
       "additionalProperties": false,
       "properties": {
-        "filename": { "type": "string" },
-        "content_template": { "type": "string", "description": "Jinja2-rendered config file content." },
-        "skip_update": { "type": "boolean", "description": "Do not overwrite on updates." },
+        "name": { "type": "string", "description": "Descriptive name of the file (e.g. 'PostgreSQL Config')." },
+        "filename": { "type": "string", "description": "Name of the file to generate (e.g. 'postgresql.conf', '.env')." },
+        "path": { "type": "string", "description": "Relative path from the service directory (e.g. './', './config/'). Defaults to './'." },
+        "content_template": { "type": "string", "description": "Jinja2-rendered config file content. Same variables as the compose." },
+        "syntax_mode": {
+          "type": "string",
+          "enum": ["text", "sh", "yaml", "nginx", "ini", "python", "xml"],
+          "description": "Editor syntax highlighting mode."
+        },
+        "description": { "type": "string", "description": "What the file is for." },
+        "skip_update": { "type": "boolean", "description": "Do not overwrite on updates (first-deploy only)." },
         "active": { "type": "boolean" },
         "sequence": { "type": "integer" }
       }

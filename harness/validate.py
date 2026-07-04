@@ -91,8 +91,19 @@ def _record_to_dict(rec):
         name = f.get("name")
         if not name or name == "template_id":
             continue
-        if f.get("ref") is not None or f.get("eval") is not None:
-            continue  # relational/eval fields (tags, fk) — skip for the logical view
+        if f.get("ref") is not None:
+            continue  # relational field (fk) — skip for the logical view
+        ev = f.get("eval")
+        if ev is not None:
+            # Los booleanos/enteros se escriben a veces con eval="True"/"False"/"10"
+            # (idiom Odoo). Coercionamos esos literales simples; el resto de los eval
+            # (tags Command.set, refs, listas) no son parte de la vista lógica → skip.
+            evs = ev.strip()
+            if evs in ("True", "False"):
+                out[name] = (evs == "True")
+            elif re.fullmatch(r"-?\d+", evs):
+                out[name] = int(evs)
+            continue
         if f.get("type") == "base64" or f.get("file") is not None:
             continue  # binarios (logo 'image'): no son parte del contrato lógico
         out[name] = _coerce(name, f.text)
@@ -150,9 +161,12 @@ def convention_errors(t):
 
     for v in variables:
         name, vtype = v.get("name", "?"), v.get("var_type")
-        if vtype in ("password", "fernet_key") and not v.get("is_secret"):
-            errs.append("variable '%s' is %s but is_secret is not True" % (name, vtype))
-        if v.get("is_secret") and ("${%s}" % name) not in compose:
+        # Un var_type password/fernet_key es SIEMPRE secreto para el motor
+        # (SECRET_VAR_TYPES), lleve o no is_secret=True explícito (así lo documenta
+        # AGENTS.md: «is_secret=true OR var_type password/fernet_key»). is_secret=True
+        # es la otra forma de marcarlo. Tratamos ambas como secreto.
+        is_secret = bool(v.get("is_secret")) or vtype in ("password", "fernet_key")
+        if is_secret and ("${%s}" % name) not in compose:
             warns.append("secret '%s' is not referenced as ${%s} in the compose" % (name, name))
 
     # data volume should exist if the app persists state
