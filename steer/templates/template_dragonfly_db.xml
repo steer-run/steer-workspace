@@ -13,11 +13,11 @@
         <field name="service_code">dragonfly_db</field>
         <field name="version">1.28.1</field>
         <field name="description">Dragonfly is a modern, multi-threaded in-memory data store that drops in for Redis and Memcached while scaling vertically to use all of a machine's cores.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Dragonfly is a modern, multi-threaded in-memory data store that drops in for Redis and Memcached while scaling vertically to use all of a machine's cores.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Dragonfly is a modern, multi-threaded in-memory data store that drops in for Redis and Memcached while scaling vertically to use all of a machine's cores.</p>
   <p>Built from scratch in C++ on a shared-nothing architecture (not a Redis fork), Dragonfly keeps full Redis and Memcached API compatibility so existing clients and code work unchanged. It targets cache and data workloads that outgrow a single-threaded Redis process, delivering dramatically higher throughput and lower resource usage on modern multi-core hardware, without the operational overhead of running a cluster.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Drop-in Redis and Memcached protocol compatibility (no code changes to adopt)</li>
     <li>Multi-threaded, shared-nothing design that scales vertically across all CPU cores</li>
     <li>Novel unified cache eviction algorithm with low memory overhead</li>
@@ -25,7 +25,7 @@
     <li>Built-in HTTP console and native Prometheus metrics for observability</li>
     <li>Configurable memory limits and cache eviction policies</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams running heavy caching or in-memory data workloads that hit the ceiling of single-threaded Redis, and those who want to scale up on a single large node instead of sharding across a cluster. A strong fit for self-hosted caching, session stores, queues and real-time data layers on modern cloud hardware.</p>
 </div>]]></field>
         <field name="category">database</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/dragonfly_db.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_cache')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_cache')])]"/>
         <field name="website_url">https://www.dragonflydb.io/</field>
         <field name="documentation_url">https://www.dragonflydb.io/docs</field>
         <field name="source_url">https://github.com/dragonflydb/dragonfly</field>
@@ -53,11 +53,11 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

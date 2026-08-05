@@ -12,11 +12,11 @@
         <field name="service_code">listmonk</field>
         <field name="version">v3.0.0</field>
         <field name="description">Listmonk is a high-performance, self-hosted newsletter and mailing list manager that handles millions of subscribers from a single binary.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Listmonk is a high-performance, self-hosted newsletter and mailing list manager that handles millions of subscribers from a single binary.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Listmonk is a high-performance, self-hosted newsletter and mailing list manager that handles millions of subscribers from a single binary.</p>
   <p>Written in Go with a Vue dashboard and backed by PostgreSQL, Listmonk covers the full email-marketing lifecycle: subscriber and list management, campaign creation, and transactional email through a REST API. It targets teams and individuals who want a self-owned, privacy-respecting alternative to hosted services like Mailchimp or Sendy, distinguished by its raw performance, SQL-powered segmentation, and simple single-binary deployment.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Manage millions of subscribers across single and double opt-in lists with custom attributes</li>
     <li>Segment audiences with powerful, arbitrary SQL query expressions (gated behind a dedicated permission)</li>
     <li>Create rich HTML and plain-text campaigns with templates, scheduling, and continuous sending</li>
@@ -24,7 +24,7 @@
     <li>Built-in analytics for opens, clicks, top links, bounce processing, and campaign performance</li>
     <li>Multi-language UI, granular role and permission controls, and public campaign archive pages</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Businesses, publishers, and developers who need full ownership of their email infrastructure and subscriber data, send newsletters or transactional mail at scale, and prefer a fast, self-hosted platform over third-party SaaS providers.</p>
 </div>]]></field>
         <field name="category">mail</field>
@@ -35,7 +35,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/listmonk.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_email'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_marketing')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_email'), ref('steer_infra_suite.tag_communication'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_marketing')])]"/>
         <field name="website_url">https://listmonk.app/</field>
         <field name="documentation_url">https://listmonk.app/docs/</field>
         <field name="source_url">https://github.com/knadh/listmonk</field>
@@ -91,11 +91,11 @@
     - '{{ PORT_HTTP }}:9000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

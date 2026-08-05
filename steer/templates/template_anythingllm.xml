@@ -13,11 +13,11 @@
         <field name="service_code">anythingllm</field>
         <field name="version">latest</field>
         <field name="description">AnythingLLM is an all-in-one, local-first AI application that turns your own documents and data into a private, fully-featured ChatGPT-style assistant.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">AnythingLLM is an all-in-one, local-first AI application that turns your own documents and data into a private, fully-featured ChatGPT-style assistant.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">AnythingLLM is an all-in-one, local-first AI application that turns your own documents and data into a private, fully-featured ChatGPT-style assistant.</p>
   <p>It ingests documents (PDFs, Office files, CSVs, codebases and web sources), stores them as embeddings in a vector database, and lets you chat with them using retrieval-augmented generation. You can plug in your preferred local or cloud LLM, run custom AI agents with skills and web browsing, and organize everything into isolated workspaces. It is designed for individuals, teams and developers who want full control over their data, with the option to run completely offline or even air-gapped.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Chat with your documents via RAG, with workspaces that isolate context per project</li>
     <li>Supports 30+ LLM providers (OpenAI, Anthropic, Google Gemini, Ollama, Mistral, Groq, and more)</li>
     <li>Pluggable vector databases: LanceDB, PGVector, Pinecone, Chroma, Weaviate, Qdrant, Milvus, Astra DB</li>
@@ -25,7 +25,7 @@
     <li>Multi-user instances with per-user access control and tenant isolation</li>
     <li>Developer API and embeddable chat widget; runs fully offline or air-gapped with local models</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams and individuals who need a private, self-hosted assistant to chat with internal knowledge bases and documents, and developers embedding document-aware AI into their own applications.</p>
 </div>]]></field>
         <field name="category">ai</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/anythingllm.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_documentation'), ref('agz_infra_suite.tag_productivity')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_search'), ref('steer_infra_suite.tag_documentation'), ref('steer_infra_suite.tag_productivity')])]"/>
         <field name="website_url">https://useanything.com</field>
         <field name="documentation_url">https://github.com/Mintplex-Labs/anything-llm/tree/master/docs</field>
         <field name="source_url">https://github.com/Mintplex-Labs/anything-llm</field>
@@ -53,11 +53,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

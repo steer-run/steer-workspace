@@ -11,11 +11,11 @@
         <field name="service_code">rabbitmq</field>
         <field name="version">4.1-management</field>
         <field name="description">RabbitMQ is a battle-tested open-source message broker that decouples applications through reliable asynchronous messaging.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">RabbitMQ is a battle-tested open-source message broker that decouples applications through reliable asynchronous messaging.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">RabbitMQ is a battle-tested open-source message broker that decouples applications through reliable asynchronous messaging.</p>
   <p>Written in Erlang/OTP, RabbitMQ accepts, stores, and routes messages between producers and consumers using flexible exchange and queue topologies. It speaks multiple protocols out of the box and is built for high availability through clustering and quorum queues, making it a default choice for microservices, background job processing, and event-driven architectures. It ships with a web-based management UI, a CLI, and a rich plugin system.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Multi-protocol support: AMQP 0-9-1, AMQP 1.0, MQTT, STOMP and streams</li>
     <li>Flexible routing via exchanges, bindings and queues (direct, topic, fanout, headers)</li>
     <li>High availability and durability with clustering and quorum queues</li>
@@ -23,7 +23,7 @@
     <li>Fine-grained access control, TLS, and pluggable authentication (incl. x.509)</li>
     <li>Extensible plugin ecosystem and broad client library support across languages</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams building microservices, event-driven systems, or background/worker pipelines that need reliable, ordered, and durable asynchronous communication between services. Ideal as the messaging backbone for distributed applications and integration workflows.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -32,7 +32,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/rabbitmq.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow')])]"/>
         <field name="website_url">https://www.rabbitmq.com/</field>
         <field name="documentation_url">https://www.rabbitmq.com/documentation.html</field>
         <field name="source_url">https://github.com/rabbitmq/rabbitmq-server</field>
@@ -53,11 +53,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

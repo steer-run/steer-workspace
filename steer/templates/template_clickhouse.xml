@@ -12,11 +12,11 @@
         <field name="service_code">clickhouse</field>
         <field name="version">latest</field>
         <field name="description">ClickHouse is a high-performance, column-oriented SQL database built for real-time analytics over massive datasets.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">ClickHouse is a high-performance, column-oriented SQL database built for real-time analytics over massive datasets.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">ClickHouse is a high-performance, column-oriented SQL database built for real-time analytics over massive datasets.</p>
   <p>It is an open-source online analytical processing (OLAP) database management system that runs aggregation queries across billions of rows in milliseconds. Designed for data engineers and analytics teams, it combines a vectorized execution engine, columnar storage and aggressive compression to deliver interactive dashboards, observability backends and large-scale reporting that traditional row-oriented databases struggle to serve.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Columnar storage with strong compression for fast, scan-heavy analytical queries</li>
     <li>Vectorized, parallel query execution that scales across cores and nodes</li>
     <li>Familiar SQL dialect with rich functions, materialized views and table engines</li>
@@ -24,7 +24,7 @@
     <li>Horizontal scaling via sharding and replication for high availability</li>
     <li>Integrations and official clients for Python, Java, Go, JavaScript and .NET</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams building real-time analytics, business intelligence, log and metrics platforms, event and clickstream analysis, or any workload that needs fast aggregations over very large volumes of data.</p>
 </div>]]></field>
         <field name="category">database</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/clickhouse.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_analytics')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_analytics')])]"/>
         <field name="website_url">https://clickhouse.com/</field>
         <field name="documentation_url">https://clickhouse.com/docs</field>
         <field name="source_url">https://github.com/ClickHouse/ClickHouse</field>
@@ -52,11 +52,11 @@
     - '{{ PORT_HTTP }}:8123'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

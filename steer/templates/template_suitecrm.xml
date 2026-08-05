@@ -13,11 +13,11 @@
         <field name="service_code">suitecrm</field>
         <field name="version">latest</field>
         <field name="description">SuiteCRM is a full-featured open-source CRM for sales, marketing and customer service, giving businesses a self-hosted alternative to proprietary suites.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">SuiteCRM is a full-featured open-source CRM for sales, marketing and customer service, giving businesses a self-hosted alternative to proprietary suites.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">SuiteCRM is a full-featured open-source CRM for sales, marketing and customer service, giving businesses a self-hosted alternative to proprietary suites.</p>
   <p>Built in PHP as a community fork of SugarCRM, SuiteCRM covers the whole commercial cycle: accounts, contacts, leads and opportunities, quotes and contracts, marketing campaigns and case management. It ships with workflow automation and a Studio for custom modules and fields, so sales, marketing and support teams can model their own processes and keep sensitive commercial data on infrastructure they control.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>360° customer view: accounts, contacts, leads and opportunities</li>
     <li>Sales pipeline with quotes, contracts, products and forecasting</li>
     <li>Marketing campaigns, target lists and reusable email templates</li>
@@ -25,7 +25,7 @@
     <li>Workflow automation plus custom modules and fields through Studio</li>
     <li>REST/GraphQL API, role-based security and reporting dashboards</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Small and mid-sized businesses and teams that want a mature, self-hosted CRM as an alternative to Salesforce or SugarCRM, keeping their sales and customer data on their own infrastructure.</p>
 </div>]]></field>
         <field name="category">business</field>
@@ -36,7 +36,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">php -v</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/suitecrm.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_crm'), ref('agz_infra_suite.tag_business')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_crm'), ref('steer_infra_suite.tag_business')])]"/>
         <field name="website_url">https://suitecrm.com/</field>
         <field name="documentation_url">https://docs.suitecrm.com/</field>
         <field name="source_url">https://github.com/salesagility/SuiteCRM</field>
@@ -66,7 +66,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   db:
     image: mariadb:10.11
     restart: unless-stopped
@@ -91,7 +91,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

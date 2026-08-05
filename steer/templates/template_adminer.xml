@@ -6,11 +6,11 @@
         <field name="service_code">adminer</field>
         <field name="version">4.8.1</field>
         <field name="description">Adminer is a full-featured database management tool that ships as a single PHP file, ready to drop onto any server.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Adminer is a full-featured database management tool that ships as a single PHP file, ready to drop onto any server.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Adminer is a full-featured database management tool that ships as a single PHP file, ready to drop onto any server.</p>
   <p>It provides a complete web interface for administering relational and NoSQL databases without installing a heavy desktop client, making it a popular lightweight alternative to phpMyAdmin. A single file covers connection, browsing, querying, schema editing and data manipulation, and a companion Adminer Editor mode offers a simplified data-entry view for end users. Its tiny footprint and broad engine support make it ideal for quick inspection and on-the-fly database work.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Single-file deployment with no installation or dependencies beyond PHP</li>
     <li>Supports MySQL, MariaDB, PostgreSQL, SQLite, MS SQL, Oracle and more, with plugins for Elasticsearch, MongoDB, ClickHouse and others</li>
     <li>Browse and edit tables, rows, views, triggers, routines and indexes through the UI</li>
@@ -18,7 +18,7 @@
     <li>Plugin and theme system to extend functionality and customize the interface</li>
     <li>Compact codebase, dramatically smaller than comparable tools</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers, DBAs and sysadmins who need a fast, no-fuss web interface to inspect and manage databases across multiple engines, especially when a lightweight, easily deployable tool is preferred over a full desktop client.</p>
 </div>]]></field>
         <field name="category">database</field>
@@ -27,7 +27,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/adminer.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="website_url">https://www.adminer.org/</field>
         <field name="documentation_url">https://www.adminer.org/en/plugins/</field>
         <field name="source_url">https://github.com/vrana/adminer</field>
@@ -40,11 +40,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

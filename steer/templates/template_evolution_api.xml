@@ -6,12 +6,12 @@
     <record id="template_evolution_api" model="service.template">
         <field name="name">Evolution API</field>
         <field name="code">evolution-api</field>
-        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/evolution-api.png"/>
+        <field name="image" type="base64" file="steer_infra_suite/static/img/templates/evolution-api.png"/>
         <field name="description">API open-source de integración con WhatsApp. Incluye PostgreSQL y Redis para alta performance. Ideal para envío masivo, chatbots y automatizaciones.</field>
         <field name="category">communication</field>
         <field name="version">latest</field>
         <field name="service_code">evolution-api</field>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_automation')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_communication'), ref('steer_infra_suite.tag_automation')])]"/>
         <field name="is_web_app">True</field>
         <field name="is_global">True</field>
         <field name="active">True</field>
@@ -150,12 +150,12 @@
     restart: unless-stopped
     networks:
       - internal
-      - agz-proxy-network
+      - steer-proxy-network
 
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

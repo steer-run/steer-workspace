@@ -6,11 +6,11 @@
         <field name="service_code">matomo</field>
         <field name="version">latest</field>
         <field name="description">Matomo is a self-hosted, privacy-first web analytics platform that measures visits, campaigns and conversions while keeping 100% of your data on your own servers.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Matomo is a self-hosted, privacy-first web analytics platform that measures visits, campaigns and conversions while keeping 100% of your data on your own servers.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Matomo is a self-hosted, privacy-first web analytics platform that measures visits, campaigns and conversions while keeping 100% of your data on your own servers.</p>
   <p>Matomo (formerly Piwik) is the leading open-source alternative to Google Analytics: it tracks visitors, page views, campaigns, goals and e-commerce funnels through a rich web dashboard, but stores every raw hit inside your own database. Because the data never leaves your infrastructure, you own it outright, can honour GDPR/ePrivacy without sharing visitor behaviour with third parties, and can run cookieless, IP-anonymised measurement. It suits marketing teams, agencies and any organisation that wants trustworthy analytics without surrendering user data.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Full web analytics: visits, page views, referrers, campaigns, goals and events</li>
     <li>E-commerce tracking with revenue, orders, abandoned carts and product reports</li>
     <li>Privacy tools: IP anonymisation, cookieless tracking, data retention and opt-out</li>
@@ -18,7 +18,7 @@
     <li>100% data ownership with unlimited websites, users and a full reporting API</li>
     <li>Real-time visitor log, custom dashboards, segments and scheduled email reports</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Marketing teams, agencies and privacy-conscious organisations that need accurate, GDPR-friendly analytics they fully control. Put it behind HTTPS; after the first-run installer, add your public domain to Matomo's trusted hosts and enable proxy header handling so reverse-proxy traffic is measured correctly.</p>
 </div>]]></field>
         <field name="category">analytics</field>
@@ -29,7 +29,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">php -v</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/matomo.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_marketing')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_marketing')])]"/>
         <field name="website_url">https://matomo.org/</field>
         <field name="documentation_url">https://matomo.org/faq/how-to-install/install-matomo-with-docker/</field>
         <field name="source_url">https://github.com/matomo-org/matomo</field>
@@ -76,11 +76,11 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

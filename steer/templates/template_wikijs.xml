@@ -6,11 +6,11 @@
         <field name="service_code">wikijs</field>
         <field name="version">2.5</field>
         <field name="description">Wiki.js is a modern, powerful open-source wiki engine for building documentation sites and team knowledge bases.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Wiki.js is a modern, powerful open-source wiki engine for building documentation sites and team knowledge bases.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Wiki.js is a modern, powerful open-source wiki engine for building documentation sites and team knowledge bases.</p>
   <p>Built on Node.js and Vue, it lets teams write content in Markdown, WYSIWYG, or raw HTML and organize it into a fully navigable, searchable wiki. It supports multiple databases and storage backends, fine-grained access control, and can mirror every change to a Git repository for portable, version-controlled documentation. Its extensive authentication and integration options make it a strong fit for organizations with existing identity and tooling.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Multiple content editors: Markdown, visual WYSIWYG, and raw HTML</li>
     <li>Built-in full-text search with optional external engines (Elasticsearch, Algolia, and more)</li>
     <li>Git synchronization to automatically version and back up all content</li>
@@ -18,7 +18,7 @@
     <li>Granular page rules and group-based permissions for access control</li>
     <li>Flexible deployment with PostgreSQL, MySQL/MariaDB, SQL Server, or SQLite and pluggable storage</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Engineering teams, organizations, and communities that need a self-hosted, multilingual documentation portal or internal knowledge base with strong access control and Git-backed versioning.</p>
 </div>]]></field>
         <field name="category">knowledge</field>
@@ -29,7 +29,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/wikijs.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_documentation'), ref('agz_infra_suite.tag_cms'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_git')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_documentation'), ref('steer_infra_suite.tag_cms'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_search'), ref('steer_infra_suite.tag_git')])]"/>
         <field name="website_url">https://js.wiki/</field>
         <field name="documentation_url">https://docs.requarks.io/</field>
         <field name="source_url">https://github.com/requarks/wiki</field>
@@ -54,7 +54,7 @@
     - '{{ PORT_HTTP }}:3000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   db:
     image: postgres:14
     restart: unless-stopped
@@ -70,7 +70,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

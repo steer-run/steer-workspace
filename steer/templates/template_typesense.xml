@@ -12,11 +12,11 @@
         <field name="service_code">typesense</field>
         <field name="version">29.0</field>
         <field name="description">Typesense is a blazing-fast, typo-tolerant open-source search engine for building instant, relevant search experiences.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Typesense is a blazing-fast, typo-tolerant open-source search engine for building instant, relevant search experiences.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Typesense is a blazing-fast, typo-tolerant open-source search engine for building instant, relevant search experiences.</p>
   <p>Built in C++ and architected for low-latency in-memory search, Typesense delivers sub-50ms results out of the box with minimal tuning. It positions itself as a developer-friendly alternative to Algolia and Pinecone, and a simpler operational alternative to Elasticsearch. Beyond classic full-text search, it supports vector and semantic search, making it suitable for both keyword and AI-powered retrieval use cases.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Typo tolerance and instant, relevance-ranked full-text search</li>
     <li>Faceting, filtering, grouping and geosearch</li>
     <li>Vector and semantic search for AI and hybrid retrieval</li>
@@ -24,7 +24,7 @@
     <li>Simple single-binary deployment with built-in clustering and high availability</li>
     <li>RESTful API plus official client libraries and InstantSearch adapters</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers and teams that need fast, self-hosted site or in-app search, e-commerce and catalog search, documentation search, or a self-hosted, cost-controlled alternative to managed search services like Algolia.</p>
 </div>]]></field>
         <field name="category">database</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/typesense.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_search'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="website_url">https://typesense.org/</field>
         <field name="documentation_url">https://typesense.org/docs</field>
         <field name="source_url">https://github.com/typesense/typesense</field>
@@ -52,11 +52,11 @@
     - '{{ PORT_HTTP }}:8108'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

@@ -17,11 +17,11 @@
         <field name="service_code">fonoster</field>
         <field name="version">0.15.15</field>
         <field name="description">Fonoster is a self-hosted, programmable voice platform that brings Twilio-style telephony APIs to your own infrastructure.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Fonoster is a self-hosted, programmable voice platform that brings Twilio-style telephony APIs to your own infrastructure.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Fonoster is a self-hosted, programmable voice platform that brings Twilio-style telephony APIs to your own infrastructure.</p>
   <p>Built on Asterisk and its own cloud-first SIP server (Routr), Fonoster lets developers build and run voice applications as small Node.js apps that react to call events such as answer, hangup and DTMF. It exposes an API-first stack covering SIP signaling, media handling, PSTN connectivity and speech, all deployable with Docker or Kubernetes. It targets developers, integrators and businesses that want full control over their telephony without a proprietary cloud provider.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Programmable voice apps with verbs like Play, Say, Gather and Hangup for IVRs and call flows</li>
     <li>SIP network with Domains, Agents, Trunks and ACLs for softphones, IP phones and PSTN connectivity</li>
     <li>Text-to-Speech and Automatic Speech Recognition for voice-driven interactions</li>
@@ -29,7 +29,7 @@
     <li>Call recording with S3-compatible storage for sounds and recordings</li>
     <li>OAuth2/JWT authentication and Docker/Kubernetes-ready deployment</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers and businesses building IVRs, voice assistants, contact-center workflows or PBX/SIP trunking on their own infrastructure, who want a programmable, open-source alternative to Twilio.</p>
 </div>]]></field>
         <field name="category">communication</field>
@@ -40,7 +40,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/fonoster.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_voip')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_communication'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_voip')])]"/>
         <field name="website_url">https://fonoster.com/</field>
         <field name="documentation_url">https://docs.fonoster.com/</field>
         <field name="source_url">https://github.com/fonoster/fonoster</field>
@@ -55,7 +55,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   apiserver:
     image: fonoster/apiserver:0.15.15
     restart: unless-stopped
@@ -265,7 +265,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

@@ -11,11 +11,11 @@
         <field name="service_code">roundcube</field>
         <field name="version">1.6.9</field>
         <field name="description">Roundcube is a browser-based IMAP webmail client that gives any mail server a fast, modern, application-like interface.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Roundcube is a browser-based IMAP webmail client that gives any mail server a fast, modern, application-like interface.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Roundcube is a browser-based IMAP webmail client that gives any mail server a fast, modern, application-like interface.</p>
   <p>Written in PHP and skinnable to fit any brand, Roundcube connects to your existing IMAP/SMTP infrastructure and serves a full email experience to users from a web browser. It is one of the most widely deployed open-source webmail solutions, shipped as the default interface in many hosting control panels and mail-server stacks, and is suited to anyone running their own mail who wants webmail access without a heavy groupware platform.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Full IMAP/SMTP webmail with folder management, search, threading and drag-and-drop</li>
     <li>Rich MIME composer with HTML editing, attachments, spell-check and Markdown rendering</li>
     <li>Address book with groups, plus LDAP and CardDAV contact integration</li>
@@ -23,7 +23,7 @@
     <li>Skinnable, responsive interface and an extensive third-party plugin ecosystem</li>
     <li>Multilingual UI, per-user preferences and configurable spam/identity handling</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Self-hosters, hosting providers and organizations that run their own IMAP mail server and want a reliable, lightweight webmail front end for end users without deploying a full collaboration suite.</p>
 </div>]]></field>
         <field name="category">mail</field>
@@ -32,7 +32,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/roundcube.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_email'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_productivity')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_email'), ref('steer_infra_suite.tag_communication'), ref('steer_infra_suite.tag_productivity')])]"/>
         <field name="website_url">https://roundcube.net/</field>
         <field name="documentation_url">https://roundcube.net/about/</field>
         <field name="source_url">https://github.com/roundcube/roundcubemail</field>
@@ -53,11 +53,11 @@
     - '{{ PORT_HTTP }}:80'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

@@ -11,11 +11,11 @@
         <field name="service_code">strapi</field>
         <field name="version">v5.33.0</field>
         <field name="description">Strapi is the leading open-source headless CMS that turns your content model into ready-to-use REST and GraphQL APIs.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Strapi is the leading open-source headless CMS that turns your content model into ready-to-use REST and GraphQL APIs.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Strapi is the leading open-source headless CMS that turns your content model into ready-to-use REST and GraphQL APIs.</p>
   <p>Built entirely in JavaScript/TypeScript, Strapi lets developers design content structures visually with the Content-Type Builder and instantly exposes them through auto-generated APIs, while editors manage content from a customizable admin panel. It is API-first and front-end agnostic, pairing naturally with frameworks like Next.js, Nuxt, and Astro, and it can run fully self-hosted with the database and storage of your choice.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Visual Content-Type Builder with no schema coding required</li>
     <li>Auto-generated REST and GraphQL APIs for every content type</li>
     <li>Role-based access control, fine-grained permissions, and a media library</li>
@@ -23,7 +23,7 @@
     <li>Extensible plugin architecture and a plugin marketplace</li>
     <li>Database flexibility: PostgreSQL, MySQL, MariaDB, or SQLite</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Development teams and agencies building websites, mobile apps, or multi-channel digital products that need a self-hosted, API-driven content backend with full ownership of their data and infrastructure.</p>
 </div>]]></field>
         <field name="category">cms</field>
@@ -34,7 +34,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/strapi.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_cms'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_blog')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_cms'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_blog')])]"/>
         <field name="website_url">https://strapi.io</field>
         <field name="documentation_url">https://docs.strapi.io</field>
         <field name="source_url">https://github.com/strapi/strapi</field>
@@ -77,7 +77,7 @@
     - '{{ PORT_HTTP }}:1337'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   strapi_postgres:
     image: postgres:18
     environment:
@@ -101,7 +101,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

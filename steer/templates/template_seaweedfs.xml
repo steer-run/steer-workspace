@@ -16,11 +16,11 @@
         <field name="service_code">seaweedfs</field>
         <field name="version">latest</field>
         <field name="description">SeaweedFS is a fast, distributed storage system that serves blobs, objects, files, and data-lake tables at the scale of billions of files.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">SeaweedFS is a fast, distributed storage system that serves blobs, objects, files, and data-lake tables at the scale of billions of files.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">SeaweedFS is a fast, distributed storage system that serves blobs, objects, files, and data-lake tables at the scale of billions of files.</p>
   <p>Inspired by Facebook's Haystack and f4 papers, SeaweedFS splits responsibilities between a lightweight master that tracks only volumes and volume servers that store the actual data, keeping metadata overhead to roughly 40 bytes per file and most reads to a single disk seek. A pluggable Filer layer adds a POSIX-like namespace on top of metadata stores such as MySQL, PostgreSQL, MongoDB, or Redis, while built-in replication, erasure coding, and transparent cloud tiering cover hot, warm, and cold data. It targets teams that need S3-compatible object storage without the operational weight of larger systems.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>S3-compatible API with a built-in Iceberg REST catalog and embedded IAM</li>
     <li>POSIX-like Filer with FUSE mount, WebDAV, and Hadoop access</li>
     <li>Rack- and data-center-aware replication plus erasure coding for warm storage</li>
@@ -28,7 +28,7 @@
     <li>O(1) disk reads with ~40 bytes of metadata overhead per file</li>
     <li>Encryption, TLS/mTLS, JWT-protected filer, TTL expiration, and Kubernetes support</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Platform and infrastructure teams that need a self-hosted, S3-compatible object and file store for media assets, backups, data lakes, or any workload involving very large numbers of files.</p>
 </div>]]></field>
         <field name="category">storage</field>
@@ -37,7 +37,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/seaweedfs.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_backup'), ref('agz_infra_suite.tag_object_storage')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_storage'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_file_sharing'), ref('steer_infra_suite.tag_backup'), ref('steer_infra_suite.tag_object_storage')])]"/>
         <field name="website_url">https://seaweedfs.com/</field>
         <field name="documentation_url">https://github.com/seaweedfs/seaweedfs/wiki</field>
         <field name="source_url">https://github.com/seaweedfs/seaweedfs</field>
@@ -130,7 +130,7 @@
     - '{{ PORT_HTTP }}:8888'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   s3:
     image: chrislusf/seaweedfs:4.02
     command: '-v=0 s3 -filer="filer:8888" -ip.bind=0.0.0.0 -port=8333
@@ -154,7 +154,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

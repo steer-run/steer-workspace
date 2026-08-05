@@ -19,7 +19,7 @@
     <field name="requires_backup">True</field>
     <field name="backup_mode">custom</field>
     <field name="health_check_command">curl -fsS http://localhost:3000/healthz || exit 1</field>
-    <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity')])]"/>
+    <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_productivity')])]"/>
     <field name="website_url">https://example.com/</field>
     <field name="source_url">https://github.com/example/notes</field>
     <field name="docker_compose_template"><![CDATA[services:
@@ -41,7 +41,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
       - internal
-      - agz-proxy-network
+      - steer-proxy-network
   db:
     image: postgres:17-alpine
     restart: unless-stopped
@@ -63,7 +63,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     <field name="backup_script"><![CDATA[#!/bin/bash

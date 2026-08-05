@@ -11,11 +11,11 @@
         <field name="service_code">n8n_with_postgres</field>
         <field name="version">latest</field>
         <field name="description">n8n is a fair-code workflow automation platform that combines a visual node editor with the freedom to drop into real code, backed here by PostgreSQL for production-grade reliability.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">n8n is a fair-code workflow automation platform that combines a visual node editor with the freedom to drop into real code, backed here by PostgreSQL for production-grade reliability.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">n8n is a fair-code workflow automation platform that combines a visual node editor with the freedom to drop into real code, backed here by PostgreSQL for production-grade reliability.</p>
   <p>It lets technical teams connect APIs, databases and services into automated workflows, mixing a no-code canvas with JavaScript or Python snippets, custom npm packages and HTTP requests when a connector does not exist. With 400+ integrations and native AI-agent nodes built on LangChain, it serves as a self-hosted alternative to Zapier or Make while keeping data and execution fully under your control. This deployment uses PostgreSQL as the execution and credential store instead of the default SQLite, which is the recommended setup for concurrent executions, queue mode and scaling.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Visual drag-and-drop workflow editor with 400+ pre-built integrations</li>
     <li>Inline Code nodes (JavaScript/Python) and arbitrary HTTP requests for anything not covered by a connector</li>
     <li>Native AI-agent and LLM nodes (LangChain-based) for building agentic, RAG and chatbot workflows</li>
@@ -23,7 +23,7 @@
     <li>Triggers via webhooks, schedules, polling and app events, with conditional logic, loops and error handling</li>
     <li>Self-hosting with full data ownership, plus enterprise options (SSO, RBAC, air-gapped deployments)</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers, DevOps and technical teams that want a self-hosted, data-sovereign automation hub for integrating internal systems, orchestrating AI agents and replacing SaaS automation tools, where PostgreSQL is needed for production load and reliability.</p>
 </div>]]></field>
         <field name="category">automation</field>
@@ -34,7 +34,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/n8n_with_postgres.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_database')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_database')])]"/>
         <field name="website_url">https://n8n.io/</field>
         <field name="documentation_url">https://docs.n8n.io/</field>
         <field name="source_url">https://github.com/n8n-io/n8n</field>
@@ -87,11 +87,11 @@
     - '{{ PORT_HTTP }}:5678'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

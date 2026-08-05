@@ -11,11 +11,11 @@
         <field name="service_code">crawl4ai</field>
         <field name="version">0.7.3</field>
         <field name="description">Crawl4AI is an open-source, LLM-friendly web crawler and scraper that turns any website into clean, structured Markdown ready for RAG pipelines and AI agents.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Crawl4AI is an open-source, LLM-friendly web crawler and scraper that turns any website into clean, structured Markdown ready for RAG pipelines and AI agents.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Crawl4AI is an open-source, LLM-friendly web crawler and scraper that turns any website into clean, structured Markdown ready for RAG pipelines and AI agents.</p>
   <p>Built in Python on top of Playwright, it handles JavaScript-heavy pages, dynamic content and anti-bot measures while producing output optimized for large language models. It can be embedded as a library or self-hosted as a FastAPI-based server exposing a REST API, an interactive playground and a Model Context Protocol (MCP) endpoint, so AI assistants and agents can fetch and parse the web on demand. Extraction can rely on heuristic "fit Markdown" filtering, CSS/XPath selectors or LLM-driven structured schemas.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Clean Markdown generation tuned for RAG and direct LLM ingestion</li>
     <li>LLM-based, CSS and XPath extraction strategies, plus table extraction</li>
     <li>Full browser automation: JavaScript execution, screenshots, PDF export and Shadow DOM flattening</li>
@@ -23,7 +23,7 @@
     <li>Managed browser pooling, persistent profiles, proxy support and anti-bot escalation</li>
     <li>Self-hosted Docker server with REST API, interactive playground and MCP integration</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers and teams building RAG systems, AI agents and data pipelines that need reliable, structured web content extraction without relying on a commercial scraping service.</p>
 </div>]]></field>
         <field name="category">ai</field>
@@ -32,7 +32,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/crawl4ai.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_web_scraping')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_search'), ref('steer_infra_suite.tag_web_scraping')])]"/>
         <field name="website_url">https://crawl4ai.com</field>
         <field name="documentation_url">https://github.com/unclecode/crawl4ai#readme</field>
         <field name="source_url">https://github.com/unclecode/crawl4ai</field>
@@ -66,11 +66,11 @@
     - '{{ PORT_HTTP }}:11235'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

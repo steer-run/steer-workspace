@@ -14,11 +14,11 @@
         <field name="service_code">ipfs</field>
         <field name="version">latest</field>
         <field name="description">Kubo is the reference implementation of IPFS, the InterPlanetary File System, letting you run your own node on a global content-addressed peer-to-peer network.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Kubo is the reference implementation of IPFS, the InterPlanetary File System, letting you run your own node on a global content-addressed peer-to-peer network.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Kubo is the reference implementation of IPFS, the InterPlanetary File System, letting you run your own node on a global content-addressed peer-to-peer network.</p>
   <p>Written in Go, Kubo turns content into immutable, verifiable CIDs and exchanges data across the LAN and the public Amino DHT. It exposes an HTTP gateway for browser retrieval, an RPC API and CLI to control the daemon, and a WebUI to manage your node. It is the most widely-used IPFS implementation and the foundation of most public gateways and pinning services.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Content-addressed storage with verifiable CIDs and UnixFS file/directory handling</li>
     <li>Peer-to-peer data exchange over LAN (mDNS) and the public WAN Amino DHT via Bitswap</li>
     <li>Built-in HTTP gateway for serving and retrieving content in any browser</li>
@@ -26,7 +26,7 @@
     <li>Delegated Routing V1 HTTP API for light clients and browser-based retrieval</li>
     <li>Local pinning, FUSE filesystem mounts and content blocking for public operators</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams and individuals running their own IPFS gateway or pinning node, hosting decentralized websites and dapp assets, or building censorship-resistant, content-addressed storage into their infrastructure.</p>
 </div>]]></field>
         <field name="category">storage</field>
@@ -35,7 +35,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/ipfs.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_file_sharing')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_storage'), ref('steer_infra_suite.tag_networking'), ref('steer_infra_suite.tag_file_sharing')])]"/>
         <field name="website_url">https://ipfs.tech/</field>
         <field name="documentation_url">https://docs.ipfs.tech/</field>
         <field name="source_url">https://github.com/ipfs/kubo</field>
@@ -53,11 +53,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

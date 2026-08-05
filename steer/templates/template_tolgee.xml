@@ -12,11 +12,11 @@
         <field name="service_code">tolgee</field>
         <field name="version">latest</field>
         <field name="description">Tolgee is a developer- and translator-friendly localization platform that lets teams translate apps in-context, directly in the running UI.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Tolgee is a developer- and translator-friendly localization platform that lets teams translate apps in-context, directly in the running UI.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Tolgee is a developer- and translator-friendly localization platform that lets teams translate apps in-context, directly in the running UI.</p>
   <p>It manages translation keys across web, mobile and backend projects and serves as a self-hosted, open-source alternative to Crowdin, Phrase and Lokalise. Developers integrate it through native SDKs and a CLI, while translators edit strings in place via ALT/Option-click, even in deployed environments through a browser plugin. Machine translation, translation memory and AI-assisted auto-translation speed up the workflow without locking teams into a proprietary cloud.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>In-context editing of translations directly in the live application UI</li>
     <li>SDKs and CLI for React, Vue, Angular, Svelte, Next.js and more, plus a REST API</li>
     <li>Machine translation via DeepL, Google Translate and AWS Translate using your own API keys</li>
@@ -24,7 +24,7 @@
     <li>Automatic screenshots with highlighted phrases to give translators visual context</li>
     <li>Activity logs, review workflows and an MCP server for AI-assistant integration</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Engineering and localization teams that want to own their translation infrastructure: software products needing continuous i18n/l10n, agencies managing multilingual apps, and organizations seeking a self-hosted alternative to SaaS localization tools.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/tolgee.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_documentation')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_documentation')])]"/>
         <field name="website_url">https://tolgee.io</field>
         <field name="documentation_url">https://tolgee.io/platform</field>
         <field name="source_url">https://github.com/tolgee/tolgee-platform</field>
@@ -63,11 +63,11 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

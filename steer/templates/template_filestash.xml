@@ -14,11 +14,11 @@
         <field name="service_code">filestash</field>
         <field name="version">latest</field>
         <field name="description">Filestash is a storage-agnostic web file manager that puts a single Dropbox-like interface in front of any backend you already run.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Filestash is a storage-agnostic web file manager that puts a single Dropbox-like interface in front of any backend you already run.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Filestash is a storage-agnostic web file manager that puts a single Dropbox-like interface in front of any backend you already run.</p>
   <p>Built around a universal data access layer, Filestash connects to dozens of storage systems &mdash; S3, SFTP, FTP, SMB, NFS, WebDAV, Azure Blob, Backblaze, Git, LDAP and many more &mdash; without needing FUSE. Its modular plugin architecture lets you swap or extend storage, authentication, authorization, search and UI behaviour, making it a fit for teams that must wire an existing identity provider and permission model onto heterogeneous data sources.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>20+ pluggable storage backends accessed through one consistent web client</li>
     <li>Identity-aware access with LDAP, SAML, OIDC and authentication chaining (including 2FA)</li>
     <li>Plugin system to customize authorization, search, thumbnailing and middleware</li>
@@ -26,7 +26,7 @@
     <li>Additional gateways and protocols (SFTP, S3, FTP, WebDAV) on top of the same backends</li>
     <li>Self-hosted under AGPL-3.0, keeping files and credentials on your own infrastructure</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Organizations that need to expose existing storage (S3 buckets, SFTP/SMB/NFS shares, object stores) to end users through a friendly, permission-controlled web UI tied to their own identity provider &mdash; from universities and enterprises to teams replacing ad-hoc file-sharing tools.</p>
 </div>]]></field>
         <field name="category">storage</field>
@@ -35,7 +35,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/filestash.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_identity')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_storage'), ref('steer_infra_suite.tag_file_sharing'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_identity')])]"/>
         <field name="website_url">https://www.filestash.app/</field>
         <field name="documentation_url">https://www.filestash.app/docs/</field>
         <field name="source_url">https://github.com/mickael-kerjean/filestash</field>
@@ -56,7 +56,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   wopi_server:
     image: collabora/code:24.04.10.2.1
     restart: always
@@ -80,7 +80,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

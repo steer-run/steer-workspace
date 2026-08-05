@@ -11,11 +11,11 @@
         <field name="service_code">langflow</field>
         <field name="version">1.1.1</field>
         <field name="description">Langflow is a visual low-code builder for designing, testing, and deploying AI agents and RAG applications.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Langflow is a visual low-code builder for designing, testing, and deploying AI agents and RAG applications.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Langflow is a visual low-code builder for designing, testing, and deploying AI agents and RAG applications.</p>
   <p>It pairs a drag-and-drop canvas with full Python extensibility, letting you wire together LLMs, vector stores, data sources, and tools into reusable flows. It is model-agnostic, working with providers such as OpenAI, Anthropic, Hugging Face, and local models via Ollama, and any workflow can be exported as JSON or published as an API or MCP server. Because flows run user-authored Python code, it is best operated behind authentication and kept current.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Visual drag-and-drop editor for multi-agent and RAG workflows</li>
     <li>Model-agnostic: connect any LLM, embedding model, vector database, or API</li>
     <li>Interactive playground with step-by-step execution and conversation management</li>
@@ -23,7 +23,7 @@
     <li>Python customization of components and direct source-code access</li>
     <li>Observability integrations (LangSmith, LangFuse) and self-hosted deployment</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers and teams that want to prototype, iterate on, and ship LLM-powered agents and retrieval pipelines visually, while retaining the option to drop into Python and self-host the result.</p>
 </div>]]></field>
         <field name="category">ai</field>
@@ -34,7 +34,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/langflow.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_llm')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_llm')])]"/>
         <field name="website_url">https://www.langflow.org/</field>
         <field name="documentation_url">https://docs.langflow.org/</field>
         <field name="source_url">https://github.com/langflow-ai/langflow/tree/main</field>
@@ -53,7 +53,7 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   postgres-langflow:
     image: postgres:16
     environment:
@@ -71,7 +71,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

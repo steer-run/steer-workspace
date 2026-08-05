@@ -12,11 +12,11 @@
         <field name="service_code">heyform</field>
         <field name="version">latest</field>
         <field name="description">HeyForm is a self-hosted, open-source form builder for creating engaging conversational forms, surveys, quizzes and polls without writing code.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">HeyForm is a self-hosted, open-source form builder for creating engaging conversational forms, surveys, quizzes and polls without writing code.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">HeyForm is a self-hosted, open-source form builder for creating engaging conversational forms, surveys, quizzes and polls without writing code.</p>
   <p>It offers a drag-and-drop editor centered on a one-question-per-page, conversational experience, with a wide range of input types and dynamic behavior driven by conditional logic. As an AGPL-3.0 project built in TypeScript, it runs entirely on your own infrastructure (app plus MongoDB and a Redis-compatible cache), giving teams full ownership of form data and submissions. It connects to external tools through webhooks and integrations, making it a privacy-friendly alternative to Typeform, Tally and Google Forms.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Drag-and-drop builder with conversational, one-question-per-page forms</li>
     <li>Rich input types: text, email, phone, picture choice, date pickers and file uploads</li>
     <li>Conditional logic, URL redirects and answer recall for dynamic flows</li>
@@ -24,7 +24,7 @@
     <li>Custom themes, branding and advanced CSS customization</li>
     <li>Submission analytics with completion and drop-off metrics and CSV export</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams, startups and agencies that want full data ownership over surveys, lead-capture and feedback forms, and need a self-hosted, privacy-respecting alternative to hosted form services.</p>
 </div>]]></field>
         <field name="category">business</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">custom</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/heyform.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_forms')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_forms')])]"/>
         <field name="website_url">https://heyform.net</field>
         <field name="documentation_url">https://docs.heyform.net</field>
         <field name="source_url">https://github.com/heyform/heyform</field>
@@ -57,7 +57,7 @@
       REDIS_PORT: 6379
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
     container_name: '{{ INSTANCE_CODE }}'
   mongo:
     image: percona/percona-server-mongodb:4.4
@@ -79,7 +79,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

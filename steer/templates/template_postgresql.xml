@@ -6,12 +6,12 @@
     <record id="template_postgresql" model="service.template">
         <field name="name">PostgreSQL Database</field>
         <field name="code">postgresql</field>
-        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/postgresql.png"/>
+        <field name="image" type="base64" file="steer_infra_suite/static/img/templates/postgresql.png"/>
         <field name="description">Base de datos PostgreSQL standalone para desarrollo o servicios externos.</field>
         <field name="category">database</field>
         <field name="version">16</field>
         <field name="service_code">postgresql</field>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_database')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_database')])]"/>
         <field name="is_web_app">False</field>
         <field name="is_global">True</field>
         <field name="active">True</field>
@@ -43,7 +43,7 @@
       retries: 5
 
   # Exporter de métricas de PostgreSQL para Prometheus. En la red 'database' para
-  # alcanzar al postgres y en 'agz-proxy-network' para que el Prometheus del stack
+  # alcanzar al postgres y en 'steer-proxy-network' para que el Prometheus del stack
   # lo scrapee por DNS de contenedor (local) o por la VPN (remoto, ver ports).
   db-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:{{ pg_exporter_version | default('latest') }}
@@ -64,12 +64,12 @@
     restart: unless-stopped
     networks:
       - database
-      - agz-proxy-network
+      - steer-proxy-network
 
 networks:
   database:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

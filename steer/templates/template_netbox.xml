@@ -14,11 +14,11 @@
         <field name="service_code">netbox</field>
         <field name="version">latest</field>
         <field name="description">NetBox is a self-hosted, open-source IPAM and DCIM platform that models your network and data center as a single, authoritative source of truth.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">NetBox is a self-hosted, open-source IPAM and DCIM platform that models your network and data center as a single, authoritative source of truth.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">NetBox is a self-hosted, open-source IPAM and DCIM platform that models your network and data center as a single, authoritative source of truth.</p>
   <p>NetBox lets infrastructure teams document everything about their environment: IP addresses and prefixes, VLANs and VRFs, racks and devices, cabling and circuits, tenants, contacts and services. It replaces spreadsheets and tribal knowledge with a structured, queryable database and a full REST and GraphQL API, so both people and automation pipelines can rely on the same accurate model of the network.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>IP address management (IPAM) with hierarchical prefixes, VLANs, VRFs and RIR/aggregate tracking</li>
     <li>Data center infrastructure management (DCIM): sites, racks, devices, modules, power and cabling</li>
     <li>Circuits, tenants, contacts and virtualization inventory for a complete asset picture</li>
@@ -26,7 +26,7 @@
     <li>Custom fields, tags, config contexts and change logging on every object</li>
     <li>Granular permissions, token-based auth and a full audit trail of who changed what</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Network and infrastructure teams that need an authoritative source of truth for IPs, racks and devices, and want to feed that model into automation. Restrict ALLOWED_HOSTS to your real domain and back it up often, as it quickly becomes critical documentation.</p>
 </div>]]></field>
         <field name="category">networking</field>
@@ -37,7 +37,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/netbox.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_documentation')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_networking'), ref('steer_infra_suite.tag_documentation')])]"/>
         <field name="website_url">https://netboxlabs.com/netbox/</field>
         <field name="documentation_url">https://netboxlabs.com/docs/netbox/</field>
         <field name="source_url">https://github.com/netbox-community/netbox</field>
@@ -136,7 +136,7 @@
     - '{{ PORT_HTTP }}:8080'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   netbox-worker:
     image: netboxcommunity/netbox:latest
     restart: unless-stopped
@@ -221,7 +221,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

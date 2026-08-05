@@ -13,11 +13,11 @@
         <field name="service_code">sonarqube</field>
         <field name="version">community</field>
         <field name="description">SonarQube continuously inspects your code to catch bugs, vulnerabilities and code smells, with quality gates that plug straight into your CI/CD pipeline.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">SonarQube continuously inspects your code to catch bugs, vulnerabilities and code smells, with quality gates that plug straight into your CI/CD pipeline.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">SonarQube continuously inspects your code to catch bugs, vulnerabilities and code smells, with quality gates that plug straight into your CI/CD pipeline.</p>
   <p>SonarQube Community Build is the free, self-hosted edition of SonarSource's static analysis platform. It scans your source code across dozens of languages and surfaces bugs, security vulnerabilities and maintainability issues in a single dashboard, then enforces a configurable Quality Gate that can pass or fail every build. Backed by PostgreSQL, it is aimed at development teams that want to automate code-quality and security controls inside their CI/CD workflow and keep full ownership of the analysis data.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Static analysis for 30+ languages (Java, JavaScript/TypeScript, Python, C#, PHP, Go and more), detecting bugs, vulnerabilities and code smells</li>
     <li>Configurable Quality Gates that pass or fail a build against thresholds, ready to break CI when quality drops</li>
     <li>Clean as You Code: focus on newly changed code so overall quality improves commit after commit</li>
@@ -25,7 +25,7 @@
     <li>Security rules mapped to OWASP Top 10, CWE and SANS, with remediation guidance for each issue</li>
     <li>Historical dashboards for test coverage, duplications, complexity and technical debt</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Development teams that want automated code-quality and security gates wired into their CI/CD pipelines. Operational caveats: SonarQube embeds Elasticsearch, so the host must set vm.max_map_count=262144 and raise file-descriptor limits before it will start, allow a couple of GB of RAM, and you should change the default admin/admin credentials on first login.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -36,7 +36,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/sonarqube.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="website_url">https://www.sonarsource.com/open-source-editions/sonarqube-community-edition/</field>
         <field name="documentation_url">https://docs.sonarsource.com/sonarqube-community-build/</field>
         <field name="source_url">https://github.com/SonarSource/docker-sonarqube</field>
@@ -64,7 +64,7 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   db:
     image: postgres:17
     environment:
@@ -87,7 +87,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

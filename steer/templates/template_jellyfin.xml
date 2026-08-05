@@ -12,11 +12,11 @@
         <field name="service_code">jellyfin</field>
         <field name="version">v10.9.7</field>
         <field name="description">Jellyfin is a free, self-hosted media server that lets you organize and stream your own movies, TV, music, and photos to any device, with no subscriptions, tracking, or central servers.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Jellyfin is a free, self-hosted media server that lets you organize and stream your own movies, TV, music, and photos to any device, with no subscriptions, tracking, or central servers.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Jellyfin is a free, self-hosted media server that lets you organize and stream your own movies, TV, music, and photos to any device, with no subscriptions, tracking, or central servers.</p>
   <p>Built on .NET (C#), Jellyfin scans your media library, fetches rich metadata and artwork, and serves it to a broad ecosystem of clients across web browsers, mobile, smart TVs, and Kodi. It transcodes on the fly (with hardware acceleration) so content plays smoothly on devices that do not natively support the source format. As a fully FLOSS alternative to Plex and Emby, it keeps all data on infrastructure you control.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Automatic library scanning with metadata, artwork, and chapter detection for movies, series, music, and photos</li>
     <li>On-the-fly transcoding with hardware acceleration (VAAPI, QSV, NVENC) for cross-device playback</li>
     <li>Wide client support: web UI, mobile and TV apps, and Kodi integration via a documented API</li>
@@ -24,7 +24,7 @@
     <li>Live TV and DVR support through tuners and M3U/XMLTV sources</li>
     <li>Extensible via plugins, with no telemetry, premium tiers, or phone-home behavior</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Home users, homelab enthusiasts, and organizations that want full ownership of a private media library and streaming platform without recurring fees or vendor lock-in.</p>
 </div>]]></field>
         <field name="category">media</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/jellyfin.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_media'), ref('steer_infra_suite.tag_privacy')])]"/>
         <field name="website_url">https://jellyfin.org/</field>
         <field name="documentation_url">https://jellyfin.org/docs/</field>
         <field name="source_url">https://github.com/jellyfin/jellyfin</field>
@@ -54,11 +54,11 @@
     - '{{ PORT_HTTP }}:8096'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

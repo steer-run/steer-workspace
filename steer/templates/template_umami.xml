@@ -13,7 +13,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_self_hosted')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_self_hosted')])]"/>
         <field name="website_url">https://umami.is</field>
         <field name="documentation_url">https://umami.is/docs</field>
         <field name="source_url">https://github.com/umami-software/umami</field>
@@ -40,7 +40,7 @@
     - '{{ PORT_HTTP }}:3000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   db:
     image: postgres:15-alpine
     restart: always
@@ -63,7 +63,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

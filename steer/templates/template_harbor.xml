@@ -20,11 +20,11 @@
         <field name="service_code">harbor</field>
         <field name="version">latest</field>
         <field name="description">Harbor is a CNCF-graduated, open-source container registry that stores and secures OCI images and artifacts with RBAC, vulnerability scanning, signing and replication.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Harbor is a CNCF-graduated, open-source container registry that stores and secures OCI images and artifacts with RBAC, vulnerability scanning, signing and replication.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Harbor is a CNCF-graduated, open-source container registry that stores and secures OCI images and artifacts with RBAC, vulnerability scanning, signing and replication.</p>
   <p>Harbor extends a plain OCI registry with the governance an organization needs to run container images in production. It groups images into projects with role-based access control and quotas, scans every artifact for known vulnerabilities, signs and verifies content, and replicates images between registries and remote Harbor instances. Graduated by the CNCF and battle-tested at scale, it is the standard self-hosted alternative to hosted registries like Docker Hub, Amazon ECR or GitHub Container Registry.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Private registry for Docker/OCI images, Helm charts and arbitrary artifacts, organized into projects</li>
     <li>Role-based access control with projects, quotas, robot accounts and OIDC/LDAP single sign-on</li>
     <li>Vulnerability scanning with Trivy plus CVE allow-lists to block risky images</li>
@@ -32,7 +32,7 @@
     <li>Replication policies to mirror and sync images across registries and remote Harbors</li>
     <li>Tag retention, tag immutability, garbage collection and event webhooks</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Platform and DevOps teams that need a governed, self-hosted registry as the trusted image source for their CI/CD pipelines and clusters. Harbor is an advanced, multi-service stack: it must run behind real HTTPS, is officially initialized with its own installer (which generates the per-service secrets, certificates and configuration), needs roughly 4 GB of RAM, and should have retention and garbage-collection policies in place since image storage grows quickly.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -42,7 +42,7 @@
         <field name="backup_mode">standard</field>
         <field name="health_check_command">pg_isready -U postgres</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/harbor.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_storage')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_storage')])]"/>
         <field name="website_url">https://goharbor.io/</field>
         <field name="documentation_url">https://goharbor.io/docs/</field>
         <field name="source_url">https://github.com/goharbor/harbor</field>
@@ -200,11 +200,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

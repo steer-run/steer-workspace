@@ -14,11 +14,11 @@
         <field name="service_code">penpot</field>
         <field name="version">2.3.2</field>
         <field name="description">Penpot is the open-source design and prototyping platform that unites designers and developers around open web standards.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Penpot is the open-source design and prototyping platform that unites designers and developers around open web standards.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Penpot is the open-source design and prototyping platform that unites designers and developers around open web standards.</p>
   <p>Penpot lets product teams design interfaces and prototypes collaboratively in the browser, storing work as standard SVG/CSS/HTML rather than a proprietary format. Built natively on web technologies, it offers real CSS Grid and Flexbox layouts, built-in design tokens, and a developer inspect mode that exposes ready-to-use code. It is the only major design platform that can be fully self-hosted, making it a strong fit for teams that need data ownership and no vendor lock-in.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Real-time collaborative design and interactive prototyping in the browser</li>
     <li>Native CSS Grid and Flexbox layouts that map directly to shipped code</li>
     <li>Built-in design tokens as a single source of truth between design and development</li>
@@ -26,7 +26,7 @@
     <li>Open API, plugin system and MCP server for automation and AI-driven workflows</li>
     <li>Fully self-hostable via Docker or Kubernetes under the MPL-2.0 license</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Design and product teams, agencies and privacy-conscious organizations that want a self-hosted, standards-based alternative to proprietary design tools, with tight design-to-code collaboration and full control over their design infrastructure.</p>
 </div>]]></field>
         <field name="category">collaboration</field>
@@ -37,7 +37,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/penpot.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_media')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_media')])]"/>
         <field name="website_url">https://penpot.app/</field>
         <field name="documentation_url">https://docs.penpot.app/</field>
         <field name="source_url">https://github.com/penpot/penpot</field>
@@ -57,7 +57,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   penpot-backend:
     image: penpotapp/backend:2.6.1
     restart: always
@@ -129,7 +129,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

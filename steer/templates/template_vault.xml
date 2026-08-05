@@ -13,11 +13,11 @@
         <field name="service_code">vault</field>
         <field name="version">latest</field>
         <field name="description">HashiCorp Vault is a secrets management platform that secures, stores, and tightly controls access to tokens, passwords, certificates, and encryption keys.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">HashiCorp Vault is a secrets management platform that secures, stores, and tightly controls access to tokens, passwords, certificates, and encryption keys.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">HashiCorp Vault is a secrets management platform that secures, stores, and tightly controls access to tokens, passwords, certificates, and encryption keys.</p>
   <p>Vault provides a unified API and UI to manage any secret across an organization while enforcing fine-grained access policies and recording a detailed audit log. Beyond static storage, it can generate short-lived dynamic credentials on demand for databases and cloud providers, act as encryption-as-a-service, and manage the full lifecycle of secrets through leasing and revocation. It is the de-facto standard for centralizing secrets in DevOps, cloud-native, and zero-trust architectures.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Centralized, encrypted storage for API keys, passwords, certificates, and keys</li>
     <li>Dynamic, short-lived secrets generated on demand for databases and cloud platforms</li>
     <li>Encryption-as-a-service to encrypt and decrypt data without exposing keys</li>
@@ -25,7 +25,7 @@
     <li>Lease management, automatic renewal, and instant revocation of secrets</li>
     <li>Detailed audit logging of every request for compliance and traceability</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Platform, security, and DevOps teams that need to centralize and govern secrets across applications, infrastructure, and cloud environments, especially where dynamic credentials, encryption services, and strong audit trails are required.</p>
 </div>]]></field>
         <field name="category">security</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/vault.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_identity'), ref('agz_infra_suite.tag_password_manager'), ref('agz_infra_suite.tag_secrets')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_identity'), ref('steer_infra_suite.tag_password_manager'), ref('steer_infra_suite.tag_secrets')])]"/>
         <field name="website_url">https://www.vaultproject.io/</field>
         <field name="documentation_url">https://developer.hashicorp.com/vault/docs</field>
         <field name="source_url">https://github.com/hashicorp/vault</field>
@@ -55,11 +55,11 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

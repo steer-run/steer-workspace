@@ -12,11 +12,11 @@
         <field name="service_code">docuseal</field>
         <field name="version">latest</field>
         <field name="description">DocuSeal is an open-source electronic signature platform: a self-hostable DocuSign alternative to create, fill, and sign documents.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">DocuSeal is an open-source electronic signature platform: a self-hostable DocuSign alternative to create, fill, and sign documents.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">DocuSeal is an open-source electronic signature platform: a self-hostable DocuSign alternative to create, fill, and sign documents.</p>
   <p>It provides a WYSIWYG builder for turning PDFs into fillable forms with multiple field types, then guides each signer through a step-by-step, mobile-friendly signing flow. Every document is sealed with an industry-standard digital PDF signature and an embedded audit trail, and the whole stack runs on your own infrastructure so sensitive contracts never leave your servers. It targets teams that want legally binding e-signatures without per-seat SaaS pricing or sending data to a third party.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>WYSIWYG form builder with many field types (signature, date, checkbox, image, file, and more)</li>
     <li>Step-by-step, mobile-optimized signing for multiple submitters</li>
     <li>Standards-based digital PDF signatures with verification and an embedded audit trail</li>
@@ -24,7 +24,7 @@
     <li>Flexible storage on local disk or private S3, Google Cloud Storage, or Azure</li>
     <li>Compliance with eIDAS, ESIGN, UETA, HIPAA and 21 CFR Part 11; SSO/SAML and user roles available</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Businesses, agencies and regulated organizations that need legally binding document signing on their own infrastructure, and developers integrating signing workflows into their apps through the API.</p>
 </div>]]></field>
         <field name="category">business</field>
@@ -35,7 +35,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/docuseal.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_automation')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_automation')])]"/>
         <field name="website_url">https://www.docuseal.com/</field>
         <field name="documentation_url">https://www.docuseal.com/</field>
         <field name="source_url">https://github.com/docusealco/docuseal</field>
@@ -55,7 +55,7 @@
     - '{{ PORT_HTTP }}:3000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   docu-postgres:
     image: postgres:latest
     volumes:
@@ -86,7 +86,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

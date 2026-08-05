@@ -11,11 +11,11 @@
         <field name="service_code">glpi</field>
         <field name="version">10.0.16</field>
         <field name="description">GLPI is a mature open-source IT Service Management and Asset Management platform that unifies your help desk, inventory and CMDB in a single self-hosted application.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">GLPI is a mature open-source IT Service Management and Asset Management platform that unifies your help desk, inventory and CMDB in a single self-hosted application.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">GLPI is a mature open-source IT Service Management and Asset Management platform that unifies your help desk, inventory and CMDB in a single self-hosted application.</p>
   <p>It combines ITIL-aligned incident, problem and change management with hardware and software inventory, license tracking, contracts and a configuration management database. Designed for IT departments and managed service providers, it scales from small teams to large multi-entity organizations and is extended through a rich plugin marketplace. Authentication integrates with LDAP, SSO and OAuth, with granular per-profile permissions.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>ITIL service desk: ticketing, incidents, problems, changes and SLAs</li>
     <li>IT asset management with dynamic native inventory and CMDB</li>
     <li>Software, license and contract tracking for compliance and cost control</li>
@@ -23,7 +23,7 @@
     <li>Self-service portal, knowledge base and FAQ for end users</li>
     <li>LDAP/SSO/OAuth authentication with granular role-based permissions</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>IT teams, internal help desks and managed service providers that need a unified, self-hosted solution for asset inventory, ITIL ticketing and configuration management.</p>
 </div>]]></field>
         <field name="category">business</field>
@@ -34,7 +34,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">mysqladmin ping --silent</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/glpi.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_documentation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_helpdesk')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_documentation'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_helpdesk')])]"/>
         <field name="website_url">https://glpi-project.org/</field>
         <field name="documentation_url">https://glpi-project.org/documentation/</field>
         <field name="source_url">https://github.com/glpi-project/glpi</field>
@@ -61,11 +61,11 @@
     - '{{ PORT_HTTP }}:80'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

@@ -13,11 +13,11 @@
         <field name="service_code">minio</field>
         <field name="version">latest</field>
         <field name="description">MinIO is a high-performance, S3-compatible object storage server you run on your own infrastructure.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">MinIO is a high-performance, S3-compatible object storage server you run on your own infrastructure.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">MinIO is a high-performance, S3-compatible object storage server you run on your own infrastructure.</p>
   <p>Written in Go, MinIO exposes the Amazon S3 API so existing S3 SDKs, tools and applications work against it unchanged. It is designed for speed and scale, with built-in erasure coding for data durability, and powers AI/ML, analytics, backup and data-lake workloads on commodity hardware. Note: the original open-source project has been placed in maintenance and is no longer actively developed upstream, so production users typically rely on a community-maintained fork or the vendor's hosted edition.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Full Amazon S3 API compatibility for drop-in use with existing S3 clients and SDKs</li>
     <li>Erasure coding and bit-rot protection for resilient, durable storage across drives and nodes</li>
     <li>Distributed, horizontally scalable deployment for high throughput and capacity</li>
@@ -25,7 +25,7 @@
     <li>Server-side encryption, versioning, object locking and lifecycle rules</li>
     <li>Site-to-site bucket replication and event notifications</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams that need a private, S3-compatible object store for application data, backups, media, analytics and AI/ML pipelines, and DevOps platforms that want to embed self-hosted S3 storage without a public-cloud dependency.</p>
 </div>]]></field>
         <field name="category">storage</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/minio.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_backup'), ref('agz_infra_suite.tag_object_storage')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_storage'), ref('steer_infra_suite.tag_file_sharing'), ref('steer_infra_suite.tag_backup'), ref('steer_infra_suite.tag_object_storage')])]"/>
         <field name="website_url">https://minio.io/</field>
         <field name="documentation_url">https://docs.minio.io/</field>
         <field name="source_url">https://github.com/pgsty/minio</field>
@@ -56,11 +56,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

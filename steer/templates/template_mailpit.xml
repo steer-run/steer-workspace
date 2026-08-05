@@ -12,11 +12,11 @@
         <field name="service_code">mailpit</field>
         <field name="version">v1.22.3</field>
         <field name="description">Mailpit is a fast, single-binary email and SMTP testing tool that captures outgoing mail from your applications and presents it in a modern web interface.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Mailpit is a fast, single-binary email and SMTP testing tool that captures outgoing mail from your applications and presents it in a modern web interface.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Mailpit is a fast, single-binary email and SMTP testing tool that captures outgoing mail from your applications and presents it in a modern web interface.</p>
   <p>It runs an SMTP server that intercepts every message your app sends during development or testing, storing nothing on real inboxes. A built-in web UI lets you inspect captured emails, while a REST API enables automated integration tests. Written in Go with a Vue frontend, it is a drop-in, actively maintained successor to MailHog with the same default ports and a compatible API.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>SMTP server with optional STARTTLS/SSL-TLS and authentication that captures all outgoing mail</li>
     <li>Modern web UI with full-text search, HTML/text/raw views, headers, attachments and real-time WebSocket updates</li>
     <li>REST API for automated integration testing, plus an optional POP3 server</li>
@@ -24,7 +24,7 @@
     <li>Message tagging, plus SMTP relaying/forwarding and a Chaos mode to simulate SMTP failures</li>
     <li>Single static binary or multi-arch Docker image, low memory footprint, SQLite or PostgreSQL storage with automatic pruning</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers and QA teams that need to capture, inspect and test application email during development, CI pipelines and integration testing without sending real messages. An ideal drop-in replacement for MailHog.</p>
 </div>]]></field>
         <field name="category">mail</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/mailpit.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_email'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_email'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="website_url">https://mailpit.axllent.org/</field>
         <field name="documentation_url">https://mailpit.axllent.org/docs/</field>
         <field name="source_url">https://github.com/axllent/mailpit</field>
@@ -62,11 +62,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

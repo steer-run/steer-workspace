@@ -11,11 +11,11 @@
         <field name="service_code">coder</field>
         <field name="version">2.15.3</field>
         <field name="description">Coder is a self-hosted platform for cloud development environments (CDEs) that provisions remote, ready-to-code workspaces on your own infrastructure.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Coder is a self-hosted platform for cloud development environments (CDEs) that provisions remote, ready-to-code workspaces on your own infrastructure.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Coder is a self-hosted platform for cloud development environments (CDEs) that provisions remote, ready-to-code workspaces on your own infrastructure.</p>
   <p>Coder lets platform teams define developer workspaces as Terraform infrastructure-as-code, then run them on EC2 VMs, Kubernetes pods or Docker containers under their own governance. Developers connect from VS Code, JetBrains IDEs, the web or the CLI over a secure WireGuard tunnel, so source code and credentials never leave the company's environment. It is widely regarded as the self-hosted alternative to GitHub Codespaces, and now also governs autonomous AI coding agents that execute on your infrastructure rather than in unmanaged sandboxes.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Workspaces defined as code via Terraform, deployable on Kubernetes, cloud VMs (EC2 and others) or Docker</li>
     <li>Secure WireGuard tunneling so code and secrets stay inside your network and air-gapped deployments are supported</li>
     <li>Native IDE integrations for VS Code, JetBrains, web terminal and CLI/SSH access</li>
@@ -23,7 +23,7 @@
     <li>Governed AI coding agents that run on your own infrastructure without exposing API keys in workspaces</li>
     <li>Enterprise controls (access policies, audit logging, workspace proxies and branding) in the Premium edition</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Platform engineering teams and enterprises that need standardized, reproducible developer environments with full control over infrastructure, security and compliance, including regulated or air-gapped settings and teams adopting governed AI coding agents.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -34,7 +34,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/coder.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_paas'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_collaboration')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_paas'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_collaboration')])]"/>
         <field name="website_url">https://coder.com/</field>
         <field name="documentation_url">https://coder.com/docs</field>
         <field name="source_url">https://github.com/coder/coder</field>
@@ -58,7 +58,7 @@
     - '{{ PORT_HTTP }}:7080'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   db:
     image: postgres:17
     environment:
@@ -81,7 +81,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

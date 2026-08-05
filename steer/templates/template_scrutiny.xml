@@ -12,11 +12,11 @@
         <field name="service_code">scrutiny</field>
         <field name="version">latest</field>
         <field name="description">Scrutiny is a self-hosted hard drive health dashboard that turns raw S.M.A.R.T. data into clear, actionable disk-failure insight.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Scrutiny is a self-hosted hard drive health dashboard that turns raw S.M.A.R.T. data into clear, actionable disk-failure insight.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Scrutiny is a self-hosted hard drive health dashboard that turns raw S.M.A.R.T. data into clear, actionable disk-failure insight.</p>
   <p>It runs <code>smartctl</code> on a schedule to collect S.M.A.R.T. attributes from your drives, stores them for historical trend analysis, and presents a focused web dashboard that highlights only the metrics that matter. Instead of the manufacturer's lenient defaults, it applies real-world failure thresholds derived from large-scale drive reliability data, so you get earlier and more meaningful warnings of impending failure. It is built for homelab operators, NAS owners, and sysadmins who want disk health visibility across one or many machines.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Web dashboard that surfaces critical S.M.A.R.T. metrics and disk temperature at a glance</li>
     <li>Historical tracking of S.M.A.R.T. attributes to reveal degradation trends over time</li>
     <li>Failure thresholds based on real-world drive reliability data rather than vendor defaults</li>
@@ -24,7 +24,7 @@
     <li>Omnibus (single-container, SQLite) or hub-and-spoke (distributed collectors plus InfluxDB) deployment</li>
     <li>Alerting through Discord, Slack, Email, Telegram and many other webhook-based services</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Homelab and NAS users, storage admins, and anyone running spinning disks or SSDs who wants early, trend-based warning of drive failures across one host or a fleet of servers.</p>
 </div>]]></field>
         <field name="category">monitoring</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/scrutiny.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_monitoring'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="source_url">https://github.com/AnalogJ/scrutiny/</field>
         <field name="docker_compose_template"><![CDATA[services:
   scrutiny:
@@ -57,7 +57,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

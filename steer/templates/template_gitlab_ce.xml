@@ -13,11 +13,11 @@
         <field name="service_code">gitlab_ce</field>
         <field name="version">latest</field>
         <field name="description">GitLab CE is a complete, self-hosted DevOps platform that unifies Git repository management, code review, CI/CD, and project planning in a single application.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">GitLab CE is a complete, self-hosted DevOps platform that unifies Git repository management, code review, CI/CD, and project planning in a single application.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">GitLab CE is a complete, self-hosted DevOps platform that unifies Git repository management, code review, CI/CD, and project planning in a single application.</p>
   <p>The free, MIT-licensed Community Edition shares the same code base as GitLab Enterprise Edition, giving teams the full software-development lifecycle on their own infrastructure without per-seat licensing. It covers source control, issue tracking, merge requests, automated pipelines, a container and package registry, and wikis, so the entire workflow lives in one tool. Self-hosting keeps source code and build artifacts fully under your control, which suits privacy-sensitive and air-gapped environments.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Git repository hosting with branch protection, code review, and merge requests</li>
     <li>Built-in CI/CD pipelines defined as code, with runners and an integrated container registry</li>
     <li>Issue tracking, boards, milestones, and epics for project and product management</li>
@@ -25,7 +25,7 @@
     <li>Fine-grained roles, groups, and access controls for teams and organizations</li>
     <li>Distributable via official Docker images and scalable across multiple servers</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Engineering teams and organizations that want a single self-managed platform for source control, CI/CD, and collaboration, and that prefer keeping their code and pipelines on their own infrastructure for compliance, privacy, or cost reasons.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -35,7 +35,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_git'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ci_cd'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_project_management'), ref('agz_infra_suite.tag_documentation')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_git'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_ci_cd'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_project_management'), ref('steer_infra_suite.tag_documentation')])]"/>
         <field name="website_url">https://gitlab.com/</field>
         <field name="documentation_url">https://docs.gitlab.com/ee/</field>
         <field name="source_url">https://gitlab.com/gitlab-org/gitlab-ce</field>
@@ -108,7 +108,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   postgresql:
     image: postgres:16-alpine
     restart: unless-stopped
@@ -132,7 +132,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

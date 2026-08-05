@@ -6,12 +6,12 @@
     <record id="template_odoo19" model="service.template">
         <field name="name">Odoo Community</field>
         <field name="code">odoo</field>
-        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/odoo.png"/>
+        <field name="image" type="base64" file="steer_infra_suite/static/img/templates/odoo.png"/>
         <field name="description">Odoo Community Edition (17/18/19) con PostgreSQL. Ideal para ERP y gestión empresarial.</field>
         <field name="category">business</field>
         <field name="version">19.0</field>
         <field name="service_code">odoo</field>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_erp'), ref('agz_infra_suite.tag_crm')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_erp'), ref('steer_infra_suite.tag_crm')])]"/>
         <field name="is_web_app">True</field>
         <field name="is_global">True</field>
         <field name="active">True</field>
@@ -68,7 +68,7 @@
     restart: unless-stopped
     networks:
       - internal
-      - agz-proxy-network
+      - steer-proxy-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8069/web/health || exit 1"]
       interval: 30s
@@ -88,7 +88,7 @@
       - DATA_SOURCE_PASS={{ db_password }}
     # Métricas publicadas en el host (0.0.0.0). El Prometheus del stack (en otro
     # servidor) las scrapea por la VPN (vpn_ip:host); el Prometheus local, por DNS
-    # de contenedor en agz-proxy-network. Se bindea SIEMPRE a 0.0.0.0 — NO a la IP
+    # de contenedor en steer-proxy-network. Se bindea SIEMPRE a 0.0.0.0 — NO a la IP
     # de la VPN — para que el exporter arranque aunque la VPN esté offline: así un
     # problema de VPN/red solo afecta las métricas, nunca al resto del stack.
     ports:
@@ -96,12 +96,12 @@
     restart: unless-stopped
     networks:
       - internal
-      - agz-proxy-network
+      - steer-proxy-network
 
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

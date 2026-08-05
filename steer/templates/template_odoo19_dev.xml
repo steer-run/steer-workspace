@@ -6,12 +6,12 @@
     <record id="template_odoo19_dev" model="service.template">
         <field name="name">Odoo Development</field>
         <field name="code">odoo-dev</field>
-        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/odoo.png"/>
+        <field name="image" type="base64" file="steer_infra_suite/static/img/templates/odoo.png"/>
         <field name="description">Odoo (17/18/19) con IDE integrado (code-server) para desarrollo. Incluye PostgreSQL y permite programar directamente en el navegador.</field>
         <field name="category">business</field>
         <field name="version">19.0</field>
         <field name="service_code">odoo-dev</field>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_erp'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_erp'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="is_web_app">True</field>
         <field name="is_global">True</field>
         <field name="active">True</field>
@@ -50,7 +50,7 @@
       - ./postgres-data:/var/lib/postgresql/data/pgdata
     restart: unless-stopped
     networks:
-      # SOLO red interna: la BD nunca debe estar en agz-proxy-network (compartida
+      # SOLO red interna: la BD nunca debe estar en steer-proxy-network (compartida
       # entre todas las instancias), o el nombre genérico "db" colisiona y Odoo
       # podría conectarse al PostgreSQL de otra instancia.
       - internal
@@ -80,11 +80,11 @@
       - ./repos:/mnt/extra-addons
     restart: unless-stopped
     networks:
-      # En agz-proxy-network (compartida) el nombre genérico "odoo" colisiona con
+      # En steer-proxy-network (compartida) el nombre genérico "odoo" colisiona con
       # otras instancias. Para conexiones desde el IDE usar el nombre único del
       # contenedor ({{ INSTANCE_CODE }}), que es alias DNS único en ambas redes.
       - internal
-      - agz-proxy-network
+      - steer-proxy-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:8069/web/health || exit 1"]
       interval: 30s
@@ -112,7 +112,7 @@
     restart: unless-stopped
     networks:
       - internal
-      - agz-proxy-network
+      - steer-proxy-network
 
   db-exporter:
     image: quay.io/prometheuscommunity/postgres-exporter:{{ pg_exporter_version | default('latest') }}
@@ -133,12 +133,12 @@
     restart: unless-stopped
     networks:
       - internal
-      - agz-proxy-network
+      - steer-proxy-network
 
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash
@@ -536,7 +536,7 @@ dev_mode = reload,qweb,xml
     </record>
 
     <!-- SSH config del IDE: alias "odoo" → nombre único del contenedor.        -->
-    <!-- Evita que "ssh odoo@odoo" colisione en agz-proxy-network (red           -->
+    <!-- Evita que "ssh odoo@odoo" colisione en steer-proxy-network (red           -->
     <!-- compartida) y caiga en el Odoo de otra instancia. Se escribe en         -->
     <!-- ./ide-config/.ssh/config = /config/.ssh/config (HOME de code-server).   -->
     <record id="template_odoo19_dev_config_ssh" model="service.template.config.file">
@@ -549,7 +549,7 @@ dev_mode = reload,qweb,xml
         <field name="description">Alias SSH "odoo" que apunta al contenedor único de esta instancia ({{ INSTANCE_CODE }}), para que "ssh odoo@odoo" desde el IDE nunca resuelva al Odoo de otro entorno en la red compartida.</field>
         <field name="content_template"><![CDATA[# Generado para {{ instance.name }} - {{ generated_at }}
 # El host "odoo" se reescribe al nombre único del contenedor de esta
-# instancia para evitar colisiones de DNS en agz-proxy-network.
+# instancia para evitar colisiones de DNS en steer-proxy-network.
 Host odoo
     HostName {{ INSTANCE_CODE }}
     User odoo

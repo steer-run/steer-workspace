@@ -18,7 +18,7 @@
     <field name="requires_backup">True</field>
     <field name="backup_mode">standard</field>
     <field name="health_check_command">curl -fsS http://localhost:8080/ || exit 1</field>
-    <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted')])]"/>
+    <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted')])]"/>
     <field name="website_url">https://example.com/</field>
     <field name="source_url">https://github.com/example/board</field>
     <field name="docker_compose_template"><![CDATA[services:
@@ -34,9 +34,9 @@
       - ./board_data:/app/data
     container_name: '{{ INSTANCE_CODE }}'
     networks:
-      - agz-proxy-network
+      - steer-proxy-network
 networks:
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
   </record>

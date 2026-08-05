@@ -12,11 +12,11 @@
         <field name="service_code">rybbit</field>
         <field name="version">v1.5.1</field>
         <field name="description">Rybbit is an open-source, privacy-friendly web and product analytics platform built as an intuitive alternative to Google Analytics.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Rybbit is an open-source, privacy-friendly web and product analytics platform built as an intuitive alternative to Google Analytics.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Rybbit is an open-source, privacy-friendly web and product analytics platform built as an intuitive alternative to Google Analytics.</p>
   <p>It tracks visitors without cookies, fingerprinting, or storing personally identifiable information, which keeps deployments aligned with GDPR and CCPA while capturing data on every visitor instead of only those who accept a consent banner. Rybbit pairs a clean, real-time dashboard with advanced product-analytics capabilities, and is designed for teams that want full ownership of their data by self-hosting via Docker Compose. The self-hosted edition has feature parity with the cloud service, backed by ClickHouse for fast queries on large datasets.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Cookieless, privacy-first tracking with daily-rotating salted IDs and no PII storage</li>
     <li>Core web metrics: sessions, unique users, pageviews, bounce rate and session duration</li>
     <li>Funnels, user journeys, retention analysis, goals and custom events with JSON properties</li>
@@ -24,7 +24,7 @@
     <li>Three-level geolocation (country, region, city) with map visualizations and 15+ filter dimensions</li>
     <li>Multi-site organizations, public dashboards and a lightweight script that integrates with 40+ platforms</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers, startups and privacy-conscious teams that want a modern, self-hostable analytics stack with full data ownership and no consent-banner friction, as a drop-in replacement for Google Analytics, Plausible or similar tools.</p>
 </div>]]></field>
         <field name="category">analytics</field>
@@ -35,7 +35,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/rybbit.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_monitoring')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_monitoring')])]"/>
         <field name="website_url">https://rybbit.io</field>
         <field name="documentation_url">https://www.rybbit.io/docs</field>
         <field name="source_url">https://github.com/rybbit-io/rybbit</field>
@@ -124,7 +124,7 @@
     - '{{ PORT_HTTP }}:3001'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   rybbit_client:
     image: ghcr.io/rybbit-io/rybbit-client:v1.5.1
     environment:
@@ -141,7 +141,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

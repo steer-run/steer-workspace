@@ -6,12 +6,12 @@
     <record id="template_uptime_kuma" model="service.template">
         <field name="name">Uptime Kuma</field>
         <field name="code">uptime-kuma</field>
-        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/uptime-kuma.png"/>
+        <field name="image" type="base64" file="steer_infra_suite/static/img/templates/uptime-kuma.png"/>
         <field name="description">Monitor de uptime self-hosted con interfaz moderna. Monitorea HTTP(s), TCP, DNS, Docker, y más. Notificaciones via Telegram, Discord, Slack, Email y 90+ servicios.</field>
         <field name="category">monitoring</field>
         <field name="version">1</field>
         <field name="service_code">uptime-kuma</field>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_self_hosted')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_monitoring'), ref('steer_infra_suite.tag_self_hosted')])]"/>
         <field name="is_web_app">True</field>
         <field name="is_global">True</field>
         <field name="active">True</field>
@@ -31,7 +31,7 @@
       - TZ={{ timezone | default('America/Argentina/Buenos_Aires') }}
     restart: unless-stopped
     networks:
-      - agz-proxy-network
+      - steer-proxy-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:3001/ || exit 1"]
       interval: 30s
@@ -40,7 +40,7 @@
       start_period: 15s
 
 networks:
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

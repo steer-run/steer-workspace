@@ -12,11 +12,11 @@
         <field name="service_code">postiz</field>
         <field name="version">latest</field>
         <field name="description">Postiz is an open-source social media management platform that schedules, automates, and measures content across dozens of channels from a single self-hosted dashboard.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Postiz is an open-source social media management platform that schedules, automates, and measures content across dozens of channels from a single self-hosted dashboard.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Postiz is an open-source social media management platform that schedules, automates, and measures content across dozens of channels from a single self-hosted dashboard.</p>
   <p>It acts as a self-hosted alternative to tools like Buffer, Hypefury, and Later, letting individuals, agencies, and teams plan and publish posts to 20+ networks (X, Instagram, LinkedIn, Facebook, TikTok, YouTube, Reddit, Threads, Mastodon, Bluesky, Discord, Pinterest and more). Built on a TypeScript stack (Next.js front end, NestJS back end, PostgreSQL and Redis), it authenticates directly against each platform's official OAuth flow rather than storing third-party API keys. AI-assisted composition, team collaboration, and an automation API round it out for hands-off content operations.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Schedule and publish posts to 20+ social networks from one calendar</li>
     <li>AI-assisted content generation, rewriting, and per-channel adaptation</li>
     <li>Analytics and measurement to track reach and engagement</li>
@@ -24,7 +24,7 @@
     <li>Automation API and integrations with n8n, Make, Zapier, and MCP agents</li>
     <li>Direct per-platform OAuth authentication, no stored third-party API keys</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Creators, marketing teams, and agencies that want a privacy-respecting, self-hosted hub to plan, automate, and analyze social media publishing across many channels without relying on a commercial SaaS.</p>
 </div>]]></field>
         <field name="category">communication</field>
@@ -35,7 +35,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/postiz.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_marketing')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_marketing')])]"/>
         <field name="website_url">https://postiz.com</field>
         <field name="documentation_url">https://docs.postiz.com</field>
         <field name="source_url">https://github.com/gitroomhq/postiz</field>
@@ -68,7 +68,7 @@
     - '{{ PORT_HTTP }}:5000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   postiz-postgres:
     image: postgres:17-alpine
     restart: always
@@ -102,7 +102,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

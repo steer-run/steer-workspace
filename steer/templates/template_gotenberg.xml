@@ -11,11 +11,11 @@
         <field name="service_code">gotenberg</field>
         <field name="version">latest</field>
         <field name="description">Gotenberg is a developer-friendly, Docker-powered stateless API that converts many document formats into PDF files, and more.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Gotenberg is a developer-friendly, Docker-powered stateless API that converts many document formats into PDF files, and more.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Gotenberg is a developer-friendly, Docker-powered stateless API that converts many document formats into PDF files, and more.</p>
   <p>It exposes a simple HTTP API: you submit files via multipart form data and receive a PDF back, with no need to manage Chromium, LibreOffice, or fonts yourself. Under the hood it drives headless Chromium for HTML, URL and Markdown rendering and LibreOffice for 100+ office formats, and adds a full suite of PDF post-processing. It targets backend developers who need reliable, programmatic document generation as a microservice.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Convert HTML, URLs and Markdown to PDF via headless Chromium</li>
     <li>Convert DOCX, XLSX, PPTX, ODF and 100+ office formats via LibreOffice</li>
     <li>PDF manipulation: merge, split, rotate, flatten and metadata editing</li>
@@ -23,7 +23,7 @@
     <li>Compliance output for PDF/A and PDF/UA archival and accessibility standards</li>
     <li>Stateless, horizontally scalable design with official client libraries (PHP, Go and more)</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams and developers who need to generate, convert or post-process PDFs programmatically from their own applications, invoices, reports or document pipelines, deployed as a self-hosted microservice on a trusted network.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -32,7 +32,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/gotenberg.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_productivity')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_productivity')])]"/>
         <field name="website_url">https://gotenberg.dev</field>
         <field name="documentation_url">https://gotenberg.dev/docs/getting-started/introduction</field>
         <field name="source_url">https://github.com/gotenberg/gotenberg</field>
@@ -52,11 +52,11 @@
     - '{{ PORT_HTTP }}:3000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

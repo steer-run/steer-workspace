@@ -13,11 +13,11 @@
         <field name="service_code">stirling</field>
         <field name="version">0.30.1</field>
         <field name="description">Stirling PDF is a privacy-first, self-hosted toolkit that handles every common PDF operation entirely on your own server.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Stirling PDF is a privacy-first, self-hosted toolkit that handles every common PDF operation entirely on your own server.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Stirling PDF is a privacy-first, self-hosted toolkit that handles every common PDF operation entirely on your own server.</p>
   <p>It packs 50+ tools to merge, split, convert, OCR, compress, edit, sign and redact PDFs through a clean browser interface, with no documents ever leaving your infrastructure. Files are processed locally and removed after each operation, making it a drop-in replacement for online services like iLovePDF or Smallpdf for individuals and organizations that need to keep documents private. It also exposes a REST API and no-code automation pipelines for bulk processing.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>50+ PDF tools: merge, split, convert, OCR, compress, edit, rotate and reorder pages</li>
     <li>Digital signing, certificate-based signatures and redaction</li>
     <li>No-code automation workflows plus a REST API for nearly every tool</li>
@@ -25,7 +25,7 @@
     <li>Local in-memory processing with files deleted after each operation</li>
     <li>Multilingual interface (40+ languages) and enterprise options like SSO and audit logging</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Privacy-conscious individuals, teams and organizations that want a complete on-premises PDF suite, replacing cloud PDF services and enabling automated document workflows without sending files to third parties.</p>
 </div>]]></field>
         <field name="category">productivity</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/stirling.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_automation')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_file_sharing'), ref('steer_infra_suite.tag_automation')])]"/>
         <field name="website_url">https://www.stirlingpdf.com/</field>
         <field name="documentation_url">https://docs.stirlingpdf.com/</field>
         <field name="source_url">https://github.com/Stirling-Tools/Stirling-PDF</field>
@@ -56,11 +56,11 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

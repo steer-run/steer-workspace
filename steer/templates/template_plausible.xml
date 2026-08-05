@@ -12,11 +12,11 @@
         <field name="service_code">plausible</field>
         <field name="version">v2.1.5</field>
         <field name="description">Plausible Analytics is a lightweight, privacy-first web analytics platform and a cookie-free alternative to Google Analytics.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Plausible Analytics is a lightweight, privacy-first web analytics platform and a cookie-free alternative to Google Analytics.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Plausible Analytics is a lightweight, privacy-first web analytics platform and a cookie-free alternative to Google Analytics.</p>
   <p>It measures website traffic and visitor behavior without using cookies, storing IP addresses, or collecting personal data, so it needs no consent banner and aligns with GDPR, CCPA and PECR. The self-hosted Community Edition runs as an Elixir/Phoenix application backed by PostgreSQL and ClickHouse, and ships a tiny tracking script that keeps page weight minimal. It is aimed at teams who want clear, actionable metrics while keeping full ownership of their data.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Cookie-free, privacy-by-design tracking with no personal data or IP storage</li>
     <li>Single, simple dashboard with traffic, sources, pages, devices and locations</li>
     <li>Goal and conversion tracking, plus custom events and UTM campaign analysis</li>
@@ -24,7 +24,7 @@
     <li>Ultra-light tracking script for fast page loads and reliable measurement</li>
     <li>Self-hosted via Docker (Community Edition, AGPLv3) with full data ownership</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Privacy-conscious teams, developers, agencies and site owners who want straightforward, GDPR-friendly web analytics without the complexity of Google Analytics and without surrendering control of their visitor data.</p>
 </div>]]></field>
         <field name="category">analytics</field>
@@ -35,7 +35,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/plausible.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_monitoring')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_monitoring')])]"/>
         <field name="website_url">https://plausible.io/</field>
         <field name="documentation_url">https://plausible.io/docs</field>
         <field name="source_url">https://github.com/plausible/plausible</field>
@@ -80,11 +80,11 @@
     - '{{ PORT_HTTP }}:8000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

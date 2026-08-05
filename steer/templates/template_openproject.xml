@@ -15,11 +15,11 @@
         <field name="service_code">openproject</field>
         <field name="version">latest</field>
         <field name="description">OpenProject is an open-source project management platform for classic, agile and hybrid teams: roadmaps, Gantt charts, boards and time tracking, fully self-hosted.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">OpenProject is an open-source project management platform for classic, agile and hybrid teams: roadmaps, Gantt charts, boards and time tracking, fully self-hosted.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">OpenProject is an open-source project management platform for classic, agile and hybrid teams: roadmaps, Gantt charts, boards and time tracking, fully self-hosted.</p>
   <p>OpenProject brings project planning, task management, agile boards, roadmaps, bug tracking and team collaboration into a single self-hosted application. Built on Ruby on Rails and backed by PostgreSQL, it targets companies that want full ownership of their project data and a privacy-friendly alternative to Jira, Trello, Asana or MS Project. Work is organized into projects and work packages, so engineering, product and PMO teams can plan, track and report on cross-functional initiatives from one place.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Work packages with statuses, types, custom fields and hierarchical parent/child tasks</li>
     <li>Gantt charts and roadmaps for classic project planning and milestones</li>
     <li>Agile boards for Scrum and Kanban with backlogs, sprints and story points</li>
@@ -27,7 +27,7 @@
     <li>Wikis, forums, document management and per-project role-based permissions</li>
     <li>REST API, LDAP/SAML/OIDC authentication and email notifications</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Companies and teams that want a self-hosted alternative to Jira, Trello, Asana or MS Project: engineering, product and PMO teams managing roadmaps, sprints and cross-functional work with full data ownership. Plan for at least 4 GB of RAM for comfortable use.</p>
 </div>]]></field>
         <field name="category">business</field>
@@ -38,7 +38,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/openproject.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_project_management'), ref('agz_infra_suite.tag_collaboration')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_project_management'), ref('steer_infra_suite.tag_collaboration')])]"/>
         <field name="website_url">https://www.openproject.org/</field>
         <field name="documentation_url">https://www.openproject.org/docs/installation-and-operations/installation/docker-compose/</field>
         <field name="source_url">https://github.com/opf/openproject</field>
@@ -62,7 +62,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   db:
     image: postgres:16
     restart: unless-stopped
@@ -85,7 +85,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

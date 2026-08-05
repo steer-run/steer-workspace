@@ -12,11 +12,11 @@
         <field name="service_code">scrypted</field>
         <field name="version">latest</field>
         <field name="description">Scrypted is a high-performance, locally-run video integration platform and NVR that bridges your cameras into HomeKit, Google Home, Alexa, and Home Assistant simultaneously.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Scrypted is a high-performance, locally-run video integration platform and NVR that bridges your cameras into HomeKit, Google Home, Alexa, and Home Assistant simultaneously.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Scrypted is a high-performance, locally-run video integration platform and NVR that bridges your cameras into HomeKit, Google Home, Alexa, and Home Assistant simultaneously.</p>
   <p>It exposes IP, ONVIF, UniFi Protect, Reolink, and many vendor-specific cameras to multiple smart-home ecosystems at once using genuine protocol implementations rather than emulation, including first-class HomeKit Secure Video with end-to-end encrypted recordings. Beyond streaming, it acts as a full network video recorder with motion detection and AI-powered object recognition, and it runs entirely on your own hardware for low-latency, cloud-free operation. It is built on a modular plugin architecture (TypeScript and Python) and deploys via Docker, Proxmox, Raspberry Pi, and more.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Simultaneous bridging to HomeKit, Google Home, Alexa, and Home Assistant</li>
     <li>Native HomeKit Secure Video (HKSV) with end-to-end encrypted recordings</li>
     <li>Local NVR with continuous recording and motion-triggered events</li>
@@ -24,7 +24,7 @@
     <li>Low-latency WebRTC/RTSP streaming with platform-wide adaptive bitrate</li>
     <li>Modular plugin store for broad camera and device support (ONVIF, UniFi, Reolink, and more)</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Homelabbers and Apple Home users with mixed-ecosystem camera fleets who want a single, locally-controlled hub for low-latency streaming, HomeKit Secure Video, and AI smart detections without depending on vendor clouds.</p>
 </div>]]></field>
         <field name="category">media</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/scrypted.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_smart_home')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_media'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_networking'), ref('steer_infra_suite.tag_smart_home')])]"/>
         <field name="website_url">https://www.scrypted.app/</field>
         <field name="documentation_url">https://docs.scrypted.app/</field>
         <field name="source_url">https://github.com/koush/scrypted</field>
@@ -53,11 +53,11 @@
     - '{{ PORT_HTTP }}:11080'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

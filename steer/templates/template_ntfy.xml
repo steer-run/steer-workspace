@@ -14,11 +14,11 @@
         <field name="service_code">ntfy</field>
         <field name="version">latest</field>
         <field name="description">ntfy is a simple HTTP-based pub-sub notification service that pushes alerts to your phone or desktop from any script or server.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">ntfy is a simple HTTP-based pub-sub notification service that pushes alerts to your phone or desktop from any script or server.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">ntfy is a simple HTTP-based pub-sub notification service that pushes alerts to your phone or desktop from any script or server.</p>
   <p>You publish a message to a named topic with a plain HTTP PUT or POST request, and any subscribed device receives an instant push notification. Subscribe from native Android and iOS apps, the web app, the command line, or via WebSocket/SSE. It is the go-to tool for getting alerts out of cron jobs, monitoring stacks, CI pipelines and home automation without vendor lock-in. Self-hosting removes all limits and keeps your notification data entirely under your control.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Publish notifications with a single HTTP PUT/POST request, no SDK required</li>
     <li>Native Android and iOS apps, a web app, and CLI/WebSocket/SSE subscribers</li>
     <li>Rich messages: priorities, tags and emojis, click actions, buttons and file attachments</li>
@@ -26,7 +26,7 @@
     <li>Acts as a UnifiedPush distributor and integrates with Home Assistant, Uptime Kuma, Grafana, Watchtower and more</li>
     <li>Self-hostable single Go binary with SQLite or PostgreSQL, TLS and built-in rate limiting</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Sysadmins, developers and homelab users who need to route alerts from scripts, servers, monitoring systems and automation tools to their devices, while keeping the notification pipeline private and self-hosted.</p>
 </div>]]></field>
         <field name="category">communication</field>
@@ -35,7 +35,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/ntfy.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_notifications')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_communication'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_monitoring'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_notifications')])]"/>
         <field name="website_url">https://ntfy.sh/</field>
         <field name="documentation_url">https://docs.ntfy.sh/</field>
         <field name="source_url">https://github.com/binwiederhier/ntfy</field>
@@ -64,11 +64,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

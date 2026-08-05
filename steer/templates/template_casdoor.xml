@@ -13,11 +13,11 @@
         <field name="service_code">casdoor</field>
         <field name="version">latest</field>
         <field name="description">Casdoor is a UI-first, open-source Identity and Access Management (IAM) and Single Sign-On (SSO) platform that centralizes authentication and authorization for all your applications.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Casdoor is a UI-first, open-source Identity and Access Management (IAM) and Single Sign-On (SSO) platform that centralizes authentication and authorization for all your applications.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Casdoor is a UI-first, open-source Identity and Access Management (IAM) and Single Sign-On (SSO) platform that centralizes authentication and authorization for all your applications.</p>
   <p>Built in Go with a React web console and powered by the Casbin authorization engine, Casdoor lets you manage users, organizations, roles and permissions from a single dashboard while acting as an authentication provider for your own apps and third-party services. It speaks every major auth protocol, supports fine-grained access control models, and integrates with hundreds of external identity providers, making it a flexible replacement for hosted SSO services.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Standards support: OAuth 2.0, OIDC, SAML, CAS, LDAP, SCIM, RADIUS and Kerberos.</li>
     <li>Casbin-based authorization with ACL, RBAC and ABAC access control models.</li>
     <li>Multi-factor authentication via TOTP, SMS/email codes and WebAuthn/passkeys.</li>
@@ -25,7 +25,7 @@
     <li>Web UI to manage users, organizations, roles, permissions and audit logs.</li>
     <li>Customizable registration and login pages, plus multi-language support.</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams and organizations that want a self-hosted, centralized authentication and authorization layer for multiple internal and customer-facing applications, especially when fine-grained, policy-based access control beyond simple login is required.</p>
 </div>]]></field>
         <field name="category">security</field>
@@ -36,7 +36,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/casdoor.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_identity')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_identity')])]"/>
         <field name="website_url">https://casdoor.org/</field>
         <field name="documentation_url">https://casdoor.org/docs/overview</field>
         <field name="source_url">https://github.com/casdoor/casdoor</field>
@@ -58,7 +58,7 @@
     - '{{ PORT_HTTP }}:8000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   casdoor-db:
     image: postgres:16
     environment:
@@ -82,7 +82,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

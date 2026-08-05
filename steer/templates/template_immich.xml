@@ -15,11 +15,11 @@
         <field name="service_code">immich</field>
         <field name="version">v1.121.0</field>
         <field name="description">Immich is a high-performance, self-hosted photo and video management platform that brings the convenience of Google Photos to your own server.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Immich is a high-performance, self-hosted photo and video management platform that brings the convenience of Google Photos to your own server.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Immich is a high-performance, self-hosted photo and video management platform that brings the convenience of Google Photos to your own server.</p>
   <p>It automatically backs up photos and videos from mobile devices and organizes a complete media library with a polished web interface and native iOS/Android apps. AI features such as facial recognition, object detection and smart semantic search run locally on your own hardware, keeping your memories private. It supports multiple users, shared albums, RAW formats and rich metadata browsing by date, place and people.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Automatic background backup from iOS and Android, with multi-device and multi-user support</li>
     <li>Local AI: facial recognition, object detection and smart semantic search, all on your own server</li>
     <li>Shared albums, partner sharing and a fast, responsive web and mobile experience</li>
@@ -27,7 +27,7 @@
     <li>External library import and full control over where your media is stored</li>
     <li>Privacy-first design with no dependency on third-party cloud services</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Individuals, families and small teams who want a private, self-hosted alternative to Google Photos or iCloud Photos to back up and manage large photo and video collections on their own infrastructure.</p>
 </div>]]></field>
         <field name="category">media</field>
@@ -36,7 +36,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/immich.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_backup'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_photos')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_media'), ref('steer_infra_suite.tag_storage'), ref('steer_infra_suite.tag_backup'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_search'), ref('steer_infra_suite.tag_file_sharing'), ref('steer_infra_suite.tag_photos')])]"/>
         <field name="website_url">https://immich.app/</field>
         <field name="documentation_url">https://immich.app/docs/overview/introduction</field>
         <field name="source_url">https://github.com/immich-app/immich</field>
@@ -79,7 +79,7 @@
     - '{{ PORT_HTTP }}:2283'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   immich-machine-learning:
     image: ghcr.io/immich-app/immich-machine-learning:v2.1.0
     volumes:
@@ -152,7 +152,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

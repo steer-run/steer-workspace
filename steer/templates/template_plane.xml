@@ -18,11 +18,11 @@
         <field name="service_code">plane</field>
         <field name="version">v0.27.1</field>
         <field name="description">Plane is a modern, open-source project management platform and a self-hosted alternative to Jira, Linear, Monday, and ClickUp.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Plane is a modern, open-source project management platform and a self-hosted alternative to Jira, Linear, Monday, and ClickUp.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Plane is a modern, open-source project management platform and a self-hosted alternative to Jira, Linear, Monday, and ClickUp.</p>
   <p>It unifies issue tracking, sprint planning, product roadmaps, and documentation in a single workspace. Built for software and product teams, Plane combines flexible work-item management with cycles (sprints), modules (epics), pages with AI-assisted writing, and analytics. The AGPL Community Edition is fully self-hostable with no limits on users or projects, giving teams complete ownership of their data.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Work items with rich text, file attachments, custom properties, and filtered views</li>
     <li>Cycles (sprints) with burn-down charts and module-based epic organization</li>
     <li>Pages and wiki for notes and documentation, with AI-assisted writing</li>
@@ -30,7 +30,7 @@
     <li>Multiple views: list, kanban board, calendar, and gantt/timeline</li>
     <li>Self-hostable via Docker, Podman, or Kubernetes with full instance admin controls</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Software, product, and engineering teams that want a self-hosted, data-owned alternative to commercial project trackers, plus organizations needing project management, sprints, and documentation in one privacy-respecting workspace.</p>
 </div>]]></field>
         <field name="category">productivity</field>
@@ -41,7 +41,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/plane.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_project_management'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_documentation'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_project_management'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_documentation'), ref('steer_infra_suite.tag_ai')])]"/>
         <field name="website_url">https://plane.so</field>
         <field name="documentation_url">https://docs.plane.so/</field>
         <field name="source_url">https://github.com/makeplane/plane</field>
@@ -212,11 +212,11 @@
     - '{{ PORT_HTTP }}:80'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

@@ -13,11 +13,11 @@
         <field name="service_code">triggerdotdev</field>
         <field name="version">v3</field>
         <field name="description">Trigger.dev is an open-source platform for writing reliable, long-running background jobs and AI workflows as plain TypeScript code.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Trigger.dev is an open-source platform for writing reliable, long-running background jobs and AI workflows as plain TypeScript code.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Trigger.dev is an open-source platform for writing reliable, long-running background jobs and AI workflows as plain TypeScript code.</p>
   <p>It lets developers define durable tasks that run with no timeouts, automatic retries, queues, idempotency and full observability, executing each run in isolated Docker containers. The same codebase powers both the managed cloud and the self-hosted deployment, so running it on your own infrastructure gives you the complete feature set with no run limits. It is aimed at engineering teams that need dependable background processing, scheduled jobs and AI agent orchestration without managing serverless timeout constraints.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Long-running tasks with no execution timeouts, written in standard async TypeScript</li>
     <li>Durable execution with automatic retries, queues, concurrency control and idempotency</li>
     <li>Real-time run subscriptions, response streaming, tracing and per-run logs</li>
@@ -25,7 +25,7 @@
     <li>Custom runtimes with system packages (browsers, Python, FFmpeg) for AI and media tasks</li>
     <li>Self-host via Docker Compose or Kubernetes (Helm) with Postgres, Redis and optional ClickHouse</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Development teams building event-driven applications, scheduled jobs, durable workflows and AI agents that need reliable, observable background execution under their own control.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -36,7 +36,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/triggerdotdev.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_ai')])]"/>
         <field name="website_url">https://trigger.dev/</field>
         <field name="documentation_url">https://trigger.dev/docs</field>
         <field name="source_url">https://github.com/triggerdotdev/trigger.dev</field>
@@ -58,7 +58,7 @@
     - redis
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
     container_name: '{{ INSTANCE_CODE }}'
   postgres:
     image: postgres:${POSTGRES_IMAGE_TAG:-16}
@@ -142,7 +142,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

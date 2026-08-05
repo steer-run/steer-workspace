@@ -13,11 +13,11 @@
         <field name="service_code">grist</field>
         <field name="version">latest</field>
         <field name="description">Grist is a relational spreadsheet that merges the ease of a spreadsheet with the structure and power of a real database.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Grist is a relational spreadsheet that merges the ease of a spreadsheet with the structure and power of a real database.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Grist is a relational spreadsheet that merges the ease of a spreadsheet with the structure and power of a real database.</p>
   <p>It lets teams model data with typed columns, link tables by reference, and compute values with full Python formulas instead of opaque cell syntax. Documents are self-contained SQLite files with no vendor lock-in, while granular access rules and SSO make it suitable for sensitive, multi-user deployments. It is the open-source alternative to tools like Airtable, with self-hosting as a first-class option.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Typed columns, linked reference tables and relational data modeling</li>
     <li>Python formulas with automatic recalculation across the document</li>
     <li>Granular row- and column-level access control rules with role testing</li>
@@ -25,7 +25,7 @@
     <li>REST API and webhooks for integrations and automation</li>
     <li>Portable SQLite documents, CSV/XLSX export and SSO (OIDC, SAML, OAuth, SCIM)</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams and organizations that have outgrown plain spreadsheets and need structured, governed data: internal tooling, CRMs and trackers, regulated or government workloads requiring data sovereignty, and no-code app builders who want an Airtable-style experience under their own control.</p>
 </div>]]></field>
         <field name="category">database</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/grist.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_analytics')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_analytics')])]"/>
         <field name="website_url">https://www.getgrist.com/</field>
         <field name="documentation_url">https://support.getgrist.com/self-managed/</field>
         <field name="source_url">https://github.com/gristlabs/grist-core</field>
@@ -54,11 +54,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

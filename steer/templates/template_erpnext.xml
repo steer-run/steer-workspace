@@ -21,11 +21,11 @@
         <field name="service_code">erpnext</field>
         <field name="version">version-15</field>
         <field name="description">ERPNext is a full-featured, 100% open-source ERP that runs your entire business from a single, deeply integrated platform.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">ERPNext is a full-featured, 100% open-source ERP that runs your entire business from a single, deeply integrated platform.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">ERPNext is a full-featured, 100% open-source ERP that runs your entire business from a single, deeply integrated platform.</p>
   <p>Built on the Python/JavaScript Frappe Framework, ERPNext unifies accounting, inventory, manufacturing, sales, purchasing, HR, projects and CRM into one application with a shared data model. It targets small and mid-sized companies that want an alternative to expensive proprietary suites, and stands out for its breadth of modules, extensive customization without code, and a built-in REST API. It is actively maintained by Frappe Technologies with a large contributor community.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Double-entry accounting with multi-currency, tax, and financial reporting</li>
     <li>Inventory, warehouse, and supply-chain management with batch and serial tracking</li>
     <li>Manufacturing with bills of materials, work orders, and production planning</li>
@@ -33,7 +33,7 @@
     <li>HR and payroll, projects, timesheets, and asset management</li>
     <li>No-code customization (custom fields, workflows, print formats) plus a full REST API</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Small and mid-sized businesses, manufacturers, distributors, and service firms that want a single self-hosted system to replace separate accounting, inventory, HR and CRM tools, and teams that need to tailor processes without vendor lock-in.</p>
 </div>]]></field>
         <field name="category">business</field>
@@ -44,7 +44,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">mysqladmin ping --silent</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/erpnext.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_erp'), ref('agz_infra_suite.tag_crm'), ref('agz_infra_suite.tag_finance'), ref('agz_infra_suite.tag_ecommerce'), ref('agz_infra_suite.tag_project_management'), ref('agz_infra_suite.tag_productivity')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_erp'), ref('steer_infra_suite.tag_crm'), ref('steer_infra_suite.tag_finance'), ref('steer_infra_suite.tag_ecommerce'), ref('steer_infra_suite.tag_project_management'), ref('steer_infra_suite.tag_productivity')])]"/>
         <field name="website_url">https://erpnext.com</field>
         <field name="documentation_url">https://docs.frappe.io/erpnext</field>
         <field name="source_url">https://github.com/frappe/erpnext</field>
@@ -93,7 +93,7 @@
     - ./sites:/home/frappe/frappe-bench/sites
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
     healthcheck:
       test:
       - CMD
@@ -413,7 +413,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

@@ -12,11 +12,11 @@
         <field name="service_code">baserow</field>
         <field name="version">1.25.2</field>
         <field name="description">Baserow is an open-source no-code database and application platform, a self-hosted alternative to Airtable.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Baserow is an open-source no-code database and application platform, a self-hosted alternative to Airtable.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Baserow is an open-source no-code database and application platform, a self-hosted alternative to Airtable.</p>
   <p>It combines a spreadsheet-style interface with a real relational database, letting teams structure, link and collaborate on data without writing code. Built on Django, Vue.js and PostgreSQL with an API-first, headless architecture, it adds an application and portal builder, workflow automation and dashboards on top of the data layer. It targets teams that want full control over their data through self-hosting.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Spreadsheet-database hybrid with grid, form, kanban and other views</li>
     <li>Relational tables with linked records, field types and per-view permissions</li>
     <li>Application and portal builder with custom-domain publishing</li>
@@ -24,7 +24,7 @@
     <li>REST API and headless design for integration and extension via plugins</li>
     <li>Self-hosting with no row/storage limits via Docker, Helm, Cloudron and major clouds</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams and organizations that need a flexible no-code database, CRM, project tracker or internal tool while keeping data on their own infrastructure, and developers who want an API-first backend they can extend.</p>
 </div>]]></field>
         <field name="category">database</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/baserow.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_automation')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_automation')])]"/>
         <field name="website_url">https://baserow.io/</field>
         <field name="documentation_url">https://baserow.io/docs/index</field>
         <field name="source_url">https://github.com/Baserow/baserow</field>
@@ -50,11 +50,11 @@
     - '{{ PORT_HTTP }}:80'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

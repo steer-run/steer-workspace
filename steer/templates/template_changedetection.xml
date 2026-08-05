@@ -12,11 +12,11 @@
         <field name="service_code">changedetection</field>
         <field name="version">0.49</field>
         <field name="description">A self-hosted website change detection and web page monitoring tool that alerts you the moment any page you care about changes.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">A self-hosted website change detection and web page monitoring tool that alerts you the moment any page you care about changes.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">A self-hosted website change detection and web page monitoring tool that alerts you the moment any page you care about changes.</p>
   <p>changedetection.io periodically fetches web pages, computes differences against previous snapshots, and notifies you when meaningful content changes occur. It targets specific parts of a page using XPath, CSS selectors, JSONPath or jq, can render JavaScript-heavy sites through a headless browser, and supports interactive steps such as logging in or filling forms. It is widely used as an open-source alternative to commercial services like Visualping for price tracking, restock alerts, content monitoring and website defacement detection.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Visual selector plus XPath, CSS, JSONPath and jq filters to watch only the relevant part of a page</li>
     <li>Optional headless browser rendering with JavaScript execution and interactive browser steps (login, clicks, form filling)</li>
     <li>Notifications through Discord, Email, Slack, Telegram, webhooks and many other channels</li>
@@ -24,7 +24,7 @@
     <li>Conditional triggers, scheduling and per-watch configuration for fine-grained control</li>
     <li>REST API with OpenAPI documentation and a browser extension for quickly adding URLs</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Smart shoppers, data journalists, researchers, analysts and security teams who need reliable, automated alerts on web page changes without relying on a third-party SaaS, and operators who want full control of monitoring data on their own infrastructure.</p>
 </div>]]></field>
         <field name="category">monitoring</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/changedetection.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_monitoring'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow')])]"/>
         <field name="website_url">https://changedetection.io</field>
         <field name="documentation_url">https://github.com/dgtlmoon/changedetection.io/wiki</field>
         <field name="source_url">https://github.com/dgtlmoon/changedetection.io</field>
@@ -48,11 +48,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

@@ -12,11 +12,11 @@
         <field name="service_code">photoprism</field>
         <field name="version">latest</field>
         <field name="description">PhotoPrism is a self-hosted, AI-powered photo and video manager that keeps your entire library private on your own server.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">PhotoPrism is a self-hosted, AI-powered photo and video manager that keeps your entire library private on your own server.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">PhotoPrism is a self-hosted, AI-powered photo and video manager that keeps your entire library private on your own server.</p>
   <p>It indexes large collections of photos and videos and makes them searchable through automatic, on-device labeling, face recognition, and location-based browsing. Built in Go with a Vue progressive web app, it targets photographers, families, and power users who want cloud-grade organization and search without uploading anything to a third party.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Automatic content labeling and face recognition that run locally for full privacy</li>
     <li>Powerful search by content, people, places, dates, colors, and metadata</li>
     <li>RAW image, video, live photo, and PDF support with metadata editing</li>
@@ -24,7 +24,7 @@
     <li>Progressive web app plus WebDAV access for syncing and direct file management</li>
     <li>Multi-architecture Docker images for AMD, Intel, and ARM (Raspberry Pi, Apple Silicon)</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Individuals, families, and photographers who want to self-host and organize large photo and video libraries with AI-assisted search while keeping their data fully under their own control.</p>
 </div>]]></field>
         <field name="category">media</field>
@@ -35,7 +35,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">mysqladmin ping --silent</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/photoprism.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_photos')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_media'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_storage'), ref('steer_infra_suite.tag_photos')])]"/>
         <field name="website_url">https://www.photoprism.app/</field>
         <field name="documentation_url">https://docs.photoprism.app/</field>
         <field name="source_url">https://github.com/photoprism/photoprism</field>
@@ -96,7 +96,7 @@
     - '{{ PORT_HTTP }}:2342'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   mariadb:
     image: mariadb:11
     restart: unless-stopped
@@ -119,7 +119,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

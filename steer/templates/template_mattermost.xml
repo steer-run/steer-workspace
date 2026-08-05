@@ -11,11 +11,11 @@
         <field name="service_code">mattermost</field>
         <field name="version">10.6.1</field>
         <field name="description">Mattermost is an open-source, self-hosted collaboration platform that brings secure team messaging, workflow automation, and DevOps tooling under your own control.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Mattermost is an open-source, self-hosted collaboration platform that brings secure team messaging, workflow automation, and DevOps tooling under your own control.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Mattermost is an open-source, self-hosted collaboration platform that brings secure team messaging, workflow automation, and DevOps tooling under your own control.</p>
   <p>Built as a privacy-focused alternative to Slack and Microsoft Teams, Mattermost combines persistent channels, direct messaging, file sharing, voice and screen sharing with structured automation through Playbooks and task Boards. It runs as a single Go binary backed by PostgreSQL, integrates with existing identity and DevOps tooling, and is favored by enterprises, regulated industries, and government agencies that require data sovereignty and compliance.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Persistent channels, threaded conversations, and direct/group messaging</li>
     <li>Playbooks for incident response and repeatable workflow automation</li>
     <li>Boards for kanban-style task and project management</li>
@@ -23,7 +23,7 @@
     <li>Native desktop and mobile clients plus an extensive plugin and integration ecosystem</li>
     <li>Enterprise-grade SSO (SAML, OAuth, LDAP/AD), compliance exports, and granular access control</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Engineering, DevOps, and security teams—and organizations in regulated or sovereignty-sensitive sectors—that need a fully self-hosted, auditable chat and collaboration hub instead of a SaaS messaging tool.</p>
 </div>]]></field>
         <field name="category">communication</field>
@@ -34,7 +34,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/mattermost.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_chat'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_project_management'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_communication'), ref('steer_infra_suite.tag_chat'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_project_management'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_privacy')])]"/>
         <field name="website_url">https://mattermost.com/</field>
         <field name="documentation_url">https://docs.mattermost.com/</field>
         <field name="source_url">https://github.com/mattermost/mattermost</field>
@@ -93,11 +93,11 @@
     - '{{ PORT_HTTP }}:8065'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

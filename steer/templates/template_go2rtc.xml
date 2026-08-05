@@ -13,11 +13,11 @@
         <field name="service_code">go2rtc</field>
         <field name="version">latest</field>
         <field name="description">go2rtc is a zero-dependency camera streaming server that bridges dozens of video protocols with near-zero latency.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">go2rtc is a zero-dependency camera streaming server that bridges dozens of video protocols with near-zero latency.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">go2rtc is a zero-dependency camera streaming server that bridges dozens of video protocols with near-zero latency.</p>
   <p>Written in Go as a single small binary, it ingests live streams from IP cameras and other sources (RTSP, RTMP, ONVIF, HTTP-FLV/MJPEG, USB, and proprietary protocols such as Tapo, Wyze, Ring, Tuya and HomeKit) and re-publishes them on demand to browsers and clients over WebRTC, HLS, MSE, RTSP, MJPEG or MP4. Its WebRTC path delivers the lowest possible latency and supports two-way audio, making it the de facto streaming backend for Frigate NVR and Home Assistant camera integrations. It runs anywhere—Linux, macOS, Windows and ARM—with no external dependencies and minimal configuration.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Ultra-low-latency WebRTC streaming with optional two-way audio</li>
     <li>Broad protocol support: RTSP, RTMP, ONVIF, HLS, MSE, MJPEG, HomeKit and proprietary camera APIs</li>
     <li>Single self-contained Go binary, multi-arch Docker images, zero external dependencies</li>
@@ -25,7 +25,7 @@
     <li>Optional FFmpeg integration for transcoding and codec conversion</li>
     <li>Web dashboard and REST/WebSocket API for stream management and probing</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Home-lab and smart-home users, NVR/surveillance deployments and developers who need a lightweight, low-latency bridge to view and relay IP-camera feeds in the browser. Ideal as the streaming layer behind Frigate, Home Assistant or any custom WebRTC/RTSP setup.</p>
 </div>]]></field>
         <field name="category">media</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/go2rtc.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_proxy')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_media'), ref('steer_infra_suite.tag_networking'), ref('steer_infra_suite.tag_proxy')])]"/>
         <field name="website_url">https://go2rtc.org/</field>
         <field name="documentation_url">https://go2rtc.org/</field>
         <field name="source_url">https://github.com/AlexxIT/go2rtc</field>
@@ -55,11 +55,11 @@
     - '{{ PORT_HTTP }}:1984'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

@@ -6,11 +6,11 @@
         <field name="service_code">activepieces</field>
         <field name="version">0.35.0</field>
         <field name="description">Activepieces is an open-source, no-code automation platform that lets teams build AI-powered workflows without per-task fees or vendor lock-in.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Activepieces is an open-source, no-code automation platform that lets teams build AI-powered workflows without per-task fees or vendor lock-in.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Activepieces is an open-source, no-code automation platform that lets teams build AI-powered workflows without per-task fees or vendor lock-in.</p>
   <p>It connects apps, APIs and AI models through a visual flow builder, serving as a self-hostable alternative to Zapier, Make and Tray. Integrations are written as type-safe TypeScript "pieces" that the community can extend, and any piece automatically doubles as a Model Context Protocol (MCP) server usable from LLM clients like Claude, Cursor and Windsurf. It targets both non-technical builders who want a simple drag-and-drop experience and engineering teams that need to keep automation and data on their own infrastructure.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Visual no-code flow builder with triggers, branches, loops and auto-retries</li>
     <li>Hundreds of native integration "pieces" plus inline HTTP requests and custom code steps</li>
     <li>Native AI actions and MCP servers to wire workflows into LLM agents</li>
@@ -18,7 +18,7 @@
     <li>Type-safe TypeScript framework for building custom pieces with hot reloading</li>
     <li>Self-hosted and network-gapped deployment via Docker for full data control</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams that want to automate business processes and AI agent workflows on their own infrastructure, avoid per-run pricing, and extend integrations in code while keeping sensitive data on-premise.</p>
 </div>]]></field>
         <field name="category">automation</field>
@@ -29,7 +29,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/activepieces.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_ai')])]"/>
         <field name="website_url">https://www.activepieces.com/</field>
         <field name="documentation_url">https://www.activepieces.com/docs</field>
         <field name="source_url">https://github.com/activepieces/activepieces</field>
@@ -67,7 +67,7 @@
     - '{{ PORT_HTTP }}:80'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   postgres:
     image: postgres:14
     restart: unless-stopped
@@ -106,7 +106,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

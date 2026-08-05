@@ -14,11 +14,11 @@
         <field name="service_code">limesurvey</field>
         <field name="version">latest</field>
         <field name="description">LimeSurvey is a self-hosted platform for building advanced surveys, forms, questionnaires and assessments, and collecting structured responses at scale.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">LimeSurvey is a self-hosted platform for building advanced surveys, forms, questionnaires and assessments, and collecting structured responses at scale.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">LimeSurvey is a self-hosted platform for building advanced surveys, forms, questionnaires and assessments, and collecting structured responses at scale.</p>
   <p>Written in PHP, LimeSurvey lets you design sophisticated questionnaires with conditional logic, quotas and dozens of question types, then publish them to unlimited respondents while keeping every answer on your own infrastructure. It is a mature choice for HR, market and academic research, customer feedback, education and internal data collection, where privacy and full control over sensitive response data matter.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Dozens of question types with branching logic, quotas and validation</li>
     <li>Unlimited surveys and responses, with anonymous or tracked participation</li>
     <li>Participant management, invitations, reminders and token-based access</li>
@@ -26,7 +26,7 @@
     <li>Multi-language surveys, custom themes and a template editor</li>
     <li>Optional response encryption, REST/RPC API and granular user permissions</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>HR teams, researchers, educators and organizations that need a powerful, privacy-respecting survey tool for structured data collection while keeping respondent data self-hosted. Serve it over HTTPS and take care with response exports.</p>
 </div>]]></field>
         <field name="category">business</field>
@@ -37,7 +37,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">php -v</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/limesurvey.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_forms'), ref('agz_infra_suite.tag_business')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_forms'), ref('steer_infra_suite.tag_business')])]"/>
         <field name="website_url">https://www.limesurvey.org/</field>
         <field name="documentation_url">https://www.limesurvey.org/</field>
         <field name="source_url">https://github.com/LimeSurvey/LimeSurvey</field>
@@ -67,7 +67,7 @@
     - '{{ PORT_HTTP }}:8080'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   db:
     image: mariadb:11
     restart: unless-stopped
@@ -94,7 +94,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

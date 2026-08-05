@@ -11,11 +11,11 @@
         <field name="service_code">gitingest</field>
         <field name="version">latest</field>
         <field name="description">Gitingest turns any Git repository into a single, prompt-friendly text digest that large language models can actually read.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Gitingest turns any Git repository into a single, prompt-friendly text digest that large language models can actually read.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Gitingest turns any Git repository into a single, prompt-friendly text digest that large language models can actually read.</p>
   <p>It flattens a codebase into one clean UTF-8 text blob along with useful statistics (file structure, size and approximate token count), so you can feed an entire project to an LLM instead of copy-pasting files one by one. Use it on the web by replacing "hub" with "ingest" in a GitHub URL, as a CLI tool, or as a Python library with a sync/async API. Built on FastAPI and fully self-hostable via Docker, it is aimed at developers and AI engineers who need to give models real codebase context.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Converts a repository into a single LLM-ready text digest with directory tree and token counting</li>
     <li>Three usage modes: web service, CLI (pip install gitingest), and Python library (sync/async)</li>
     <li>Targets subdirectories, branches and tags, and supports private repos via a GitHub personal access token</li>
@@ -23,7 +23,7 @@
     <li>Privacy-conscious: cloned repos are processed in memory and discarded, nothing is stored by default</li>
     <li>Self-hostable with Docker and Docker Compose, with optional Prometheus metrics, Sentry and S3-compatible storage for production deployments</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers, AI engineers and teams who want to quickly give LLMs (or AI coding agents) full codebase context for analysis, documentation or review, with a private self-hosted instance for internal and proprietary repositories.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -32,7 +32,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/gitingest.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_git')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_git')])]"/>
         <field name="website_url">https://gitingest.com</field>
         <field name="documentation_url">https://github.com/coderamp-labs/gitingest#readme</field>
         <field name="source_url">https://github.com/coderamp-labs/gitingest</field>
@@ -49,11 +49,11 @@
     - '{{ PORT_HTTP }}:8000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

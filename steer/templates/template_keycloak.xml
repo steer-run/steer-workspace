@@ -6,11 +6,11 @@
         <field name="service_code">keycloak</field>
         <field name="version">26.0</field>
         <field name="description">Keycloak is an open-source identity and access management platform that adds authentication and authorization to applications without writing your own user-management code.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Keycloak is an open-source identity and access management platform that adds authentication and authorization to applications without writing your own user-management code.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Keycloak is an open-source identity and access management platform that adds authentication and authorization to applications without writing your own user-management code.</p>
   <p>It centralizes login, user storage, and permissions behind standard protocols (OpenID Connect, OAuth 2.0 and SAML 2.0), so applications delegate identity to a single trusted server. Originally created by Red Hat and now a CNCF project built on Quarkus, it targets developers and platform teams that need single sign-on, social and enterprise login, and fine-grained access control across many services.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Single Sign-On (SSO) and Single Logout across applications via OpenID Connect, OAuth 2.0 and SAML 2.0</li>
     <li>User federation with LDAP and Active Directory, plus social and external identity-provider brokering</li>
     <li>Strong authentication: multi-factor (OTP, WebAuthn/passkeys), configurable login flows and password policies</li>
@@ -18,7 +18,7 @@
     <li>Fine-grained, policy-based authorization services for resource and scope-level access control</li>
     <li>Customizable login themes, account self-service console, and multi-realm tenant isolation</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Organizations and development teams that want to self-host a centralized identity provider for SSO, MFA and access control across internal and customer-facing applications, replacing per-app authentication with a single standards-based server.</p>
 </div>]]></field>
         <field name="category">security</field>
@@ -29,7 +29,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/keycloak.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_identity'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_identity'), ref('steer_infra_suite.tag_privacy')])]"/>
         <field name="website_url">https://www.keycloak.org/</field>
         <field name="documentation_url">https://www.keycloak.org/documentation</field>
         <field name="source_url">https://github.com/keycloak/keycloak</field>
@@ -76,11 +76,11 @@
     - '{{ PORT_HTTP }}:8080'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

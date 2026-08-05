@@ -6,11 +6,11 @@
         <field name="service_code">mariadb</field>
         <field name="version">11</field>
         <field name="description">MariaDB is a fast, MySQL-compatible open-source relational database for CMSs, CRMs and business apps that expect a MySQL backend.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">MariaDB is a fast, MySQL-compatible open-source relational database for CMSs, CRMs and business apps that expect a MySQL backend.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">MariaDB is a fast, MySQL-compatible open-source relational database for CMSs, CRMs and business apps that expect a MySQL backend.</p>
   <p>Created by the original authors of MySQL, MariaDB is a community-developed, GPL-licensed relational database that stays wire- and SQL-compatible with MySQL, so most MySQL applications connect to it unchanged. It is a proven backing store for CMSs, CRMs and administrative systems, and is often the better-tested option for apps that do not support PostgreSQL. This standalone deployment runs on the official image and provisions an application database and a dedicated user on first boot, ready for other services to connect over the internal network.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>MySQL wire and SQL compatibility, so most MySQL apps run without changes</li>
     <li>Pluggable storage engines including InnoDB for reliable ACID transactions</li>
     <li>Query optimizer, thread pool and parallel replication for strong performance</li>
@@ -18,7 +18,7 @@
     <li>Automatic creation of an application database and a dedicated user on first start</li>
     <li>Community-driven, GPL-licensed and a drop-in successor to MySQL</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams that need a proven MySQL-compatible database to back apps such as Matomo, SuiteCRM, EspoCRM, WordPress or LimeSurvey, or any service that is better tested against MySQL/MariaDB than PostgreSQL. Deploy it once and connect apps over the internal network with per-app credentials, never exposing port 3306 to the Internet.</p>
 </div>]]></field>
         <field name="category">database</field>
@@ -28,7 +28,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">healthcheck.sh --connect</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/mariadb.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_database')])]"/>
         <field name="website_url">https://mariadb.org/</field>
         <field name="documentation_url">https://mariadb.com/docs/</field>
         <field name="source_url">https://github.com/MariaDB/server</field>

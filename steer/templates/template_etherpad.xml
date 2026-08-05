@@ -12,11 +12,11 @@
         <field name="service_code">etherpad</field>
         <field name="version">latest</field>
         <field name="description">Etherpad is a self-hosted, real-time collaborative document editor that lets many people write together in the same pad, live.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Etherpad is a self-hosted, real-time collaborative document editor that lets many people write together in the same pad, live.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Etherpad is a self-hosted, real-time collaborative document editor that lets many people write together in the same pad, live.</p>
   <p>Running entirely on your own infrastructure, Etherpad gives teams a Google Docs-style editing experience without surrendering their data to a cloud provider. Every keystroke is attributed to its author and the full revision history is preserved, so you can replay how a document evolved. It is built on Node.js/TypeScript, extends through a large plugin ecosystem, and has been a trusted open-source standard since 2009.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Real-time collaborative editing with per-keystroke authorship colors</li>
     <li>Complete revision history with a timeslider to replay and browse changes</li>
     <li>Scales to thousands of simultaneous editors per pad</li>
@@ -24,7 +24,7 @@
     <li>Import/export to formats such as DOCX, ODT, PDF, HTML and plain text</li>
     <li>Self-hosted with no telemetry; pluggable database backends (PostgreSQL, MySQL and more)</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams, newsrooms, universities, public-sector bodies and privacy-conscious organizations that need collaborative writing, meeting notes or shared drafting under their own governance and data sovereignty.</p>
 </div>]]></field>
         <field name="category">collaboration</field>
@@ -35,7 +35,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/etherpad.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_documentation'), ref('agz_infra_suite.tag_notes')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_documentation'), ref('steer_infra_suite.tag_notes')])]"/>
         <field name="website_url">https://etherpad.org/</field>
         <field name="documentation_url">https://github.com/ether/etherpad-lite/wiki</field>
         <field name="source_url">https://github.com/ether/etherpad-lite</field>
@@ -72,7 +72,7 @@
     - '{{ PORT_HTTP }}:9001'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   postgres:
     image: postgres:15-alpine
     environment:
@@ -89,7 +89,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

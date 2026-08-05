@@ -11,11 +11,11 @@
         <field name="service_code">cyberchef</field>
         <field name="version">latest</field>
         <field name="description">CyberChef is the "Cyber Swiss Army Knife": a browser-based workbench for encryption, encoding, compression and data analysis.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">CyberChef is the "Cyber Swiss Army Knife": a browser-based workbench for encryption, encoding, compression and data analysis.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">CyberChef is the "Cyber Swiss Army Knife": a browser-based workbench for encryption, encoding, compression and data analysis.</p>
   <p>Developed and open-sourced by GCHQ, CyberChef lets you chain hundreds of operations into a visual "recipe" to transform and analyse data. Everything runs entirely client-side in the browser, so sensitive inputs never leave your machine, making it ideal for handling untrusted or confidential data. Self-hosting gives security teams a private, offline instance with no external dependencies.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Hundreds of operations: Base64/XOR, AES/DES/Blowfish, hashing, hexdumps and more</li>
     <li>Drag-and-drop recipe builder that chains operations with live auto-bake output</li>
     <li>"Magic" auto-detection that suggests how to decode or decrypt unknown data</li>
@@ -23,7 +23,7 @@
     <li>Recipe breakpoints and step-through debugging for complex transformations</li>
     <li>Shareable recipes via URL and a simple Docker deployment with no persistent storage</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Security analysts, incident responders, malware and forensics teams, CTF players and developers who need to quickly decode, encrypt, parse or transform data without trusting an online service.</p>
 </div>]]></field>
         <field name="category">security</field>
@@ -32,7 +32,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/cyberchef.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_privacy')])]"/>
         <field name="website_url">https://gchq.github.io/CyberChef/</field>
         <field name="documentation_url">https://github.com/gchq/CyberChef/wiki</field>
         <field name="source_url">https://github.com/gchq/CyberChef</field>
@@ -45,11 +45,11 @@
     - '{{ PORT_HTTP }}:80'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

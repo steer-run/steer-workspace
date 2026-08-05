@@ -14,11 +14,11 @@
         <field name="service_code">twenty</field>
         <field name="version">latest</field>
         <field name="description">Twenty is a modern, fully open-source CRM and a credible alternative to Salesforce and HubSpot, built around a flexible spreadsheet-like data model.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Twenty is a modern, fully open-source CRM and a credible alternative to Salesforce and HubSpot, built around a flexible spreadsheet-like data model.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Twenty is a modern, fully open-source CRM and a credible alternative to Salesforce and HubSpot, built around a flexible spreadsheet-like data model.</p>
   <p>Twenty gives teams the core building blocks of a CRM — customizable objects, records, views, pipelines and workflows — on top of a PostgreSQL-native data model, so you can define unlimited custom objects and relationships without consultants or vendor lock-in. It targets startups and technical teams that want full ownership of their customer data and the ability to extend the platform as code. Its modern React interface with a NestJS/GraphQL backend, runtime data-model customization and built-in workflow automation set it apart from heavier legacy CRMs.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Flexible, PostgreSQL-native data model with unlimited custom objects and relationships</li>
     <li>Spreadsheet-style records with kanban, table and timeline views</li>
     <li>No-code workflow automation, triggers and webhooks</li>
@@ -26,7 +26,7 @@
     <li>Email and calendar sync via your own OAuth credentials (Gmail, Outlook)</li>
     <li>Self-hosted via Docker Compose with a permissive AGPL-3.0 license and no user caps</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Startups, sales teams and technical organizations that want a self-hosted, customizable CRM with full data ownership and the freedom to extend it without per-seat licensing or vendor lock-in.</p>
 </div>]]></field>
         <field name="category">business</field>
@@ -37,7 +37,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/twenty.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_crm'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_crm'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_ai')])]"/>
         <field name="website_url">https://twenty.com</field>
         <field name="documentation_url">https://docs.twenty.com</field>
         <field name="source_url">https://github.com/twentyhq/twenty</field>
@@ -93,7 +93,7 @@
     - '{{ PORT_HTTP }}:3000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   twenty-worker:
     image: twentycrm/twenty:latest
     command:
@@ -154,7 +154,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

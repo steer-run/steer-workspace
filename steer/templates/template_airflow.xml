@@ -15,11 +15,11 @@
         <field name="service_code">airflow</field>
         <field name="version">latest</field>
         <field name="description">Apache Airflow is an open-source platform to programmatically author, schedule and monitor data pipelines and workflows defined as Python code.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Apache Airflow is an open-source platform to programmatically author, schedule and monitor data pipelines and workflows defined as Python code.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Apache Airflow is an open-source platform to programmatically author, schedule and monitor data pipelines and workflows defined as Python code.</p>
   <p>Created at Airbnb and now a top-level Apache project, Airflow models each workflow as a Directed Acyclic Graph (DAG) of tasks written in Python, so pipelines become version-controlled, testable code instead of opaque cron jobs. It is a de facto standard for orchestrating ETL/ELT jobs, machine-learning pipelines and recurring automations across data warehouses, APIs and cloud services, with a rich web UI to visualise runs, inspect logs and retry failures. This deployment runs the CeleryExecutor stack (web server, scheduler, worker and triggerer) backed by PostgreSQL and Redis.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Workflows as Python code: DAGs with dependencies, branching, dynamic tasks and backfills</li>
     <li>Rich web UI to trigger, monitor, inspect logs and retry runs with graph and Gantt views</li>
     <li>Hundreds of provider packages: operators and hooks for databases, clouds, APIs and messaging</li>
@@ -27,7 +27,7 @@
     <li>Flexible scheduling with cron, data intervals, sensors, SLAs, retries and alerting</li>
     <li>REST API, pluggable executors, connections, variables and Fernet-encrypted secrets</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Data and platform engineers who need to orchestrate reliable, observable pipelines on their own infrastructure. This is an advanced, resource-hungry stack (plan for several GB of RAM and adequate CPU) and is not meant for non-technical users, since DAGs execute arbitrary Python. On first boot an init container migrates the database and creates the admin user; sign in at the web UI with the admin username and the generated password, then drop your DAG files into the ./dags folder. Keep it behind HTTPS and protect your connection credentials.</p>
 </div>]]></field>
         <field name="category">automation</field>
@@ -38,7 +38,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">curl -fsS http://localhost:8080/health</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/airflow.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="website_url">https://airflow.apache.org/</field>
         <field name="documentation_url">https://airflow.apache.org/docs/apache-airflow/stable/howto/docker-compose/index.html</field>
         <field name="source_url">https://github.com/apache/airflow</field>
@@ -150,7 +150,7 @@ services:
     - '{{ PORT_HTTP }}:8080'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   airflow-scheduler:
     <<: *airflow-common
     restart: unless-stopped
@@ -216,7 +216,7 @@ services:
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

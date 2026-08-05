@@ -12,11 +12,11 @@
         <field name="service_code">superset</field>
         <field name="version">6.0.0</field>
         <field name="description">Apache Superset is a modern, enterprise-ready data exploration and visualization platform that turns any SQL data source into interactive dashboards.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Apache Superset is a modern, enterprise-ready data exploration and visualization platform that turns any SQL data source into interactive dashboards.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Apache Superset is a modern, enterprise-ready data exploration and visualization platform that turns any SQL data source into interactive dashboards.</p>
   <p>Maintained by the Apache Software Foundation, Superset lets analysts and data teams build charts and dashboards with no code while also offering a full SQL editor for power users. It connects to virtually any SQL-speaking database or data engine through SQLAlchemy and is proven at massive scale by companies such as Airbnb, Dropbox and Netflix, making it a credible open-source alternative to proprietary BI suites.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>No-code chart builder with 40+ visualization types and a plugin architecture for custom charts</li>
     <li>SQL Lab IDE for ad-hoc queries, metadata browsing and Jinja templating</li>
     <li>Connects to 40+ databases and data engines (PostgreSQL, MySQL, BigQuery, Snowflake, Trino, Presto and more)</li>
@@ -24,7 +24,7 @@
     <li>Configurable caching layer plus async queries for performance at scale</li>
     <li>Granular role-based access control, multiple authentication backends and a REST API</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Data teams, analysts and organizations that want a self-hosted, open-source business intelligence and dashboarding platform to explore SQL data and share insights without per-seat licensing.</p>
 </div>]]></field>
         <field name="category">analytics</field>
@@ -35,7 +35,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/superset.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="website_url">https://superset.apache.org</field>
         <field name="documentation_url">https://superset.apache.org/docs/intro</field>
         <field name="source_url">https://github.com/amancevice/docker-superset</field>
@@ -62,7 +62,7 @@
     - '{{ PORT_HTTP }}:8088'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   superset_postgres:
     image: postgres:18
     restart: unless-stopped
@@ -101,7 +101,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

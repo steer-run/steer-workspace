@@ -16,8 +16,8 @@
         <field name="requires_database">False</field>
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
-        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/it_tools.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_self_hosted')])]"/>
+        <field name="image" type="base64" file="steer_infra_suite/static/img/templates/it_tools.png"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_self_hosted')])]"/>
         <field name="website_url">https://it-tools.tech</field>
         <field name="documentation_url">https://it-tools.tech/docs</field>
         <field name="source_url">https://github.com/CorentinTh/it-tools</field>
@@ -39,11 +39,11 @@
     - '{{ PORT_HTTP }}:80'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

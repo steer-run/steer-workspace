@@ -11,11 +11,11 @@
         <field name="service_code">zipline</field>
         <field name="version">v3.7.9</field>
         <field name="description">Zipline is a self-hosted ShareX and file upload server that turns your own infrastructure into a fast, feature-rich hub for screenshots, files and short links.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Zipline is a self-hosted ShareX and file upload server that turns your own infrastructure into a fast, feature-rich hub for screenshots, files and short links.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Zipline is a self-hosted ShareX and file upload server that turns your own infrastructure into a fast, feature-rich hub for screenshots, files and short links.</p>
   <p>Built as a modern full-stack TypeScript application (Next.js frontend with a Node.js backend on PostgreSQL), Zipline pairs a polished dashboard with deep integrations for screenshot tools across Windows (ShareX), macOS (ishare), Linux (Flameshot) and mobile. It targets developers, teams and homelabbers who want full control over where their uploads live, with support for both local and S3-compatible storage. Its standout trait is being one of the most complete options in its class, combining uploads, URL shortening and rich embeds in a single app.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>File uploads with folders, tags, chunked large-file transfers and on-the-fly image compression</li>
     <li>URL shortener with custom links plus customizable embeds for Discord and other apps</li>
     <li>Authentication via 2FA, passkeys and OAuth2/OIDC (Discord, GitHub, Google or any OIDC provider)</li>
@@ -23,7 +23,7 @@
     <li>Fully featured API, Discord and HTTP webhooks, and installable PWA</li>
     <li>Local and S3-compatible storage backends with Docker-first deployment</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers, content creators and teams who want a self-hosted, privacy-respecting destination for screenshots and file sharing, and homelab users replacing third-party upload services with a single feature-complete server.</p>
 </div>]]></field>
         <field name="category">storage</field>
@@ -34,7 +34,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/zipline.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_file_sharing'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_storage'), ref('steer_infra_suite.tag_file_sharing'), ref('steer_infra_suite.tag_media'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="website_url">https://zipline.diced.sh/</field>
         <field name="documentation_url">https://zipline.diced.sh/docs/</field>
         <field name="source_url">https://github.com/diced/zipline</field>
@@ -80,11 +80,11 @@
     - '{{ PORT_HTTP }}:3000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

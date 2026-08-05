@@ -16,11 +16,11 @@
         <field name="service_code">posthog</field>
         <field name="version">latest</field>
         <field name="description">PostHog is an open-source product analytics platform with event tracking, funnels, session replay, feature flags, experiments and surveys.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">PostHog is an open-source product analytics platform with event tracking, funnels, session replay, feature flags, experiments and surveys.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">PostHog is an open-source product analytics platform with event tracking, funnels, session replay, feature flags, experiments and surveys.</p>
   <p>It bundles the tools a software team needs to understand how people use a product into a single self-hostable suite, positioning itself as an all-in-one alternative to stitching together Amplitude, Mixpanel, LaunchDarkly, Hotjar and Optimizely. The stack is built on Django, ClickHouse for event storage, PostgreSQL for application data, Redis for queues and Kafka for ingestion, so every event and recording stays on your own infrastructure. It targets engineering, product and growth teams that want to own their user data and run analysis without shipping it to third parties.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Product analytics with events, trends, funnels, retention and user paths</li>
     <li>Session replay to watch real user interactions and debug UX issues</li>
     <li>Feature flags and staged rollouts, plus A/B tests and experiments</li>
@@ -28,7 +28,7 @@
     <li>Autocapture and SDKs for web, mobile and server, plus a REST API and webhooks</li>
     <li>Fully self-hosted: PostgreSQL, ClickHouse, Redis and Kafka keep data in-house</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Engineering, product and growth teams that need a complete, privacy-owned product-analytics suite and are comfortable operating a heavy multi-service stack. It is resource intensive (several GB of RAM and ample disk); for simple cookie-free web stats a lighter tool like Plausible or Matomo is a better fit. For large production deployments PostHog's official installer is the recommended path.</p>
 </div>]]></field>
         <field name="category">analytics</field>
@@ -39,7 +39,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">curl -fsS -o /dev/null http://localhost:8000/_health || exit 1</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/posthog.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="website_url">https://posthog.com/</field>
         <field name="documentation_url">https://posthog.com/docs/self-host</field>
         <field name="source_url">https://github.com/PostHog/posthog</field>
@@ -195,7 +195,7 @@
     - '{{ PORT_HTTP }}:8000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   worker:
     image: posthog/posthog:latest
     restart: unless-stopped
@@ -227,7 +227,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

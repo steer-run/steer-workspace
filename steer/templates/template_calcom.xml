@@ -6,11 +6,11 @@
         <field name="service_code">calcom</field>
         <field name="version">v2.7.6</field>
         <field name="description">Cal.com is the leading open-source scheduling platform and a self-hostable alternative to Calendly that puts you in full control of your data, branding, and workflows.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Cal.com is the leading open-source scheduling platform and a self-hostable alternative to Calendly that puts you in full control of your data, branding, and workflows.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Cal.com is the leading open-source scheduling platform and a self-hostable alternative to Calendly that puts you in full control of your data, branding, and workflows.</p>
   <p>It lets individuals and teams share booking links so others can schedule meetings without back-and-forth emails. Built on a modern TypeScript stack (Next.js, tRPC, Prisma, PostgreSQL), it offers calendar sync, video conferencing, payments, and an API-first, white-label design. Self-hosting is a first-class use case, giving organizations data residency and the ability to deploy on their own domain.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Personal and team booking pages with customizable event types and availability rules</li>
     <li>Two-way calendar sync with Google, Microsoft/Outlook and CalDAV providers</li>
     <li>Built-in video conferencing integrations (Zoom, Google Meet, Daily.co) and payment collection</li>
@@ -18,7 +18,7 @@
     <li>White-label theming, custom domains and embeddable booking widgets</li>
     <li>Routing forms, round-robin and collective scheduling for teams</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Privacy-conscious teams, agencies and organizations that want a self-hosted, data-sovereign scheduling layer, and developers who need a programmable booking engine to embed into their own products.</p>
 </div>]]></field>
         <field name="category">productivity</field>
@@ -29,7 +29,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/calcom.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_scheduling')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_communication'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_scheduling')])]"/>
         <field name="website_url">https://cal.com/</field>
         <field name="documentation_url">https://cal.com/docs</field>
         <field name="source_url">https://github.com/calcom/cal.com</field>
@@ -63,11 +63,11 @@
     - '{{ PORT_HTTP }}:3000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

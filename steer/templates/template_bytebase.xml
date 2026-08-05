@@ -11,11 +11,11 @@
         <field name="service_code">bytebase</field>
         <field name="version">3.19.1</field>
         <field name="description">Bytebase is a database DevSecOps platform that brings GitOps-style CI/CD, review and access control to schema changes across many database engines.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Bytebase is a database DevSecOps platform that brings GitOps-style CI/CD, review and access control to schema changes across many database engines.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Bytebase is a database DevSecOps platform that brings GitOps-style CI/CD, review and access control to schema changes across many database engines.</p>
   <p>It acts as the GitHub/GitLab for databases: developers, DBAs, security and platform teams manage schema migrations, data changes and SQL queries through a single web console with version control, automated review and staged rollouts. It supports PostgreSQL, MySQL, MariaDB, SQL Server, Oracle, MongoDB, Snowflake, ClickHouse and 20+ other engines, and integrates natively with GitHub and GitLab for database-as-code workflows. The core is open source (MIT); advanced security and compliance features ship under a separate enterprise license.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Database CI/CD with GitOps: migrations live in Git, reviewed on pull requests and deployed through environment stages</li>
     <li>Automated SQL review engine with 200+ lint rules to enforce schema and query standards</li>
     <li>Multi-engine support: PostgreSQL, MySQL, SQL Server, Oracle, MongoDB, Snowflake, ClickHouse and more</li>
@@ -23,7 +23,7 @@
     <li>Built-in SQL editor for querying, schema editing and batch changes across instances</li>
     <li>Approval workflows and data masking for sensitive data and compliance (enterprise tier)</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Engineering, DBA, security and platform teams that need to standardize, review and audit database schema and data changes at scale, and that want database changes to flow through the same controlled pipeline as application code.</p>
 </div>]]></field>
         <field name="category">database</field>
@@ -34,7 +34,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/bytebase.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ci_cd'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_git'), ref('agz_infra_suite.tag_workflow')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_ci_cd'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_git'), ref('steer_infra_suite.tag_workflow')])]"/>
         <field name="website_url">https://www.bytebase.com</field>
         <field name="documentation_url">https://www.bytebase.com/docs</field>
         <field name="source_url">https://github.com/bytebase/bytebase</field>
@@ -53,7 +53,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   bytebase-db:
     image: postgres:13
     restart: unless-stopped
@@ -69,7 +69,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

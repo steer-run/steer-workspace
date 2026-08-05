@@ -85,7 +85,7 @@ reports, it doesn't fail the deploy.
 ### Odoo-XML gotchas (the file is loaded by Odoo)
 
 - One `<odoo>` root; **no** `<data>` wrapper.
-- Cross-reference Steer tags as `agz_infra_suite.tag_<name>` (e.g. `ref('agz_infra_suite.tag_self_hosted')`).
+- Cross-reference Steer tags as `steer_infra_suite.tag_<name>` (e.g. `ref('steer_infra_suite.tag_self_hosted')`).
 - Same-file references (a port → its template) are bare ids.
 - Keep `code` unique and snake_case.
 

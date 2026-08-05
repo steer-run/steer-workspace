@@ -6,11 +6,11 @@
         <field name="service_code">paperless-ngx</field>
         <field name="version">latest</field>
         <field name="description">Paperless-ngx is a self-hosted document management system that scans, OCRs, tags and full-text-searches your paper and PDFs into a private digital archive.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Paperless-ngx is a self-hosted document management system that scans, OCRs, tags and full-text-searches your paper and PDFs into a private digital archive.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Paperless-ngx is a self-hosted document management system that scans, OCRs, tags and full-text-searches your paper and PDFs into a private digital archive.</p>
   <p>It turns physical paper, scans and PDFs into a searchable, organized digital archive that you fully own. Every incoming file is run through OCR so its text becomes searchable, then classified with tags, correspondents, document types and storage paths — automatically or with matching rules you define. Documents arrive from a watched consume folder, email fetching, scanner uploads or the mobile apps, and the modern web UI lets you find any invoice, contract or record in seconds. It is the community-driven successor to Paperless and Paperless-ng.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>OCR on every incoming scan and PDF, making the full text searchable within seconds</li>
     <li>Automatic classification with tags, correspondents, document types and storage paths</li>
     <li>Multiple ingestion paths: a watched consume folder, email fetching and scanner/mobile uploads</li>
@@ -18,7 +18,7 @@
     <li>Office and complex-PDF conversion via the bundled Apache Tika and Gotenberg services</li>
     <li>Fine-grained users, groups and permissions plus a full REST API for automation</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Individuals, families and businesses that want a paperless office: a private, searchable archive of invoices, contracts and personal records they fully control. Keep it behind HTTPS and never expose the consume folder as a public resource.</p>
 </div>]]></field>
         <field name="category">productivity</field>
@@ -29,7 +29,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/paperless-ngx.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_documentation')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_documentation')])]"/>
         <field name="website_url">https://docs.paperless-ngx.com/</field>
         <field name="documentation_url">https://docs.paperless-ngx.com/setup/</field>
         <field name="source_url">https://github.com/paperless-ngx/paperless-ngx</field>
@@ -134,11 +134,11 @@
     - '{{ PORT_HTTP }}:8000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

@@ -17,11 +17,11 @@
         <field name="service_code">woodpecker-ci</field>
         <field name="version">latest</field>
         <field name="description">Woodpecker CI is a simple, lightweight CI/CD engine that runs pipelines inside containers, wired to your Gitea, Forgejo, GitHub or GitLab repositories.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Woodpecker CI is a simple, lightweight CI/CD engine that runs pipelines inside containers, wired to your Gitea, Forgejo, GitHub or GitLab repositories.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Woodpecker CI is a simple, lightweight CI/CD engine that runs pipelines inside containers, wired to your Gitea, Forgejo, GitHub or GitLab repositories.</p>
   <p>Woodpecker is a community fork of Drone that keeps continuous integration deliberately small and container-first. You connect it to a Git forge over OAuth, commit a plain YAML pipeline (.woodpecker.yml) next to your code, and every push or pull request runs its steps as isolated containers. Its server/agent design lets a tiny server coordinate work while one or more agents execute the actual builds, so it scales by simply adding agents and stays light enough to self-host on modest hardware.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Container-native pipelines defined as YAML committed alongside your source code</li>
     <li>Native OAuth integration with Gitea, Forgejo, GitHub, GitLab and Bitbucket forges</li>
     <li>Server/agent architecture: lightweight agents pick up workflows and run each step in its own container</li>
@@ -29,7 +29,7 @@
     <li>Reusable plugins packaged as containers for publishing, notifications and deployments</li>
     <li>Small, resource-light footprint that scales horizontally by adding more agents</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Small teams and self-hosters who want a lightweight, container-first CI/CD engine sitting next to a self-hosted Git forge. Woodpecker must be paired with a forge: register an OAuth application there, set WOODPECKER_HOST to the instance's public URL and fill the forge client/secret before the first login. Note that the agent mounts the host Docker socket, which grants it high privilege, so isolate the runner on a dedicated host for sensitive workloads.</p>
 </div>]]></field>
         <field name="category">ci_cd</field>
@@ -38,7 +38,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/woodpecker-ci.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_ci_cd'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_git')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_ci_cd'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_git')])]"/>
         <field name="website_url">https://woodpecker-ci.org/</field>
         <field name="documentation_url">https://woodpecker-ci.org/docs/administration/installation/docker-compose</field>
         <field name="source_url">https://github.com/woodpecker-ci/woodpecker</field>
@@ -61,7 +61,7 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   woodpecker-agent:
     image: woodpeckerci/woodpecker-agent:latest
     command: agent
@@ -81,7 +81,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

@@ -13,11 +13,11 @@
         <field name="service_code">pocketbase</field>
         <field name="version">latest</field>
         <field name="description">PocketBase is an open-source backend in a single file, bundling a database, authentication, file storage, realtime subscriptions and an admin dashboard.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">PocketBase is an open-source backend in a single file, bundling a database, authentication, file storage, realtime subscriptions and an admin dashboard.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">PocketBase is an open-source backend in a single file, bundling a database, authentication, file storage, realtime subscriptions and an admin dashboard.</p>
   <p>Written in Go, it ships as one portable executable with an embedded SQLite database and an auto-generated REST API, giving you a complete Firebase-style backend with no external services to wire up. You can run it standalone or embed it as a Go library to add custom business logic, and clients connect through official JavaScript and Dart SDKs. It is a popular choice for developers who want a self-hosted, low-friction backend they fully control.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Embedded SQLite database with schema builder and auto-generated REST API</li>
     <li>Built-in user authentication, including email/password and OAuth2 providers</li>
     <li>Realtime subscriptions to record changes over server-sent events</li>
@@ -25,7 +25,7 @@
     <li>Web admin dashboard for managing collections, records, users and settings</li>
     <li>Extensible via JavaScript hooks or as a Go library, packaged as one binary</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers, indie hackers and small teams building web, mobile or desktop apps that need a self-hosted backend with auth, storage and realtime data without operating a multi-service stack. Ideal for MVPs, prototypes and small-to-medium production apps where a single, easy-to-deploy binary is preferred.</p>
 </div>]]></field>
         <field name="category">database</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/pocketbase.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_paas'), ref('agz_infra_suite.tag_identity'), ref('agz_infra_suite.tag_storage')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_paas'), ref('steer_infra_suite.tag_identity'), ref('steer_infra_suite.tag_storage')])]"/>
         <field name="website_url">https://pocketbase.io/</field>
         <field name="documentation_url">https://pocketbase.io/docs/</field>
         <field name="source_url">https://github.com/pocketbase/pocketbase</field>
@@ -65,11 +65,11 @@
     - '{{ PORT_HTTP }}:8090'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

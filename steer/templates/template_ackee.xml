@@ -11,11 +11,11 @@
         <field name="service_code">ackee</field>
         <field name="version">latest</field>
         <field name="description">Ackee is a self-hosted, privacy-first website analytics tool that gives you clean traffic insights without cookies or invasive tracking.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Ackee is a self-hosted, privacy-first website analytics tool that gives you clean traffic insights without cookies or invasive tracking.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Ackee is a self-hosted, privacy-first website analytics tool that gives you clean traffic insights without cookies or invasive tracking.</p>
   <p>Built on Node.js and MongoDB, Ackee runs entirely on your own server and analyzes the traffic of your websites through a minimal, fast dashboard. It keeps all tracked data anonymized, so visitors are never personally identifiable, and exposes everything through a GraphQL API. It is the right fit for developers and site owners who want meaningful traffic statistics without the complexity of a full marketing platform like Google Analytics or Matomo.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Cookieless, anonymized tracking with a rotating-salt hashing scheme; no consent banner required</li>
     <li>Views, referrers, durations, devices, browsers and platform breakdowns in a focused, fast UI</li>
     <li>Optional event tracking for clicks, outbound links, sign-ups and other custom actions</li>
@@ -23,7 +23,7 @@
     <li>Full GraphQL API so every dashboard metric is available programmatically</li>
     <li>Lightweight self-hosting with Docker, Kubernetes, Vercel, Netlify and manual deployments</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers, indie makers and privacy-conscious teams who want GDPR/CCPA-friendly, self-hosted web analytics with full data ownership and an API-first design, and who don't need teams, role-based access or heatmaps.</p>
 </div>]]></field>
         <field name="category">analytics</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">custom</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/ackee.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="website_url">https://ackee.electerious.com/</field>
         <field name="documentation_url">https://docs.ackee.electerious.com/</field>
         <field name="source_url">https://github.com/electerious/Ackee</field>
@@ -50,7 +50,7 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   mongo:
     image: mongo:4
     environment:
@@ -65,7 +65,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

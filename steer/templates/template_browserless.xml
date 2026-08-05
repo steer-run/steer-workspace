@@ -11,11 +11,11 @@
         <field name="service_code">browserless</field>
         <field name="version">2.23.0</field>
         <field name="description">Browserless turns headless browsers into a network service, letting any client run automation, scraping and rendering work against real Chrome, Firefox or WebKit inside Docker.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Browserless turns headless browsers into a network service, letting any client run automation, scraping and rendering work against real Chrome, Firefox or WebKit inside Docker.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Browserless turns headless browsers into a network service, letting any client run automation, scraping and rendering work against real Chrome, Firefox or WebKit inside Docker.</p>
   <p>It accepts standard, unforked Puppeteer and Playwright connections over WebSocket/CDP, and also exposes high-level REST APIs for everyday tasks so you never have to script a browser yourself. A session queue, concurrency limits, token authentication and a live debugger make it production-ready, whether you run a single container or a fleet behind a load balancer.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Connect existing Puppeteer and Playwright code over WebSocket/CDP with no code changes</li>
     <li>REST APIs for PDF generation, screenshots, page content, structured scraping and arbitrary functions</li>
     <li>Chrome, Firefox and WebKit images, plus a multi-browser build</li>
@@ -23,7 +23,7 @@
     <li>Token-based authentication and a live debugger/viewer for inspecting running sessions</li>
     <li>Single Docker image that scales horizontally behind a proxy or load balancer</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams that need reliable, centralized browser automation: web scraping and data collection, server-side PDF and screenshot generation, automated testing, and AI agents that browse the web. A strong self-hosted alternative to paid browser-as-a-service platforms for developers and DevOps.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -32,7 +32,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/browserless.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_web_scraping')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_web_scraping')])]"/>
         <field name="website_url">https://www.browserless.io/</field>
         <field name="documentation_url">https://docs.browserless.io/</field>
         <field name="source_url">https://github.com/browserless/browserless</field>
@@ -58,11 +58,11 @@
     - '{{ PORT_HTTP }}:3000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

@@ -11,11 +11,11 @@
         <field name="service_code">cloudflared</field>
         <field name="version">latest</field>
         <field name="description">Cloudflared is Cloudflare's official Tunnel client, a lightweight daemon that publishes local services to the internet through a secure outbound-only connection, with no open inbound ports.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Cloudflared is Cloudflare's official Tunnel client, a lightweight daemon that publishes local services to the internet through a secure outbound-only connection, with no open inbound ports.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Cloudflared is Cloudflare's official Tunnel client, a lightweight daemon that publishes local services to the internet through a secure outbound-only connection, with no open inbound ports.</p>
   <p>Instead of forwarding ports or exposing a public IP, cloudflared runs next to your service and dials out to Cloudflare's network, which then routes inbound requests back through the encrypted tunnel. This hides your origin IP, keeps the firewall fully closed, and works even behind CGNAT. Written in Go and distributed as a single binary, Docker image, or system package, it plugs directly into Cloudflare Zero Trust so you can layer SSO, WAF, and access policies in front of any service.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Outbound-only tunnel with mutual TLS, post-quantum encryption, and no inbound firewall rules</li>
     <li>Exposes HTTP/HTTPS services and raw TCP (SSH, RDP) without port forwarding or a public IP</li>
     <li>Works behind CGNAT and dynamic IPs; automatic DNS (CNAME) record creation</li>
@@ -23,7 +23,7 @@
     <li>Native Cloudflare Zero Trust integration: Access (SSO, OTP, hardware keys), WAF, and private-subnet routing</li>
     <li>Remotely-managed tunnels (token-based config in the dashboard) plus binaries, Docker, and Debian/RPM/Homebrew packages</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Self-hosters and teams that need to securely reach home or private services (dashboards, admin panels, internal tools, dev environments, webhooks) from anywhere without opening ports, plus operators who want Cloudflare's Zero Trust authentication and WAF in front of their apps. Best suited to HTTP/HTTPS workloads; note that public UDP is not supported and high-bandwidth media streaming may conflict with Cloudflare's terms.</p>
 </div>]]></field>
         <field name="category">networking</field>
@@ -32,7 +32,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/cloudflared.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_proxy'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_dns')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_networking'), ref('steer_infra_suite.tag_proxy'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_dns')])]"/>
         <field name="website_url">https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/</field>
         <field name="documentation_url">https://developers.cloudflare.com/cloudflare-one/networks/connectors/cloudflare-tunnel/get-started/</field>
         <field name="source_url">https://github.com/cloudflare/cloudflared</field>
@@ -53,7 +53,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

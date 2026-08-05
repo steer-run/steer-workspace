@@ -11,11 +11,11 @@
         <field name="service_code">forgejo</field>
         <field name="version">10</field>
         <field name="description">Forgejo is a lightweight, self-hosted software forge that gives you full control over your code, issues, and CI without depending on a commercial platform.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Forgejo is a lightweight, self-hosted software forge that gives you full control over your code, issues, and CI without depending on a commercial platform.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Forgejo is a lightweight, self-hosted software forge that gives you full control over your code, issues, and CI without depending on a commercial platform.</p>
   <p>It provides a complete GitHub-like experience for Git hosting, code review, and project collaboration, packaged as a single Go binary that runs comfortably on modest hardware. A community fork of Gitea, Forgejo is governed by the non-profit Codeberg e.V. and is fully free software, with a strong emphasis on transparency, privacy, and long-term data portability. It stays highly compatible with Gitea at the database and API level, making migrations in either direction straightforward.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Git repository hosting with pull requests, issues, wikis, and code review</li>
     <li>Built-in CI/CD via Forgejo Actions, compatible with GitHub Actions workflow syntax</li>
     <li>Integrated container and package registries plus Git LFS support</li>
@@ -23,7 +23,7 @@
     <li>Built-in importers for GitHub, GitLab, Gitea, Gogs, and plain Git URLs</li>
     <li>Low resource footprint as a single static binary, with emerging ActivityPub federation</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams, organizations, and individuals who want a private, low-maintenance GitHub alternative with built-in CI/CD, especially those who value non-profit community governance, copyleft licensing, and full ownership of their development infrastructure.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -34,7 +34,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/forgejo.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_git'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ci_cd'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_project_management')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_git'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_ci_cd'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_project_management')])]"/>
         <field name="website_url">https://forgejo.org/</field>
         <field name="documentation_url">https://forgejo.org/docs/latest/</field>
         <field name="source_url">https://codeberg.org/forgejo/forgejo</field>
@@ -61,7 +61,7 @@
     - '{{ PORT_HTTP }}:3000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   db:
     image: postgres:17
     restart: always
@@ -77,7 +77,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

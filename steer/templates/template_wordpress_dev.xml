@@ -6,12 +6,12 @@
     <record id="template_wordpress_dev" model="service.template">
         <field name="name">WordPress Development</field>
         <field name="code">wordpress-dev</field>
-        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/wordpress.png"/>
+        <field name="image" type="base64" file="steer_infra_suite/static/img/templates/wordpress.png"/>
         <field name="description">WordPress con IDE integrado (code-server) para desarrollo de temas y plugins. Incluye MariaDB y permite programar directamente en el navegador.</field>
         <field name="category">cms</field>
         <field name="version">6</field>
         <field name="service_code">wordpress-dev</field>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_cms'), ref('agz_infra_suite.tag_blog'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_cms'), ref('steer_infra_suite.tag_blog'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="is_web_app">True</field>
         <field name="is_global">True</field>
         <field name="active">True</field>
@@ -70,7 +70,7 @@
     restart: unless-stopped
     networks:
       - internal
-      - agz-proxy-network
+      - steer-proxy-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:80/ || exit 1"]
       interval: 30s
@@ -98,12 +98,12 @@
     restart: unless-stopped
     networks:
       - internal
-      - agz-proxy-network
+      - steer-proxy-network
 
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash
@@ -369,7 +369,7 @@ echo "=== Restore completado ==="
     </record>
 
     <!-- SSH config del IDE: alias "wordpress" → nombre único del contenedor.    -->
-    <!-- Evita que "ssh wordpress@wordpress" colisione en agz-proxy-network (red   -->
+    <!-- Evita que "ssh wordpress@wordpress" colisione en steer-proxy-network (red   -->
     <!-- compartida) y caiga en el WordPress de otra instancia. Se escribe en      -->
     <!-- ./ide-config/.ssh/config = /config/.ssh/config (HOME de code-server).     -->
     <record id="template_wordpress_dev_config_ssh" model="service.template.config.file">
@@ -382,7 +382,7 @@ echo "=== Restore completado ==="
         <field name="description">Alias SSH "wordpress" que apunta al contenedor único de esta instancia ({{ INSTANCE_CODE }}), para que "ssh wordpress@wordpress" desde el IDE nunca resuelva al WordPress de otro entorno en la red compartida. Ajustar "User" según el sshd del contenedor.</field>
         <field name="content_template"><![CDATA[# Generado para {{ instance.name }} - {{ generated_at }}
 # El host "wordpress" se reescribe al nombre único del contenedor de esta
-# instancia para evitar colisiones de DNS en agz-proxy-network.
+# instancia para evitar colisiones de DNS en steer-proxy-network.
 Host wordpress
     HostName {{ INSTANCE_CODE }}
     User wordpress

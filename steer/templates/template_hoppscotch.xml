@@ -13,11 +13,11 @@
         <field name="service_code">hoppscotch</field>
         <field name="version">latest</field>
         <field name="description">Hoppscotch is a fast, open-source API development ecosystem and a self-hostable alternative to Postman and Insomnia.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Hoppscotch is a fast, open-source API development ecosystem and a self-hostable alternative to Postman and Insomnia.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Hoppscotch is a fast, open-source API development ecosystem and a self-hostable alternative to Postman and Insomnia.</p>
   <p>It provides a minimalist web client for designing, sending, testing and debugging API requests across HTTP, GraphQL, WebSocket, Socket.IO, MQTT and Server-Sent Events. The self-hosted Community Edition ships as an all-in-one deployment (frontend, backend and admin dashboard) backed by PostgreSQL, giving teams full data ownership on their own infrastructure. It is aimed at developers and teams who want collaborative API tooling without sending requests or credentials through a third-party cloud.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Multi-protocol clients: HTTP/REST, GraphQL, WebSocket, Socket.IO, MQTT and Server-Sent Events</li>
     <li>Collections, folders and request history to organize and reuse API calls</li>
     <li>Environments and variables for managing base URLs, tokens and per-stage configuration</li>
@@ -25,7 +25,7 @@
     <li>Team workspaces with real-time collaboration and shared collections</li>
     <li>Admin dashboard for users and workspaces, plus a built-in proxy to bypass browser CORS limits</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Developers, QA engineers and teams that want a private, self-hosted API client and testing platform with full control over data, ideal for organizations replacing cloud-based tools like Postman.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -36,7 +36,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/hoppscotch.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_productivity')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_productivity')])]"/>
         <field name="website_url">https://hoppscotch.io/</field>
         <field name="documentation_url">https://docs.hoppscotch.io/documentation/self-host/community-edition/install-and-build</field>
         <field name="source_url">https://github.com/hoppscotch/hoppscotch</field>
@@ -72,7 +72,7 @@
     - '{{ PORT_HTTP }}:80'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   postgres:
     image: postgres:16
     restart: unless-stopped
@@ -117,7 +117,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

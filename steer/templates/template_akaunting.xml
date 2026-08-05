@@ -12,11 +12,11 @@
         <field name="service_code">akaunting</field>
         <field name="version">latest</field>
         <field name="description">Akaunting is a self-hosted, open-source accounting platform that gives small businesses and freelancers full control over their finances and data.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Akaunting is a self-hosted, open-source accounting platform that gives small businesses and freelancers full control over their finances and data.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Akaunting is a self-hosted, open-source accounting platform that gives small businesses and freelancers full control over their finances and data.</p>
   <p>Built on Laravel, Vue and Tailwind, it covers the full money-management cycle: invoicing, billing, income and expense tracking, double-entry bookkeeping and financial reporting. Its modular architecture and built-in App Store let you extend the core with additional features such as payroll, custom payment gateways and integrations. It supports multiple companies and currencies from a single install.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Invoicing, billing and quotes with recurring transactions</li>
     <li>Income, expense and bank-transaction tracking with reconciliation</li>
     <li>Double-entry bookkeeping with chart of accounts and journal entries</li>
@@ -24,7 +24,7 @@
     <li>Multi-company and multi-currency support from one instance</li>
     <li>Financial reports (profit &amp; loss, balance sheet, cash flow, tax) and a modular App Store</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Small businesses, freelancers and accountants who want a self-hosted alternative to cloud accounting suites, keeping financial data on their own infrastructure. Note the core uses the Business Source License, which limits free production use to a small scale; commercial on-premise plans are available for larger deployments.</p>
 </div>]]></field>
         <field name="category">finance</field>
@@ -35,7 +35,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">mysqladmin ping --silent</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/akaunting.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_finance'), ref('agz_infra_suite.tag_erp'), ref('agz_infra_suite.tag_productivity')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_finance'), ref('steer_infra_suite.tag_erp'), ref('steer_infra_suite.tag_productivity')])]"/>
         <field name="website_url">https://akaunting.com</field>
         <field name="documentation_url">https://akaunting.com/docs</field>
         <field name="source_url">https://github.com/akaunting/akaunting</field>
@@ -68,7 +68,7 @@
     - '{{ PORT_HTTP }}:80'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   akaunting-db:
     image: mariadb:10.11
     restart: unless-stopped
@@ -95,7 +95,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

@@ -12,11 +12,11 @@
         <field name="service_code">elastic_search</field>
         <field name="version">8.10.2</field>
         <field name="description">Elasticsearch is a distributed, RESTful search and analytics engine that stores, searches and analyzes large volumes of data in near real time.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Elasticsearch is a distributed, RESTful search and analytics engine that stores, searches and analyzes large volumes of data in near real time.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Elasticsearch is a distributed, RESTful search and analytics engine that stores, searches and analyzes large volumes of data in near real time.</p>
   <p>Built on Apache Lucene, it is the heart of the Elastic (ELK) Stack and powers full-text search, structured queries, aggregations and vector similarity search over text, logs, metrics and embeddings. Its horizontally scalable, sharded architecture lets a single cluster grow from a laptop to thousands of nodes, making it a common foundation for log analytics, observability, application search and AI retrieval workloads.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Fast full-text search with relevance ranking, fuzzy matching and rich query DSL</li>
     <li>Native vector database with kNN search for semantic and AI/RAG use cases</li>
     <li>Real-time aggregations and analytics over structured and unstructured data</li>
@@ -24,7 +24,7 @@
     <li>Built-in security: TLS, authentication, role-based access control and audit logging</li>
     <li>REST API plus official clients and broad integration with the ELK Stack (Kibana, Beats, Logstash)</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams that need a scalable engine for log and observability analytics, site or application search, or semantic/vector retrieval for AI applications, and that want to self-host the data store behind those workloads.</p>
 </div>]]></field>
         <field name="category">database</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/elastic_search.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_search'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_logging'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_monitoring')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_search'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_logging'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_monitoring')])]"/>
         <field name="website_url">https://www.elastic.co/elasticsearch/</field>
         <field name="documentation_url">https://docs.elastic.co/elasticsearch/</field>
         <field name="source_url">https://github.com/elastic/elasticsearch</field>
@@ -69,11 +69,11 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

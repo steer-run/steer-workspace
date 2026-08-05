@@ -12,11 +12,11 @@
         <field name="service_code">kestra</field>
         <field name="version">latest</field>
         <field name="description">Kestra is an open-source, event-driven orchestration platform that lets you define and govern business-critical workflows declaratively as YAML, from code or the UI.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Kestra is an open-source, event-driven orchestration platform that lets you define and govern business-critical workflows declaratively as YAML, from code or the UI.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Kestra is an open-source, event-driven orchestration platform that lets you define and govern business-critical workflows declaratively as YAML, from code or the UI.</p>
   <p>It unifies scheduled and event-driven automation across data pipelines, AI tasks, infrastructure and business processes behind a single declarative control plane. Workflows are written in a language-agnostic YAML interface and can run scripts in Python, Node.js, R, Go or Shell, with a rich plugin ecosystem connecting databases, cloud storage, APIs and SaaS tools. It targets data engineers, platform teams and anyone needing reliable, auditable orchestration without locking logic into application code.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Declarative YAML workflows defined from a built-in code editor or the UI, with Git version control integration</li>
     <li>Event-driven and scheduled triggers, with retries, error handling, conditional branching and dynamic tasks</li>
     <li>Real-time topology view rendering each workflow as a live Directed Acyclic Graph (DAG)</li>
@@ -24,7 +24,7 @@
     <li>AI Copilot to generate workflows from natural-language prompts and AI Agents for autonomous, tool-using orchestration with human-in-the-loop approvals</li>
     <li>Self-hostable on Docker or Kubernetes, including air-gapped deployments; namespaces, unit tests and SLAs for production governance</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Data engineering, platform and DevOps teams that need to orchestrate data, AI, infrastructure and business workflows at scale with version control, observability and full auditability — a modern, language-agnostic alternative to Python-DAG schedulers.</p>
 </div>]]></field>
         <field name="category">automation</field>
@@ -35,7 +35,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/kestra.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_ai')])]"/>
         <field name="website_url">https://kestra.io</field>
         <field name="documentation_url">https://kestra.io/docs</field>
         <field name="source_url">https://github.com/kestra-io/kestra</field>
@@ -84,11 +84,11 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

@@ -12,11 +12,11 @@
         <field name="service_code">mage_ai</field>
         <field name="version">0.9.78</field>
         <field name="description">Mage is an open-source data pipeline framework that blends the flexibility of notebooks with the rigor of modular, production-ready code.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Mage is an open-source data pipeline framework that blends the flexibility of notebooks with the rigor of modular, production-ready code.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Mage is an open-source data pipeline framework that blends the flexibility of notebooks with the rigor of modular, production-ready code.</p>
   <p>It lets data engineers and analysts build, run, and orchestrate ETL/ELT pipelines using Python, SQL, or R within a single workflow, backed by an interactive UI that previews output as you write each step. Pre-built connectors move data between databases, APIs, cloud storage, and warehouses, while a built-in scheduler, monitoring, and alerting keep pipelines running in production. Positioned as a developer-friendly alternative to Airflow, it favors modular, testable, reusable pipeline blocks over opaque DAG definitions.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Modular pipeline blocks written in Python, SQL, or R, mixable in one pipeline</li>
     <li>Interactive notebook-style editor with real-time output preview and step-by-step debugging</li>
     <li>Pre-built connectors for databases, APIs, cloud object storage, and data warehouses (ETL/ELT)</li>
@@ -24,7 +24,7 @@
     <li>dbt integration and support for data versioning, cataloging, and partitioning</li>
     <li>Self-hosted deployment with Terraform templates for AWS, GCP, and Azure</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Data engineering and analytics teams that need a self-hosted, code-first tool to build and orchestrate data integration and transformation pipelines, and teams looking for a more interactive, modular alternative to traditional DAG-based orchestrators like Airflow.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/mage_ai.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_ai')])]"/>
         <field name="website_url">https://mage.ai</field>
         <field name="documentation_url">https://docs.mage.ai</field>
         <field name="source_url">https://github.com/mage-ai/mage-ai</field>
@@ -66,11 +66,11 @@
     - '{{ PORT_HTTP }}:6789'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

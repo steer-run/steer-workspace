@@ -14,11 +14,11 @@
         <field name="service_code">mautic</field>
         <field name="version">5.1.1</field>
         <field name="description">Mautic is the leading open-source marketing automation platform, giving organizations enterprise-grade campaign tooling without vendor lock-in.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Mautic is the leading open-source marketing automation platform, giving organizations enterprise-grade campaign tooling without vendor lock-in.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Mautic is the leading open-source marketing automation platform, giving organizations enterprise-grade campaign tooling without vendor lock-in.</p>
   <p>Built on PHP and the Symfony framework, Mautic lets teams capture, segment, score and nurture contacts across multiple channels from a single self-hosted application. It covers the full lifecycle from landing pages and forms to multi-step automated campaigns, with complete ownership of contact data and the freedom to customize and extend every part of the stack. Backed by Acquia and a large global community, it is the privacy-focused alternative to proprietary suites like HubSpot or Marketo.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Visual, multi-step campaign builder for automated drip and trigger-based workflows</li>
     <li>Unlimited contact segmentation, lead scoring and behavioral tracking</li>
     <li>Multi-channel messaging: email, SMS/text, web push notifications and social</li>
@@ -26,7 +26,7 @@
     <li>Email campaign management with A/B testing and deliverability reporting</li>
     <li>Extensible plugin architecture and REST API for CRM and tooling integrations</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Marketing teams, agencies and businesses that want full data ownership and a self-hosted alternative to SaaS marketing clouds, and that have the technical resources to run and maintain a PHP/MySQL application.</p>
 </div>]]></field>
         <field name="category">automation</field>
@@ -37,7 +37,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">mysqladmin ping --silent</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/mautic.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_crm'), ref('agz_infra_suite.tag_email'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_marketing')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_crm'), ref('steer_infra_suite.tag_email'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_communication'), ref('steer_infra_suite.tag_marketing')])]"/>
         <field name="website_url">https://www.mautic.org/</field>
         <field name="documentation_url">https://docs.mautic.org/en</field>
         <field name="source_url">https://github.com/mautic/mautic</field>
@@ -105,7 +105,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   mautic-cron:
     image: mautic/mautic:5.1.1-apache
     restart: unless-stopped
@@ -173,7 +173,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

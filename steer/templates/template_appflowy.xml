@@ -15,11 +15,11 @@
         <field name="service_code">appflowy</field>
         <field name="version">0.9.3</field>
         <field name="description">AppFlowy is the leading open-source, privacy-first alternative to Notion: an AI-powered collaborative workspace where you keep full control of your data.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">AppFlowy is the leading open-source, privacy-first alternative to Notion: an AI-powered collaborative workspace where you keep full control of your data.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">AppFlowy is the leading open-source, privacy-first alternative to Notion: an AI-powered collaborative workspace where you keep full control of your data.</p>
   <p>It combines a block-based document editor with multi-view databases, kanban boards, calendars and wikis in a single local-first application that runs natively on desktop and mobile. The desktop app writes to a local SQLite store and syncs in the background, while teams can self-host the full AppFlowy Cloud stack (API server, web UI, background worker, GoTrue auth, PostgreSQL with pgvector, Redis and MinIO) via Docker. It is built with Flutter and Rust and connects to both local AI models (Mistral, Llama) and cloud providers (GPT, Gemini, Claude).</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Block-based editor with slash commands, nested pages and rich documents</li>
     <li>Multi-view databases: grid, board/kanban, calendar, gallery, list and chart</li>
     <li>Advanced data tools: filters, sorting, grouping, two-way relations, rollups and calculations</li>
@@ -27,7 +27,7 @@
     <li>Local-first offline use with background sync to self-hosted or managed cloud</li>
     <li>Self-hostable Docker stack on your own infrastructure with full data ownership</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Privacy-conscious teams, organizations with data-sovereignty requirements, and individuals who want a powerful Notion-style workspace for docs, project management and knowledge bases without per-seat SaaS pricing or sending data to third parties.</p>
 </div>]]></field>
         <field name="category">productivity</field>
@@ -36,7 +36,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/appflowy.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_project_management'), ref('agz_infra_suite.tag_documentation'), ref('agz_infra_suite.tag_notes'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_project_management'), ref('steer_infra_suite.tag_documentation'), ref('steer_infra_suite.tag_notes'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_privacy')])]"/>
         <field name="website_url">https://appflowy.io/</field>
         <field name="documentation_url">https://docs.appflowy.io/docs</field>
         <field name="source_url">https://github.com/AppFlowy-IO/AppFlowy</field>
@@ -51,7 +51,7 @@
     - '{{ PORT_HTTP }}:80'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   minio:
     restart: on-failure
     image: minio/minio
@@ -292,7 +292,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

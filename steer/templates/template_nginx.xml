@@ -6,12 +6,12 @@
     <record id="template_nginx" model="service.template">
         <field name="name">Nginx Web Server</field>
         <field name="code">nginx</field>
-        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/nginx.png"/>
+        <field name="image" type="base64" file="steer_infra_suite/static/img/templates/nginx.png"/>
         <field name="description">Servidor web Nginx para sitios estáticos o como reverse proxy.</field>
         <field name="category">networking</field>
         <field name="version">alpine</field>
         <field name="service_code">nginx</field>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_proxy'), ref('agz_infra_suite.tag_networking')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_proxy'), ref('steer_infra_suite.tag_networking')])]"/>
         <field name="is_web_app">True</field>
         <field name="is_global">True</field>
         <field name="active">True</field>
@@ -32,7 +32,7 @@
       - ./ssl:/etc/nginx/ssl:ro
     restart: unless-stopped
     networks:
-      - agz-proxy-network
+      - steer-proxy-network
     healthcheck:
       # Liveness, no content-check: pasa con CUALQUIER respuesta HTTP (incluido 403 de
       # un webroot vacío recién desplegado, 404 de un SPA o 5xx de un reverse-proxy con
@@ -45,7 +45,7 @@
       start_period: 10s
 
 networks:
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"></field>

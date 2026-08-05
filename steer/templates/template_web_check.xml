@@ -11,11 +11,11 @@
         <field name="service_code">web_check</field>
         <field name="version">latest</field>
         <field name="description">Web-Check is an all-in-one OSINT and reconnaissance tool that reveals everything sitting behind any website from a single domain lookup.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Web-Check is an all-in-one OSINT and reconnaissance tool that reveals everything sitting behind any website from a single domain lookup.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Web-Check is an all-in-one OSINT and reconnaissance tool that reveals everything sitting behind any website from a single domain lookup.</p>
   <p>It gathers, analyses and collates a website's infrastructure, security posture and configuration into one dashboard, with no special setup or technical skill required from the user. Each check runs on demand against a target domain, making it valuable for developers, sysadmins, security researchers, OSINT investigators and site owners who need a fast, comprehensive snapshot of how a site is built and exposed.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>IP, geolocation and server location mapping, with traceroute and open-port discovery</li>
     <li>DNS records, DNSSEC validation and full redirect-chain analysis</li>
     <li>SSL/TLS certificate inspection plus HTTP headers, cookies and security configuration review</li>
@@ -23,7 +23,7 @@
     <li>Technology-stack detection and Lighthouse-based performance, accessibility and SEO metrics</li>
     <li>Historical snapshots via the Wayback Machine and optional enrichment through Shodan, Google and WhoAPI keys</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Security researchers, OSINT investigators, sysadmins and developers who need an instant, consolidated view of any website's infrastructure, security and configuration during audits, due diligence or troubleshooting.</p>
 </div>]]></field>
         <field name="category">security</field>
@@ -32,7 +32,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/web_check.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_dns'), ref('agz_infra_suite.tag_monitoring')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_networking'), ref('steer_infra_suite.tag_dns'), ref('steer_infra_suite.tag_monitoring')])]"/>
         <field name="website_url">https://github.com/lissy93/web-check</field>
         <field name="documentation_url">https://github.com/lissy93/web-check</field>
         <field name="source_url">https://github.com/lissy93/web-check</field>
@@ -45,11 +45,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

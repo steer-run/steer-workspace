@@ -12,11 +12,11 @@
         <field name="service_code">rsshub</field>
         <field name="version">1.0.0</field>
         <field name="description">RSSHub is an open-source aggregator that turns virtually any website or service into a clean, subscribable RSS feed.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">RSSHub is an open-source aggregator that turns virtually any website or service into a clean, subscribable RSS feed.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">RSSHub is an open-source aggregator that turns virtually any website or service into a clean, subscribable RSS feed.</p>
   <p>Built on a modular "route" architecture, each route is a small module that knows how to scrape and normalize a specific site, so platforms that dropped or never offered native feeds become RSS-readable again. It targets RSS power users, developers, and content archivists who want a single self-hosted bridge between the modern web and their feed reader. Self-hosting your own instance avoids public rate limits and gives you full control over caching, refresh intervals, and route access.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Thousands of built-in routes covering social networks, news sites, blogs, forums, and services without native feeds</li>
     <li>Modular, extensible route system in TypeScript/Node.js for adding custom sources</li>
     <li>Flexible deployment via Docker, npm, or serverless platforms</li>
@@ -24,7 +24,7 @@
     <li>Access-key allowlisting and route filtering to harden public-facing instances</li>
     <li>Companion tooling such as the RSSHub Radar browser extension for feed discovery</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Individuals and teams who want to consolidate scattered web content into RSS, escape rate-limited public instances, follow sources lacking native feeds, or build automation pipelines on top of standardized feeds.</p>
 </div>]]></field>
         <field name="category">productivity</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/rsshub.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_rss')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_rss')])]"/>
         <field name="website_url">https://rsshub.app/</field>
         <field name="documentation_url">https://docs.rsshub.app/</field>
         <field name="source_url">https://github.com/DIYgod/RSSHub</field>
@@ -63,7 +63,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   browserless:
     image: browserless/chrome
     restart: always
@@ -103,7 +103,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

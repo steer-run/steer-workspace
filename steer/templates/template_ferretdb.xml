@@ -18,11 +18,11 @@
         <field name="service_code">ferretdb</field>
         <field name="version">latest</field>
         <field name="description">FerretDB is an open-source MongoDB-compatible database that proxies the MongoDB wire protocol onto PostgreSQL with DocumentDB, no MongoDB server required.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">FerretDB is an open-source MongoDB-compatible database that proxies the MongoDB wire protocol onto PostgreSQL with DocumentDB, no MongoDB server required.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">FerretDB is an open-source MongoDB-compatible database that proxies the MongoDB wire protocol onto PostgreSQL with DocumentDB, no MongoDB server required.</p>
   <p>FerretDB acts as a stateless proxy that speaks the MongoDB wire protocol and translates it into queries against a PostgreSQL backend powered by the DocumentDB extension. This lets applications and drivers that expect a MongoDB-style document API keep working while you store the data in a truly open, Apache-2.0-licensed stack. It is aimed at developers and platform teams who want document-database ergonomics without the licensing and lock-in of MongoDB Server, reusing their existing PostgreSQL operational knowledge for backups, monitoring and scaling.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>MongoDB wire-protocol compatibility — existing drivers and tools like mongosh connect unchanged</li>
     <li>PostgreSQL with the DocumentDB extension as a proven, durable storage engine</li>
     <li>Apache 2.0 open-source license with no per-core or per-node vendor fees</li>
@@ -30,7 +30,7 @@
     <li>Reuse of the PostgreSQL ecosystem for backups, replication and observability</li>
     <li>Runs as a lightweight internal service, ideal as a shared dependency for other apps</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams that need a self-hosted, openly licensed alternative to MongoDB for apps that speak the MongoDB API, and platforms that prefer to consolidate document workloads on their existing PostgreSQL stack. Validate feature compatibility for your specific driver, as FerretDB implements a subset of the MongoDB protocol.</p>
 </div>]]></field>
         <field name="category">database</field>
@@ -40,7 +40,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/ferretdb.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_database')])]"/>
         <field name="website_url">https://www.ferretdb.io/</field>
         <field name="documentation_url">https://docs.ferretdb.io/</field>
         <field name="source_url">https://github.com/FerretDB/FerretDB</field>

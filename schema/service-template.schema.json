@@ -34,7 +34,7 @@
     "tags": {
       "type": "array",
       "items": { "type": "string", "pattern": "^tag_[a-z0-9_]+$" },
-      "description": "Catalog tags (xmlids of agz_infra_suite.tag_*, without the module prefix)."
+      "description": "Catalog tags (xmlids of steer_infra_suite.tag_*, without the module prefix)."
     },
     "website_url": { "type": "string", "format": "uri" },
     "documentation_url": { "type": "string", "format": "uri" },

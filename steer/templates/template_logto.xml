@@ -11,11 +11,11 @@
         <field name="service_code">logto</field>
         <field name="version">1.27.0</field>
         <field name="description">Logto is an open-source identity and access management platform that adds production-ready authentication and authorization to apps without building it from scratch.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Logto is an open-source identity and access management platform that adds production-ready authentication and authorization to apps without building it from scratch.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Logto is an open-source identity and access management platform that adds production-ready authentication and authorization to apps without building it from scratch.</p>
   <p>Built on OIDC and OAuth 2.1, Logto provides pre-built sign-in flows, customizable UIs and SDKs for 30+ frameworks, so developers can ship secure auth quickly. It targets SaaS, multi-tenant products and AI/agent applications, and positions itself as a modern, self-hostable alternative to Auth0 and Okta. Core capabilities such as SSO, RBAC and organizations are available with no paywall on the self-hosted edition.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>OIDC and OAuth 2.1 provider with SAML and enterprise SSO support</li>
     <li>Role-based access control (RBAC), organizations and native multi-tenancy</li>
     <li>Social login, passwordless and multi-factor authentication (MFA)</li>
@@ -23,7 +23,7 @@
     <li>SDKs for 30+ frameworks plus a management API</li>
     <li>Audit logs, brute-force protection and multi-tenant isolation</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Development teams and SaaS vendors that need a self-hosted, standards-based auth layer with multi-tenancy, SSO and RBAC, including builders of AI and agent-based applications who want full control over customer identity.</p>
 </div>]]></field>
         <field name="category">security</field>
@@ -34,7 +34,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/logto.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_identity'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_identity'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_privacy')])]"/>
         <field name="website_url">https://logto.io/</field>
         <field name="documentation_url">https://docs.logto.io/introduction</field>
         <field name="source_url">https://github.com/logto-io/logto</field>
@@ -61,7 +61,7 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   postgres:
     image: postgres:17-alpine
     user: postgres
@@ -84,7 +84,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

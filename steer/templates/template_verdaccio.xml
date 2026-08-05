@@ -13,11 +13,11 @@
         <field name="service_code">verdaccio</field>
         <field name="version">6</field>
         <field name="description">Verdaccio is a lightweight, zero-config private npm registry and proxy you can run on your own infrastructure.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Verdaccio is a lightweight, zero-config private npm registry and proxy you can run on your own infrastructure.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Verdaccio is a lightweight, zero-config private npm registry and proxy you can run on your own infrastructure.</p>
   <p>It lets teams host their own private JavaScript packages while transparently proxying and caching modules from public registries such as npmjs.org. It needs no external database to get started, ships with its own small storage, and is extensible through plugins for authentication, storage backends and metadata filtering. It is widely used both as an internal package server for organizations and as a fast, offline-friendly registry for CI and end-to-end testing.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Host private npm packages scoped to your team or organization</li>
     <li>Proxy and cache packages from one or more upstream registries</li>
     <li>Zero-config startup with built-in file storage; no database required</li>
@@ -25,7 +25,7 @@
     <li>Fine-grained access control over who can publish and install each package</li>
     <li>Optional metadata filtering to block compromised or unwanted versions</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Development teams that need a private package registry, organizations sharing internal libraries, and CI/CD or end-to-end test pipelines that benefit from a fast, cached, locally controlled npm registry.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/verdaccio.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_proxy'), ref('agz_infra_suite.tag_cache')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_proxy'), ref('steer_infra_suite.tag_cache')])]"/>
         <field name="website_url">https://www.verdaccio.org/</field>
         <field name="documentation_url">https://www.verdaccio.org/docs/what-is-verdaccio</field>
         <field name="source_url">https://github.com/verdaccio/verdaccio</field>
@@ -53,11 +53,11 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

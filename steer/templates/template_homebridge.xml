@@ -12,11 +12,11 @@
         <field name="service_code">homebridge</field>
         <field name="version">latest</field>
         <field name="description">Homebridge is a lightweight Node.js server that brings unsupported smart devices into Apple HomeKit (and, from v2, Matter ecosystems).</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Homebridge is a lightweight Node.js server that brings unsupported smart devices into Apple HomeKit (and, from v2, Matter ecosystems).</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Homebridge is a lightweight Node.js server that brings unsupported smart devices into Apple HomeKit (and, from v2, Matter ecosystems).</p>
   <p>It emulates the HomeKit Accessory Protocol (HAP) on your home network so that devices without native HomeKit support can be controlled from the Apple Home app and Siri. Functionality is delivered through a vast catalog of community plugins, each bridging a specific brand or third-party API. Homebridge v2 also lets plugins expose their devices over the Matter standard, reaching Google Home, Amazon Alexa, SmartThings and other controllers.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Emulates the HomeKit Accessory Protocol (HAP) to add HomeKit support where vendors provide none</li>
     <li>Plugin architecture with 2,000+ community plugins covering thousands of accessories</li>
     <li>Optional Matter support (v2) to expose devices to Google Home, Alexa, SmartThings and more</li>
@@ -24,7 +24,7 @@
     <li>Runs on Raspberry Pi, Linux, macOS, Windows, Docker and many NAS platforms</li>
     <li>Free, community-driven and fully self-hosted on your own network</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Home automation enthusiasts and self-hosters who want to unify heterogeneous smart-home gear under Apple Home/Siri (or Matter), without relying on vendor clouds.</p>
 </div>]]></field>
         <field name="category">automation</field>
@@ -33,7 +33,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/homebridge.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_smart_home')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_smart_home')])]"/>
         <field name="website_url">https://homebridge.io/</field>
         <field name="documentation_url">https://github.com/homebridge/homebridge/wiki</field>
         <field name="source_url">https://github.com/homebridge/homebridge</field>
@@ -58,11 +58,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

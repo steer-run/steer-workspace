@@ -13,11 +13,11 @@
         <field name="service_code">couchdb</field>
         <field name="version">latest</field>
         <field name="description">Apache CouchDB is a document-oriented NoSQL database built for reliable replication and offline-first synchronization through an intuitive HTTP/JSON API.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Apache CouchDB is a document-oriented NoSQL database built for reliable replication and offline-first synchronization through an intuitive HTTP/JSON API.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Apache CouchDB is a document-oriented NoSQL database built for reliable replication and offline-first synchronization through an intuitive HTTP/JSON API.</p>
   <p>It stores schema-free JSON documents and exposes every operation over a RESTful HTTP interface, so any HTTP client can read, write and query data without a driver. Its standout capability is multi-primary replication: nodes and devices can sync bidirectionally, work offline, and reconcile changes later, making it ideal for distributed and edge scenarios. Backed by the Apache Software Foundation and written in Erlang for fault tolerance, it pairs naturally with PouchDB for offline-first web and mobile apps.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Schema-free JSON document storage with a RESTful HTTP/JSON API</li>
     <li>Multi-primary (master-master) bidirectional replication and conflict handling</li>
     <li>Offline-first synchronization via the Couch Replication Protocol (PouchDB-compatible)</li>
@@ -25,7 +25,7 @@
     <li>Clustering and horizontal scaling with sharding across nodes</li>
     <li>Built-in admin web UI (Fauxton), changes feeds and full-text search (Nouveau/Lucene)</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams building distributed, offline-first or edge applications that need dependable bidirectional sync between servers, browsers and mobile devices, plus anyone wanting a battle-tested, self-hosted NoSQL store with a simple HTTP API.</p>
 </div>]]></field>
         <field name="category">database</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/couchdb.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_database')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_database')])]"/>
         <field name="website_url">https://couchdb.apache.org/</field>
         <field name="documentation_url">https://docs.couchdb.org/en/stable/</field>
         <field name="source_url">https://github.com/apache/couchdb</field>
@@ -52,11 +52,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

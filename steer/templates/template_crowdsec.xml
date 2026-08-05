@@ -13,11 +13,11 @@
         <field name="service_code">crowdsec</field>
         <field name="version">latest</field>
         <field name="description">CrowdSec is an open-source, behavior-based intrusion prevention engine that detects malicious activity and shares threat intelligence across a global community.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">CrowdSec is an open-source, behavior-based intrusion prevention engine that detects malicious activity and shares threat intelligence across a global community.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">CrowdSec is an open-source, behavior-based intrusion prevention engine that detects malicious activity and shares threat intelligence across a global community.</p>
   <p>Written in Go, CrowdSec analyzes logs and HTTP requests to identify abusive behavior such as brute-force attempts, port scans and web exploitation, then blocks offenders through pluggable remediation components (bouncers) at the system, network or application layer. Each installation contributes anonymized signals to a curated community blocklist, so every user benefits from threats seen by others. It is designed as a modern, IPv6-ready successor to fail2ban, separating detection from enforcement for flexible "detect here, remedy there" deployments.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Behavioral detection via configurable scenarios and Grok-based log parsers</li>
     <li>Crowdsourced community blocklist and real-time cyber threat intelligence (CTI)</li>
     <li>Remediation components (bouncers) for firewalls, reverse proxies, web servers and CDNs</li>
@@ -25,7 +25,7 @@
     <li>Extensible Hub of scenarios, parsers and integrations under MIT license</li>
     <li>Runs on all major Linux distros, Docker, Kubernetes, Windows and OPNsense</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Sysadmins, DevOps and security teams protecting servers, web applications and infrastructure from automated attacks and known malicious IPs, especially those seeking a faster, collaborative alternative to fail2ban.</p>
 </div>]]></field>
         <field name="category">security</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/crowdsec.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_logging'), ref('agz_infra_suite.tag_privacy')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_networking'), ref('steer_infra_suite.tag_monitoring'), ref('steer_infra_suite.tag_logging'), ref('steer_infra_suite.tag_privacy')])]"/>
         <field name="website_url">https://crowdsec.net/</field>
         <field name="documentation_url">https://docs.crowdsec.net</field>
         <field name="source_url">https://github.com/crowdsecurity/crowdsec</field>
@@ -61,7 +61,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

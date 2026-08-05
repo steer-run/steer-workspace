@@ -13,11 +13,11 @@
         <field name="service_code">registry</field>
         <field name="version">2</field>
         <field name="description">The CNCF reference implementation of a container registry — a simple, scalable server for storing and distributing OCI images and artifacts.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">The CNCF reference implementation of a container registry — a simple, scalable server for storing and distributing OCI images and artifacts.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">The CNCF reference implementation of a container registry — a simple, scalable server for storing and distributing OCI images and artifacts.</p>
   <p>Distribution (historically known as Docker Registry) is the open-source engine that lets you run your own private registry for container images and other OCI-compliant content. It implements the OCI Distribution Specification and is the same core technology that powers Docker Hub, GitHub Container Registry, GitLab Container Registry and the Harbor project, so it is a battle-tested, standards-compliant foundation rather than a niche tool. It is stateless and pluggable, making it equally suited to a single private registry on one host or the base of a large-scale, highly available registry platform.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Full OCI Distribution Specification compliance for pushing and pulling images and arbitrary artifacts</li>
     <li>Pluggable storage backends including local filesystem, Amazon S3, Google Cloud Storage and Azure Blob</li>
     <li>Pull-through cache / mirror mode to proxy and cache images from upstream registries</li>
@@ -25,7 +25,7 @@
     <li>Stateless, horizontally scalable design with optional Redis-backed metadata caching</li>
     <li>Garbage collection and storage maintenance to reclaim space from unreferenced blobs</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams and platform engineers who need a self-hosted, vendor-neutral registry for CI/CD pipelines, air-gapped or on-premise environments, or as a local mirror to reduce dependency on public registries. Ideal as a lightweight private registry or as the storage core of a larger registry stack.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/registry.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_storage'), ref('agz_infra_suite.tag_ci_cd')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_storage'), ref('steer_infra_suite.tag_ci_cd')])]"/>
         <field name="website_url">https://hub.docker.com/_/registry</field>
         <field name="documentation_url">https://distribution.github.io/distribution/</field>
         <field name="source_url">https://github.com/distribution/distribution</field>
@@ -57,11 +57,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

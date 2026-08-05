@@ -13,11 +13,11 @@
         <field name="service_code">prometheus</field>
         <field name="version">latest</field>
         <field name="description">Prometheus is the de-facto standard open-source monitoring system and time-series database for cloud-native infrastructure.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Prometheus is the de-facto standard open-source monitoring system and time-series database for cloud-native infrastructure.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Prometheus is the de-facto standard open-source monitoring system and time-series database for cloud-native infrastructure.</p>
   <p>It scrapes metrics from instrumented services and exporters over HTTP at regular intervals, stores them in a built-in multi-dimensional time-series database, and lets you query and alert on them with its powerful PromQL language. A CNCF graduated project, it runs as a single self-contained server with no external dependencies, making it reliable even when other systems are down. It is most often paired with Grafana for dashboards and Alertmanager for notification routing.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Multi-dimensional time-series data model with key/value labels</li>
     <li>PromQL, a flexible query language for slicing, aggregation and computation</li>
     <li>Pull-based metric collection over HTTP with service discovery and static targets</li>
@@ -25,7 +25,7 @@
     <li>Standalone, self-contained server nodes that operate independently of network storage</li>
     <li>Vast ecosystem of exporters and native integrations (Kubernetes, databases, hardware, apps)</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>DevOps and SRE teams that need reliable metrics-based monitoring and alerting for servers, containers and microservices, especially Kubernetes and cloud-native environments.</p>
 </div>]]></field>
         <field name="category">monitoring</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/prometheus.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_monitoring'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="website_url">https://prometheus.io/</field>
         <field name="documentation_url">https://prometheus.io/docs/introduction/overview/</field>
         <field name="source_url">https://github.com/prometheus/prometheus</field>
@@ -56,11 +56,11 @@
     - '{{ PORT_HTTP }}:9090'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

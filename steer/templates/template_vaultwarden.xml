@@ -6,12 +6,12 @@
     <record id="template_vaultwarden" model="service.template">
         <field name="name">Vaultwarden</field>
         <field name="code">vaultwarden</field>
-        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/vaultwarden.png"/>
+        <field name="image" type="base64" file="steer_infra_suite/static/img/templates/vaultwarden.png"/>
         <field name="description">Gestor de contraseñas self-hosted compatible con Bitwarden. Almacena contraseñas, notas seguras, tarjetas y más. Funciona con todas las apps oficiales de Bitwarden (móvil, escritorio, extensiones).</field>
         <field name="category">security</field>
         <field name="version">latest</field>
         <field name="service_code">vaultwarden</field>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_password_manager'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_self_hosted')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_password_manager'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_self_hosted')])]"/>
         <field name="is_web_app">True</field>
         <field name="is_global">True</field>
         <field name="active">True</field>
@@ -56,7 +56,7 @@
       {% endif %}
     restart: unless-stopped
     networks:
-      - agz-proxy-network
+      - steer-proxy-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:80/alive || exit 1"]
       interval: 30s
@@ -65,7 +65,7 @@
       start_period: 15s
 
 networks:
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

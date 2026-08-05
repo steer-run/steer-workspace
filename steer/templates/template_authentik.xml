@@ -13,11 +13,11 @@
         <field name="service_code">authentik</field>
         <field name="version">2025.6.3</field>
         <field name="description">authentik is a self-hosted, open-source identity provider that delivers single sign-on, multi-factor authentication and access control across every modern protocol.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">authentik is a self-hosted, open-source identity provider that delivers single sign-on, multi-factor authentication and access control across every modern protocol.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">authentik is a self-hosted, open-source identity provider that delivers single sign-on, multi-factor authentication and access control across every modern protocol.</p>
   <p>It acts as the central authentication layer for your applications, supporting SAML 2.0, OAuth2/OIDC, LDAP, RADIUS and SCIM, plus a reverse-proxy outpost for apps that lack native SSO. A flexible flow-and-policy engine lets you model login, enrollment and MFA journeys, while blueprints let you version your entire identity configuration as YAML in Git. It is commonly deployed as a fully self-hosted alternative to Okta, Auth0, Entra ID and Ping Identity.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>SAML 2.0, OAuth2/OIDC, LDAP, RADIUS and SCIM provider support from a single platform</li>
     <li>Multi-factor and passwordless authentication with TOTP, WebAuthn and FIDO2 passkeys</li>
     <li>Customizable flow engine and granular policies based on user attributes, time, location and risk</li>
@@ -25,7 +25,7 @@
     <li>Federation with external OAuth/SAML sources, social logins and directory sync (Entra ID, Google Workspace)</li>
     <li>Roles, groups with multi-parent inheritance, self-service portal and YAML blueprints for GitOps</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams and organizations that want full control over authentication and identity on their own infrastructure, consolidating SSO, MFA and user provisioning for internal tools and customer-facing apps without relying on a cloud identity vendor.</p>
 </div>]]></field>
         <field name="category">security</field>
@@ -36,7 +36,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/authentik.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_identity'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_proxy')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_identity'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_proxy')])]"/>
         <field name="website_url">https://goauthentik.io/</field>
         <field name="documentation_url">https://goauthentik.io/docs/</field>
         <field name="source_url">https://github.com/goauthentik/authentik</field>
@@ -109,7 +109,7 @@
     - '{{ PORT_HTTP }}:9000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   worker:
     image: ${AUTHENTIK_IMAGE:-ghcr.io/goauthentik/server}:${AUTHENTIK_TAG:-2025.6.3}
     restart: unless-stopped
@@ -138,7 +138,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

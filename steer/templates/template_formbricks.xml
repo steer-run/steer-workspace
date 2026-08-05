@@ -14,11 +14,11 @@
         <field name="service_code">formbricks</field>
         <field name="version">v3.1.3</field>
         <field name="description">Formbricks is an open-source experience management platform for building surveys and forms and collecting user feedback across every touchpoint.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Formbricks is an open-source experience management platform for building surveys and forms and collecting user feedback across every touchpoint.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Formbricks is an open-source experience management platform for building surveys and forms and collecting user feedback across every touchpoint.</p>
   <p>Positioned as an open-source alternative to Qualtrics and Typeform, Formbricks lets product, research and marketing teams design link, email, website and in-app surveys with a no-code editor and template library. It can trigger surveys based on user behavior, target specific audiences without code changes, and aggregate responses into actionable insights. Built on a privacy-first design, it can be fully self-hosted via Docker for complete data sovereignty.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>No-code survey editor with link, email, website and in-app survey types</li>
     <li>Behavioral triggering on page views, clicks and custom events</li>
     <li>Audience targeting and user attributes without changing application code</li>
@@ -26,7 +26,7 @@
     <li>Integrations and SDKs for Slack, Notion, Zapier, n8n and open APIs</li>
     <li>Self-hostable via Docker with Kubernetes and Redis support for scale</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Product, UX research, growth and marketing teams that need privacy-compliant feedback collection and want to keep survey data on their own infrastructure.</p>
 </div>]]></field>
         <field name="category">analytics</field>
@@ -35,7 +35,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/formbricks.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_forms')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_forms')])]"/>
         <field name="website_url">https://formbricks.com/</field>
         <field name="documentation_url">https://formbricks.com/docs</field>
         <field name="source_url">https://github.com/formbricks/formbricks</field>
@@ -72,11 +72,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

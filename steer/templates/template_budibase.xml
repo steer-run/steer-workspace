@@ -14,11 +14,11 @@
         <field name="service_code">budibase</field>
         <field name="version">3.23.47</field>
         <field name="description">Budibase is an open-source low-code platform for building internal tools, business apps, automations, and AI agents in minutes.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Budibase is an open-source low-code platform for building internal tools, business apps, automations, and AI agents in minutes.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Budibase is an open-source low-code platform for building internal tools, business apps, automations, and AI agents in minutes.</p>
   <p>It combines a UI builder, a built-in database, automation workflows, and a wide range of data connectors in a single self-hostable stack. Teams use it to replace spreadsheets and stitched-together tools with secure admin panels, forms, portals, and approval apps. Built on a JavaScript stack (Node/Koa backend, Svelte frontend, CouchDB internal store), it is a recognized open-source alternative to Retool, Appsmith, and ToolJet.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Drag-and-drop app builder with a built-in database (BudibaseDB) and ready-made components</li>
     <li>External data connectors: PostgreSQL, MySQL, MS SQL, Oracle, MongoDB, REST APIs, S3, Google Sheets, Airtable and more</li>
     <li>Visual automation engine for multi-step workflows, triggers, and scheduled jobs</li>
@@ -26,7 +26,7 @@
     <li>Granular role-based access control, SSO/SAML, and audit logs (enterprise)</li>
     <li>Self-hosting via a single Docker image, Docker Compose, or Kubernetes</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>IT teams, developers, and operations staff who need to quickly build secure internal tools, admin dashboards, and approval workflows while keeping full control over their data and infrastructure on self-hosted deployments.</p>
 </div>]]></field>
         <field name="category">automation</field>
@@ -35,7 +35,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/budibase.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_ai')])]"/>
         <field name="website_url">https://budibase.com/</field>
         <field name="documentation_url">https://docs.budibase.com/docs/</field>
         <field name="source_url">https://github.com/Budibase/budibase</field>
@@ -181,7 +181,7 @@
     - '{{ PORT_HTTP }}:10000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   couchdb:
     image: budibase/couchdb:v3.3.3
     restart: unless-stopped
@@ -227,7 +227,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

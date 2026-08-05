@@ -13,11 +13,11 @@
         <field name="service_code">netdata</field>
         <field name="version">latest</field>
         <field name="description">Netdata is a real-time, zero-configuration observability platform that turns any server, container, or device into a high-resolution monitoring node.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Netdata is a real-time, zero-configuration observability platform that turns any server, container, or device into a high-resolution monitoring node.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Netdata is a real-time, zero-configuration observability platform that turns any server, container, or device into a high-resolution monitoring node.</p>
   <p>It collects per-second metrics from the operating system, hardware, containers, and hundreds of applications, then visualizes them on interactive dashboards the moment the agent starts. Built-in machine learning continuously profiles each metric to surface anomalies, while a distributed, edge-native architecture lets thousands of nodes stream data to parent instances without a central database bottleneck. It targets sysadmins, SREs, and DevOps teams that need granular, low-overhead insight without assembling a monitoring stack by hand.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Per-second metrics with auto-discovery and out-of-the-box dashboards, no manual configuration required</li>
     <li>Hundreds of collectors for systems, containers, databases, web servers, and applications</li>
     <li>Unsupervised machine-learning anomaly detection running locally on each node</li>
@@ -25,7 +25,7 @@
     <li>Edge-native streaming and replication to parent nodes for centralized views and longer retention</li>
     <li>Lightweight footprint with an efficient time-series database optimized for low CPU and RAM use</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams that want immediate, granular visibility into individual servers, fleets, and containerized workloads, from a single self-hosted host to large distributed infrastructures, without the operational cost of building and tuning a traditional metrics pipeline.</p>
 </div>]]></field>
         <field name="category">monitoring</field>
@@ -34,7 +34,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/netdata.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_analytics'), ref('agz_infra_suite.tag_logging'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_monitoring'), ref('steer_infra_suite.tag_analytics'), ref('steer_infra_suite.tag_logging'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="website_url">https://www.netdata.cloud/</field>
         <field name="documentation_url">https://learn.netdata.cloud/</field>
         <field name="source_url">https://github.com/netdata/netdata</field>
@@ -66,11 +66,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

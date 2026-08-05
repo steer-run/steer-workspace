@@ -11,11 +11,11 @@
         <field name="service_code">neko</field>
         <field name="version">latest</field>
         <field name="description">Neko is a self-hosted virtual browser and Linux desktop that runs in Docker and streams to multiple users in real time over WebRTC.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Neko is a self-hosted virtual browser and Linux desktop that runs in Docker and streams to multiple users in real time over WebRTC.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Neko is a self-hosted virtual browser and Linux desktop that runs in Docker and streams to multiple users in real time over WebRTC.</p>
   <p>Neko renders a full browser or desktop environment inside a container and broadcasts it to any number of viewers, who can take turns controlling it from their own browser with synchronized audio and video. Beyond browsing it can run almost any Linux application or a complete desktop, making it a flexible base for watch parties, shared sessions, embedded browsers and isolated, disposable browsing.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Low-latency WebRTC streaming of a browser or full Linux desktop to many simultaneous users</li>
     <li>Shared, multi-user control with audio and video sync for collaborative sessions</li>
     <li>Multiple browser images (Firefox, Chromium, Brave, Tor, and more) and desktop environments (XFCE, KDE)</li>
@@ -23,7 +23,7 @@
     <li>Optional RTMP broadcasting to platforms like Twitch and YouTube, including unattended 24/7 streams</li>
     <li>Automation-friendly: run Playwright or Puppeteer inside the session and observe or intervene live</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams and communities that need shared remote browsing or desktops: watch parties, interactive presentations and demos, remote support and teaching, embedded or kiosk browsers, secure throwaway browsing, and browser automation that a human can supervise.</p>
 </div>]]></field>
         <field name="category">collaboration</field>
@@ -32,7 +32,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/neko.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_collaboration'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_networking')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_collaboration'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_media'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_networking')])]"/>
         <field name="website_url">https://github.com/m1k1o/neko</field>
         <field name="documentation_url">https://github.com/m1k1o/neko</field>
         <field name="source_url">https://github.com/m1k1o/neko</field>
@@ -46,11 +46,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

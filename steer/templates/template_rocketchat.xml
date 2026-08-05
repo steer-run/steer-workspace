@@ -6,11 +6,11 @@
         <field name="service_code">rocketchat</field>
         <field name="version">6.9.2</field>
         <field name="description">Rocket.Chat is an open-source, fully customizable communications platform that gives organizations a self-hosted alternative to Slack and Microsoft Teams with full data sovereignty.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Rocket.Chat is an open-source, fully customizable communications platform that gives organizations a self-hosted alternative to Slack and Microsoft Teams with full data sovereignty.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Rocket.Chat is an open-source, fully customizable communications platform that gives organizations a self-hosted alternative to Slack and Microsoft Teams with full data sovereignty.</p>
   <p>It unifies internal team chat, omnichannel customer engagement, and cross-network messaging in a single workspace you control. Built in TypeScript on Node.js and MongoDB, it can run self-hosted, in the cloud, or in air-gapped environments, and supports Matrix federation to communicate across independent servers. It targets teams and enterprises with strict privacy, compliance, and data-protection requirements.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Channels, private groups, direct and threaded messaging with file sharing and search</li>
     <li>Audio and video calls, conferencing and screen sharing</li>
     <li>Omnichannel inbox connecting live chat, email and external messaging apps for customer support</li>
@@ -18,7 +18,7 @@
     <li>App marketplace, REST/Realtime APIs, webhooks and chatbot integrations for extensibility</li>
     <li>Web, desktop (Windows/macOS/Linux) and mobile (iOS/Android) clients, with roles, permissions and SSO</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams, enterprises and public-sector organizations that need a private, self-hosted collaboration hub with data sovereignty, plus businesses that want to combine internal chat with omnichannel customer communication on infrastructure they own.</p>
 </div>]]></field>
         <field name="category">communication</field>
@@ -28,7 +28,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">custom</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/rocketchat.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_chat'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_collaboration')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_chat'), ref('steer_infra_suite.tag_communication'), ref('steer_infra_suite.tag_collaboration')])]"/>
         <field name="website_url">https://rocket.chat/</field>
         <field name="documentation_url">https://rocket.chat/docs/</field>
         <field name="source_url">https://github.com/RocketChat/Rocket.Chat</field>
@@ -51,7 +51,7 @@
     - '{{ PORT_HTTP }}:3000'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   mongodb:
     image: docker.io/bitnamilegacy/mongodb:5.0
     restart: always
@@ -72,7 +72,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

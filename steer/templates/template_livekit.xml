@@ -16,11 +16,11 @@
         <field name="service_code">livekit</field>
         <field name="version">v1.9.0</field>
         <field name="description">LiveKit is an open-source WebRTC media server that powers scalable, low-latency realtime audio, video, and data for humans and AI agents.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">LiveKit is an open-source WebRTC media server that powers scalable, low-latency realtime audio, video, and data for humans and AI agents.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">LiveKit is an open-source WebRTC media server that powers scalable, low-latency realtime audio, video, and data for humans and AI agents.</p>
   <p>Built in Go on the Pion WebRTC stack, LiveKit implements a Selective Forwarding Unit (SFU) that routes each participant's media through the server instead of meshing every peer, keeping client bandwidth low even on unreliable networks. It targets developers building conferencing, live streaming, telephony, and voice/video AI applications, and pairs the media server with a broad set of client and server SDKs. Self-hosted deployments share the exact same SFU, SDKs, and APIs as the managed LiveKit Cloud, so you can move between them without changing application code.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Horizontally scalable SFU with Redis-based routing across one to many nodes</li>
     <li>Adaptive streaming with simulcast, SVC codecs (VP9, AV1), and dynamic bitrate</li>
     <li>JWT access tokens, granular room permissions, and end-to-end encryption</li>
@@ -28,7 +28,7 @@
     <li>Agents framework to bridge realtime media with conversational AI pipelines</li>
     <li>Client and server SDKs for JavaScript, Swift, Kotlin, Flutter, Rust, Python, Go, and more</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams building self-hosted video conferencing, live streaming, telephony, or realtime voice/video AI agents that need full control over their media infrastructure and want to avoid vendor lock-in.</p>
 </div>]]></field>
         <field name="category">communication</field>
@@ -37,7 +37,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/livekit.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_media'), ref('agz_infra_suite.tag_chat'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_voip')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_communication'), ref('steer_infra_suite.tag_media'), ref('steer_infra_suite.tag_chat'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_voip')])]"/>
         <field name="website_url">https://livekit.io/</field>
         <field name="documentation_url">https://docs.livekit.io/</field>
         <field name="source_url">https://github.com/livekit/livekit</field>
@@ -63,7 +63,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   redis:
     image: redis:7-alpine
     restart: unless-stopped
@@ -114,7 +114,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

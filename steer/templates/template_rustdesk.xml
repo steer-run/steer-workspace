@@ -14,11 +14,11 @@
         <field name="service_code">rustdesk</field>
         <field name="version">latest</field>
         <field name="description">RustDesk is a fully self-hostable, open-source remote desktop platform that gives you TeamViewer-style remote control on infrastructure you own.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">RustDesk is a fully self-hostable, open-source remote desktop platform that gives you TeamViewer-style remote control on infrastructure you own.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">RustDesk is a fully self-hostable, open-source remote desktop platform that gives you TeamViewer-style remote control on infrastructure you own.</p>
   <p>Written in Rust, RustDesk lets you view and control remote computers across Windows, macOS, Linux, Android, iOS and the web. Connections are peer-to-peer with end-to-end encryption, and you can run your own ID (rendezvous) and relay servers so that no remote-access traffic ever leaves your network. It is aimed at teams and individuals who need reliable remote support without the per-seat fees or data-sovereignty concerns of commercial tools.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Cross-platform remote control of screen, keyboard and mouse</li>
     <li>Peer-to-peer connections with NaCl-based end-to-end encryption</li>
     <li>Self-hosted ID/rendezvous (hbbs) and relay (hbbr) servers you fully control</li>
@@ -26,7 +26,7 @@
     <li>Hardware and software video codecs (H264/H265, VP8/VP9/AV1) for smooth sessions</li>
     <li>Lightweight server footprint that runs even on a Raspberry Pi</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>IT teams, MSPs and privacy-conscious individuals who want self-hosted remote support and unattended access as an alternative to TeamViewer or AnyDesk, keeping all remote-access traffic and credentials under their own infrastructure.</p>
 </div>]]></field>
         <field name="category">networking</field>
@@ -35,7 +35,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/rustdesk.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_networking'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_collaboration')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_networking'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_collaboration')])]"/>
         <field name="website_url">https://rustdesk.com/</field>
         <field name="documentation_url">https://rustdesk.com/docs/</field>
         <field name="source_url">https://github.com/rustdesk/rustdesk-server</field>
@@ -71,7 +71,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

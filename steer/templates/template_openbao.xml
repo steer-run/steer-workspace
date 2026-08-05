@@ -16,11 +16,11 @@
         <field name="service_code">openbao</field>
         <field name="version">latest</field>
         <field name="description">OpenBao is an open source tool to store and manage secrets, certificates, keys, and other sensitive data — a community-driven fork of HashiCorp Vault.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">OpenBao is an open source tool to store and manage secrets, certificates, keys, and other sensitive data — a community-driven fork of HashiCorp Vault.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">OpenBao is an open source tool to store and manage secrets, certificates, keys, and other sensitive data — a community-driven fork of HashiCorp Vault.</p>
   <p>Governed by the Linux Foundation, OpenBao provides a unified API, CLI, and web UI to centralize credentials across an organization while enforcing fine-grained, policy-based access and recording a detailed audit log. Beyond static key/value storage, it can issue short-lived dynamic credentials for databases and cloud providers, act as encryption-as-a-service, and run a built-in PKI to sign and rotate TLS certificates. It is a drop-in, community-governed alternative for teams that want to standardize secrets management without vendor lock-in.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Centralized, encrypted storage and lifecycle management for secrets, certificates, and keys</li>
     <li>Dynamic, short-lived credentials generated on demand for databases and cloud platforms</li>
     <li>Encryption-as-a-service (transit) to encrypt and decrypt data without exposing keys</li>
@@ -28,7 +28,7 @@
     <li>Pluggable authentication methods with fine-grained, policy-based access control</li>
     <li>Integrated Raft storage with snapshots and detailed audit logging for compliance</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Platform, security, and DevOps teams that want a self-hosted, community-governed secrets manager to centralize credentials, PKI, and encryption across apps and infrastructure. Note: OpenBao ships sealed — after install you must run the one-time initialization and unseal flow and securely back up the unseal/recovery keys, since they cannot be recovered if lost.</p>
 </div>]]></field>
         <field name="category">security</field>
@@ -37,7 +37,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">standard</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/openbao.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_secrets')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_secrets')])]"/>
         <field name="website_url">https://openbao.org/</field>
         <field name="documentation_url">https://openbao.org/docs/</field>
         <field name="source_url">https://github.com/openbao/openbao</field>
@@ -58,11 +58,11 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

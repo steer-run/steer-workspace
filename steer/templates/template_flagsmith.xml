@@ -11,11 +11,11 @@
         <field name="service_code">flagsmith</field>
         <field name="version">2.177.1</field>
         <field name="description">Flagsmith is an open-source feature flag and remote configuration platform that lets teams ship, control, and roll back features without redeploying code.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Flagsmith is an open-source feature flag and remote configuration platform that lets teams ship, control, and roll back features without redeploying code.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Flagsmith is an open-source feature flag and remote configuration platform that lets teams ship, control, and roll back features without redeploying code.</p>
   <p>It wraps sections of your application in feature flags that you toggle per environment, user, or segment from a central dashboard. Teams use it to decouple deployment from release, run staged rollouts and A/B tests, and manage remote config across web, mobile, and server-side applications. It ships with 15+ official SDKs and a documented REST API, and can be self-hosted for full control over data and security policies.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Boolean feature flags and typed remote config values managed per environment</li>
     <li>User and segment targeting with attribute-based rules and percentage rollouts</li>
     <li>Multivariate flags for A/B/n testing and gradual feature exposure</li>
@@ -23,7 +23,7 @@
     <li>REST API and webhooks for automation and CI/CD integration</li>
     <li>Self-hosting via Docker Compose with full control over data residency and security</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Engineering and product teams that want trunk-based development, safe progressive rollouts, and centralized remote configuration, and organizations with data-sensitivity or compliance needs that require keeping feature-flag infrastructure on-premises or in their own cloud.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -34,7 +34,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/flagsmith.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_analytics')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_analytics')])]"/>
         <field name="website_url">https://www.flagsmith.com/</field>
         <field name="documentation_url">https://docs.flagsmith.com/</field>
         <field name="source_url">https://github.com/Flagsmith/flagsmith</field>
@@ -78,7 +78,7 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   flagsmith-task-processor:
     image: docker.flagsmith.com/flagsmith/flagsmith:2.177.1
     environment:
@@ -98,7 +98,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

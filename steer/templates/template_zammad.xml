@@ -18,11 +18,11 @@
         <field name="service_code">zammad</field>
         <field name="version">latest</field>
         <field name="description">Zammad is an open-source, web-based help desk that unifies email, chat and social channels into one collaborative ticketing workspace for support teams.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Zammad is an open-source, web-based help desk that unifies email, chat and social channels into one collaborative ticketing workspace for support teams.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Zammad is an open-source, web-based help desk that unifies email, chat and social channels into one collaborative ticketing workspace for support teams.</p>
   <p>Zammad is a full-featured customer support and ticketing platform, positioned as a self-hostable alternative to Zendesk and Freshdesk. It consolidates email, live chat, phone (CTI), Telegram, Facebook and X into a single shared inbox, so agents work every conversation from one place with a complete customer history. Built on Ruby on Rails with an Elasticsearch-powered search, it is aimed at support, service and IT teams that want a professional help desk while keeping tickets and customer data on their own infrastructure.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Omnichannel shared inbox: email, live chat widget, phone/CTI, Telegram, Facebook and X</li>
     <li>Full ticketing with SLAs, triggers, schedulers and automated escalations</li>
     <li>Fast full-text search across tickets, users and organizations via Elasticsearch</li>
@@ -30,7 +30,7 @@
     <li>Reporting, dashboards and a complete audit trail of every ticket change</li>
     <li>REST API, webhooks and integrations (GitHub, GitLab, Slack, i-doit) for automation</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Support, service and IT teams that need a professional, self-hosted help desk with omnichannel intake and full data ownership. Note: this is a multi-service stack (Elasticsearch needs RAM and <code>vm.max_map_count=262144</code> on the host); create the first admin from the web UI after install, set the correct FQDN, and configure inbound/outbound email (DNS/MX/SMTP/IMAP) before going live.</p>
 </div>]]></field>
         <field name="category">business</field>
@@ -41,7 +41,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/zammad.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_helpdesk'), ref('agz_infra_suite.tag_business')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_helpdesk'), ref('steer_infra_suite.tag_business')])]"/>
         <field name="website_url">https://zammad.com/</field>
         <field name="documentation_url">https://docs.zammad.org/en/latest/install/docker-compose.html</field>
         <field name="source_url">https://github.com/zammad/zammad</field>
@@ -215,11 +215,11 @@
     - '{{ PORT_HTTP }}:8080'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

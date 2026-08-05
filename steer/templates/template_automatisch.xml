@@ -13,11 +13,11 @@
         <field name="service_code">automatisch</field>
         <field name="version">2.0</field>
         <field name="description">Automatisch is a self-hosted, open-source Zapier alternative for building no-code workflow automations that connect your apps and run repetitive tasks on your own infrastructure.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Automatisch is a self-hosted, open-source Zapier alternative for building no-code workflow automations that connect your apps and run repetitive tasks on your own infrastructure.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Automatisch is a self-hosted, open-source Zapier alternative for building no-code workflow automations that connect your apps and run repetitive tasks on your own infrastructure.</p>
   <p>It lets you wire together triggers and actions across services such as Slack, GitHub, RSS feeds, scheduled timers and webhooks, so events in one app automatically drive actions in another without writing code. Because everything runs on servers you control, automation data never leaves your environment, which matters for privacy-sensitive and regulated workloads. The integration catalog is community-extensible, and recent releases have added AI agent capabilities on top of the visual builder.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Visual no-code workflow builder based on triggers and actions</li>
     <li>Growing catalog of app integrations plus generic webhook, RSS and scheduler connectors</li>
     <li>Self-hosted deployment via Docker for full data sovereignty</li>
@@ -25,7 +25,7 @@
     <li>Extensible integration framework to build custom apps in JavaScript</li>
     <li>AGPL-3.0 open-source core with no vendor lock-in</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams and businesses that want Zapier-style automation while keeping sensitive data in-house, including privacy-conscious organizations, GDPR-bound European companies, and regulated industries such as healthcare and finance.</p>
 </div>]]></field>
         <field name="category">automation</field>
@@ -36,7 +36,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/automatisch.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_productivity')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_productivity')])]"/>
         <field name="website_url">https://automatisch.io/docs</field>
         <field name="documentation_url">https://automatisch.io/docs</field>
         <field name="source_url">https://github.com/automatisch/automatisch</field>
@@ -69,7 +69,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   automatisch-worker:
     image: dockeriddonuts/automatisch:2.0
     restart: unless-stopped
@@ -120,7 +120,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

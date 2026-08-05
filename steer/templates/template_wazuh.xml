@@ -28,11 +28,11 @@
         <field name="service_code">wazuh</field>
         <field name="version">latest</field>
         <field name="description">Wazuh is a free, open-source security platform that unifies SIEM and XDR to protect servers, endpoints and cloud workloads with threat detection and response.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Wazuh is a free, open-source security platform that unifies SIEM and XDR to protect servers, endpoints and cloud workloads with threat detection and response.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Wazuh is a free, open-source security platform that unifies SIEM and XDR to protect servers, endpoints and cloud workloads with threat detection and response.</p>
   <p>Wazuh centralizes security events from lightweight agents installed on your servers and endpoints, then correlates them into a single console for threat detection, log analysis, file integrity monitoring, vulnerability detection and compliance. Built on the Wazuh manager, the OpenSearch-based indexer and a web dashboard, it is a self-hosted alternative to commercial SIEM/XDR suites, giving security teams full visibility and automated response across Linux, Windows, macOS and cloud infrastructure.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Threat detection and SIEM: log collection, correlation rules and alerting across your fleet</li>
     <li>File integrity monitoring (FIM) and rootkit/anomaly detection on every endpoint</li>
     <li>Vulnerability detection mapping installed packages against CVE feeds</li>
@@ -40,7 +40,7 @@
     <li>Active response to automatically block, quarantine or run commands on threats</li>
     <li>Agent-based inventory of hardware, software, ports and processes with a rich analytics dashboard</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Security and SOC teams that want a self-hosted SIEM/XDR to monitor servers and endpoints. This is an advanced, resource-heavy stack: plan for roughly 4-6 GB of RAM, set the host kernel parameter vm.max_map_count=262144, and note that Wazuh is officially initialized with its own tooling that generates the internal TLS certificates (place them in ./config/certs/ before first start) and that the indexer/dashboard/API passwords must be synced with the security configuration. Agent enrollment ports (1514/1515/55000) must be published or routed for remote agents to connect, and the dashboard should always sit behind HTTPS/SSO/VPN since it holds sensitive security data.</p>
 </div>]]></field>
         <field name="category">security</field>
@@ -50,7 +50,7 @@
         <field name="backup_mode">standard</field>
         <field name="health_check_command">curl -sk -o /dev/null https://127.0.0.1:5601</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/wazuh.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_security'), ref('agz_infra_suite.tag_monitoring')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_security'), ref('steer_infra_suite.tag_monitoring')])]"/>
         <field name="website_url">https://wazuh.com/</field>
         <field name="documentation_url">https://documentation.wazuh.com/current/deployment-options/docker/index.html</field>
         <field name="source_url">https://github.com/wazuh/wazuh-docker</field>
@@ -156,11 +156,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

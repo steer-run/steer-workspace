@@ -11,11 +11,11 @@
         <field name="service_code">tooljet</field>
         <field name="version">ee-lts-latest</field>
         <field name="description">ToolJet is an open-source low-code platform for building and deploying internal tools, dashboards, and business applications fast.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">ToolJet is an open-source low-code platform for building and deploying internal tools, dashboards, and business applications fast.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">ToolJet is an open-source low-code platform for building and deploying internal tools, dashboards, and business applications fast.</p>
   <p>It pairs a drag-and-drop visual builder with the ability to connect to dozens of databases, APIs, cloud storage services, and SaaS tools, so teams can assemble production-grade internal apps without writing a full frontend and backend. JavaScript and Python can be embedded where custom logic is needed, and a built-in PostgreSQL-backed database and workflow engine cover data storage and automation. It targets developers, IT teams, and product managers who need to ship internal software quickly while retaining control over data and security.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Visual app builder with dozens of responsive UI components (tables, charts, forms, lists)</li>
     <li>80+ connectors for databases, REST/GraphQL APIs, cloud storage, and SaaS platforms</li>
     <li>Built-in no-code database and visual query builder backed by PostgreSQL</li>
@@ -23,7 +23,7 @@
     <li>Embedded JavaScript and Python for custom logic and transformations</li>
     <li>Enterprise security: SSO/SAML/OIDC/LDAP, RBAC, 2FA, encryption, and audit logs</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Engineering and IT teams building internal admin panels, back-office tools, CRUD apps, support consoles, and operational dashboards who want self-hosting, granular access control, and the freedom to extend with code.</p>
 </div>]]></field>
         <field name="category">dev_tools</field>
@@ -34,7 +34,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/tooljet.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_dev_tools'), ref('agz_infra_suite.tag_no_code'), ref('agz_infra_suite.tag_automation'), ref('agz_infra_suite.tag_workflow'), ref('agz_infra_suite.tag_database'), ref('agz_infra_suite.tag_ai')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_dev_tools'), ref('steer_infra_suite.tag_no_code'), ref('steer_infra_suite.tag_automation'), ref('steer_infra_suite.tag_workflow'), ref('steer_infra_suite.tag_database'), ref('steer_infra_suite.tag_ai')])]"/>
         <field name="website_url">https://tooljet.ai/</field>
         <field name="documentation_url">https://docs.tooljet.ai/</field>
         <field name="source_url">https://github.com/ToolJet/ToolJet</field>
@@ -63,7 +63,7 @@
     - '{{ PORT_HTTP }}:80'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   postgres:
     image: postgres:13
     restart: always
@@ -84,7 +84,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

@@ -16,11 +16,11 @@
         <field name="service_code">librechat</field>
         <field name="version">latest</field>
         <field name="description">LibreChat is a self-hosted, open-source AI chat platform that unifies every major AI provider behind a single, privacy-focused interface.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">LibreChat is a self-hosted, open-source AI chat platform that unifies every major AI provider behind a single, privacy-focused interface.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">LibreChat is a self-hosted, open-source AI chat platform that unifies every major AI provider behind a single, privacy-focused interface.</p>
   <p>It works as an enhanced ChatGPT alternative you fully control, connecting to OpenAI, Anthropic, Google, Azure, AWS Bedrock, Mistral, Groq, DeepSeek, OpenRouter, local models via Ollama, and custom endpoints. Beyond plain chat it adds AI agents, Model Context Protocol (MCP) tools, code execution, artifacts, and image generation, with enterprise-grade multi-user authentication. It is aimed at teams and individuals who want to centralize and govern AI access without surrendering control over their prompt data or model choices.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Unified access to many AI providers and models with on-the-fly model switching</li>
     <li>AI agents, subagents, and MCP tool integration for extensible automated workflows</li>
     <li>Sandboxed code interpreter and generative UI artifacts (React, HTML, Mermaid)</li>
@@ -28,7 +28,7 @@
     <li>Secure multi-user authentication: OAuth2, OIDC, SAML, LDAP, and role-based access</li>
     <li>Conversation search, branching, presets, and import/export of chat history</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Organizations and self-hosting individuals that want a single governed gateway to multiple LLM providers, with agents and tools, while keeping prompt data and credentials on infrastructure they own.</p>
 </div>]]></field>
         <field name="category">ai</field>
@@ -38,7 +38,7 @@
         <field name="requires_backup">True</field>
         <field name="backup_mode">custom</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/librechat.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_ai'), ref('agz_infra_suite.tag_chat'), ref('agz_infra_suite.tag_privacy'), ref('agz_infra_suite.tag_productivity'), ref('agz_infra_suite.tag_collaboration')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_ai'), ref('steer_infra_suite.tag_chat'), ref('steer_infra_suite.tag_privacy'), ref('steer_infra_suite.tag_productivity'), ref('steer_infra_suite.tag_collaboration')])]"/>
         <field name="website_url">https://librechat.ai</field>
         <field name="documentation_url">https://docs.librechat.ai</field>
         <field name="source_url">https://github.com/danny-avila/librechat</field>
@@ -88,7 +88,7 @@
     - '{{ PORT_HTTP }}:3080'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   mongodb:
     image: mongo
     restart: always
@@ -153,7 +153,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

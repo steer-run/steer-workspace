@@ -13,11 +13,11 @@
         <field name="service_code">kener</field>
         <field name="version">latest</field>
         <field name="description">Kener is a modern, lightweight self-hosted status page that turns service health checks into a polished public uptime and incident-communication site.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">Kener is a modern, lightweight self-hosted status page that turns service health checks into a polished public uptime and incident-communication site.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">Kener is a modern, lightweight self-hosted status page that turns service health checks into a polished public uptime and incident-communication site.</p>
   <p>Built with SvelteKit and Node.js, Kener probes your services with multiple monitor types and publishes their state on a clean, brandable status page. It pairs uptime tracking with full incident management and scheduled maintenance windows, so teams can keep users informed when things go wrong. Monitors and parsing logic are configured in YAML, letting you define exactly what counts as up, down, or degraded.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Many monitor types: HTTP/API, Ping, TCP, DNS, SSL, SQL, heartbeat and more</li>
     <li>Incident management and scheduled maintenance with public announcements</li>
     <li>Notifications via Email, Slack, Discord and webhooks</li>
@@ -25,7 +25,7 @@
     <li>YAML-based monitor configuration with custom up/down/degraded parsing</li>
     <li>REST API, embeddable widgets and role-based access for teams</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Teams and operators who want a simple, great-looking public status page to communicate uptime and incidents without the cost or complexity of enterprise platforms like Atlassian Statuspage.</p>
 </div>]]></field>
         <field name="category">monitoring</field>
@@ -36,7 +36,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">pg_isready -U $POSTGRES_USER</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/kener.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_monitoring'), ref('agz_infra_suite.tag_communication'), ref('agz_infra_suite.tag_dev_tools')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_monitoring'), ref('steer_infra_suite.tag_communication'), ref('steer_infra_suite.tag_dev_tools')])]"/>
         <field name="website_url">https://kener.ing/</field>
         <field name="documentation_url">https://kener.ing/docs/</field>
         <field name="source_url">https://github.com/rajnandan1/kener</field>
@@ -60,7 +60,7 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   postgres:
     image: postgres:alpine
     environment:
@@ -85,7 +85,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

@@ -15,11 +15,11 @@
         <field name="service_code">lldap</field>
         <field name="version">stable</field>
         <field name="description">LLDAP is a lightweight LDAP server with a web UI to centralize users and groups for self-hosted apps — a simple alternative to OpenLDAP and Active Directory.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">LLDAP is a lightweight LDAP server with a web UI to centralize users and groups for self-hosted apps — a simple alternative to OpenLDAP and Active Directory.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">LLDAP is a lightweight LDAP server with a web UI to centralize users and groups for self-hosted apps — a simple alternative to OpenLDAP and Active Directory.</p>
   <p>It gives you a single directory of users and groups that your internal applications can authenticate against over LDAP, without the complexity of running a full OpenLDAP or Active Directory deployment. Written in Rust, it ships as one small binary with an opinionated, simplified schema and a clean web interface for managing accounts and memberships. It targets home labs, small teams, and self-hosters who want centralized identity for tools like Authelia, Nextcloud, Grafana, or Gitea while keeping the moving parts to a minimum.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Simple, opinionated LDAP schema focused on users, groups, and memberships</li>
     <li>Clean web interface to create and manage users, groups, and attributes</li>
     <li>LDAP bind for application authentication, plus LDAPS when certificates are configured</li>
@@ -27,7 +27,7 @@
     <li>Documented integrations with Authelia, Authentik, Nextcloud, Grafana, Gitea, and many more</li>
     <li>Lightweight single Rust binary with a tiny memory and CPU footprint</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Home labs, small teams, and self-hosters who need one central directory for their internal apps without operating a full OpenLDAP or Active Directory. Keep the LDAP port on trusted networks, since plain LDAP is unencrypted unless you enable LDAPS.</p>
 </div>]]></field>
         <field name="category">security</field>
@@ -37,7 +37,7 @@
         <field name="backup_mode">standard</field>
         <field name="health_check_command">wget -q --spider http://localhost:17170/</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/lldap.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_identity'), ref('agz_infra_suite.tag_security')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_identity'), ref('steer_infra_suite.tag_security')])]"/>
         <field name="website_url">https://lldap.com/</field>
         <field name="documentation_url">https://github.com/lldap/lldap/blob/main/docs/install.md</field>
         <field name="source_url">https://github.com/lldap/lldap</field>
@@ -58,11 +58,11 @@
     container_name: '{{ INSTANCE_CODE }}'
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
     </record>

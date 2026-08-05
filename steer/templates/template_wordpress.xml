@@ -6,12 +6,12 @@
     <record id="template_wordpress" model="service.template">
         <field name="name">WordPress</field>
         <field name="code">wordpress</field>
-        <field name="image" type="base64" file="agz_infra_suite/static/img/templates/wordpress.png"/>
+        <field name="image" type="base64" file="steer_infra_suite/static/img/templates/wordpress.png"/>
         <field name="description">WordPress con MariaDB. CMS para blogs, sitios web y comercio electrónico con WooCommerce.</field>
         <field name="category">cms</field>
         <field name="version">6</field>
         <field name="service_code">wordpress</field>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_cms'), ref('agz_infra_suite.tag_blog')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_cms'), ref('steer_infra_suite.tag_blog')])]"/>
         <field name="is_web_app">True</field>
         <field name="is_global">True</field>
         <field name="active">True</field>
@@ -59,7 +59,7 @@
     restart: unless-stopped
     networks:
       - internal
-      - agz-proxy-network
+      - steer-proxy-network
     healthcheck:
       test: ["CMD-SHELL", "curl -f http://localhost:80/ || exit 1"]
       interval: 30s
@@ -70,7 +70,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash

@@ -6,11 +6,11 @@
         <field name="service_code">espocrm</field>
         <field name="version">latest</field>
         <field name="description">EspoCRM is a lightweight, self-hosted CRM for managing accounts, contacts, leads, opportunities, activities and email from one clean web interface.</field>
-        <field name="rich_description"><![CDATA[<div class="agz-app-desc">
-  <p class="agz-app-lead">EspoCRM is a lightweight, self-hosted CRM for managing accounts, contacts, leads, opportunities, activities and email from one clean web interface.</p>
+        <field name="rich_description"><![CDATA[<div class="steer-app-desc">
+  <p class="steer-app-lead">EspoCRM is a lightweight, self-hosted CRM for managing accounts, contacts, leads, opportunities, activities and email from one clean web interface.</p>
   <p>EspoCRM is an open-source customer relationship management platform for small and mid-sized businesses that want to track their sales pipeline, organise customer data and coordinate commercial processes without the weight of larger suites. Built on PHP with a fast single-page interface, it covers the full sales cycle — from leads and opportunities to accounts, contacts, calls, meetings and after-sales support — while keeping every record inside your own database.</p>
-  <h6 class="agz-app-subhead">Key features</h6>
-  <ul class="agz-app-feats">
+  <h6 class="steer-app-subhead">Key features</h6>
+  <ul class="steer-app-feats">
     <li>Sales automation: leads, opportunities, accounts, contacts and a visual pipeline</li>
     <li>Activities and calendar: calls, meetings, tasks and shared team scheduling</li>
     <li>Built-in email client with two-way IMAP/SMTP integration and mass email campaigns</li>
@@ -18,7 +18,7 @@
     <li>Role-based access control, teams and field-level permissions for sensitive data</li>
     <li>REST API, import/export, reports, dashboards and a background daemon for scheduled jobs</li>
   </ul>
-  <h6 class="agz-app-subhead">Best for</h6>
+  <h6 class="steer-app-subhead">Best for</h6>
   <p>Small and mid-sized teams that need a focused, easy-to-run CRM they fully control. Because the CRM holds personal and commercial data, keep it behind HTTPS and configure SMTP and the admin password on first login; the bundled daemon container runs EspoCRM's scheduled jobs and must stay up.</p>
 </div>]]></field>
         <field name="category">business</field>
@@ -29,7 +29,7 @@
         <field name="backup_mode">custom</field>
         <field name="health_check_command">php -v</field>
         <field name="image" type="base64" file="agz_infra_templates/static/img/templates/espocrm.png"/>
-        <field name="tag_ids" eval="[Command.set([ref('agz_infra_suite.tag_self_hosted'), ref('agz_infra_suite.tag_crm'), ref('agz_infra_suite.tag_business')])]"/>
+        <field name="tag_ids" eval="[Command.set([ref('steer_infra_suite.tag_self_hosted'), ref('steer_infra_suite.tag_crm'), ref('steer_infra_suite.tag_business')])]"/>
         <field name="website_url">https://www.espocrm.com/</field>
         <field name="documentation_url">https://docs.espocrm.com/administration/docker/installation/</field>
         <field name="source_url">https://github.com/espocrm/espocrm</field>
@@ -77,7 +77,7 @@
     restart: unless-stopped
     networks:
     - internal
-    - agz-proxy-network
+    - steer-proxy-network
   espocrm-daemon:
     image: espocrm/espocrm:latest
     container_name: '{{ INSTANCE_CODE }}_daemon'
@@ -92,7 +92,7 @@
 networks:
   internal:
     driver: bridge
-  agz-proxy-network:
+  steer-proxy-network:
     external: true
 ]]></field>
         <field name="backup_script"><![CDATA[#!/bin/bash
