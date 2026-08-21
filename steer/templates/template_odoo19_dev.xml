@@ -21,6 +21,15 @@
         <field name="allowed_development">True</field>
         <!-- Indica que tiene IDE integrado -->
         <field name="has_integrated_ide">True</field>
+        <!-- Capacidades que necesita el sshd del contenedor de Odoo (el baseline
+             endurecido hace cap_drop:[ALL] y se las lleva puestas):
+             · SYS_CHROOT — la separación de privilegios hace chroot("/run/sshd")
+               en pre-auth; sin ella la conexión se resetea en el key-exchange.
+             · AUDIT_WRITE — al abrir una sesión INTERACTIVA (PTY) sshd escribe un
+               registro de auditoría de login; sin ella la shell aborta con
+               "closed by remote host" (un comando sin PTY sí funciona).
+             El resto del endurecimiento queda intacto. -->
+        <field name="extra_capabilities">SYS_CHROOT,AUDIT_WRITE</field>
         <!-- Subdominios adicionales: configurados en puertos (traefik_subdomain_suffix) -->
         <field name="additional_subdomain_suffixes"></field>
         <!-- Base de datos -->
@@ -62,7 +71,10 @@
       start_period: 30s
 
   odoo:
-    image: odoo:{{ odoo_version | default('19.0') }}
+    # Imagen oficial + sshd (ver steer_infra_suite/tools/images/odoo-dev): la
+    # oficial no trae servidor SSH y el alias "odoo" que este template monta en el
+    # IDE moría con "Connection refused". Una etiqueta por versión del selector.
+    image: steerrun/odoo-dev:{{ odoo_version | default('19.0') }}
     container_name: {{ INSTANCE_CODE }}
     depends_on:
       db:
@@ -74,6 +86,7 @@
       - HOST=db
       - USER={{ db_user | default('odoo') }}
       - PASSWORD={{ db_password }}
+      - STEER_SSH_PASSWORD={{ dev_ssh_password | default('Temp1234') }}
     volumes:
       - ./odoo-data:/var/lib/odoo
       - ./config:/etc/odoo
@@ -102,7 +115,15 @@
       - "{{ PORT_IDE }}:8443"
     volumes:
       - ./repos:/config/workspace:rw
+      # /config es el HOME de code-server: acá viven extensions/, data/ (ajustes y
+      # perfiles) y lo que el dev instale para sí (~/.ssh, ~/.npm-global). Montarlo
+      # entero es lo que hace que las extensiones sobrevivan a un recreate.
       - ./ide-config:/config:rw
+      # Scripts de arranque de linuxserver: sshpass + semilla del HOME.
+      - ./ide-init:/custom-cont-init.d:ro
+      # Semillas: el init las copia al HOME solo si faltan, así el dev puede editar
+      # su propio .bashrc sin que el próximo Update se lo pise.
+      - ./ide-seed:/seed:ro
     environment:
       - PUID=1000
       - PGID=1000
@@ -406,6 +427,17 @@ fi
         <field name="help">Contraseña para acceder al IDE (code-server).</field>
     </record>
 
+    <record id="template_odoo19_dev_var_dev_ssh_password" model="service.template.variable">
+        <field name="template_id" ref="template_odoo19_dev"/>
+        <field name="name">dev_ssh_password</field>
+        <field name="display_name">Contraseña SSH interna (alias odoo)</field>
+        <field name="var_type">password</field>
+        <field name="required">False</field>
+        <field name="is_secret">True</field>
+        <field name="sequence">75</field>
+        <field name="help">Contraseña del usuario odoo para el SSH interno del stack (la usa el alias "odoo" del IDE). Se autogenera si se deja vacía; no hace falta recordarla.</field>
+    </record>
+
     <record id="template_odoo19_dev_var_timezone" model="service.template.variable">
         <field name="template_id" ref="template_odoo19_dev"/>
         <field name="name">timezone</field>
@@ -466,6 +498,9 @@ fi
         <field name="sequence">40</field>
     </record>
 
+    <!-- El HOME del IDE SÍ entra al backup: son las extensiones instaladas, los
+         ajustes del editor y lo que el dev haya puesto en su HOME. Excluirlo hacía
+         que una restauración o una migración devolviera un IDE en blanco. -->
     <record id="template_odoo19_dev_vol_ide_config" model="service.template.volume">
         <field name="template_id" ref="template_odoo19_dev"/>
         <field name="name">Configuración IDE</field>
@@ -473,6 +508,25 @@ fi
         <field name="owner">1000:1000</field>
         <field name="permissions">755</field>
         <field name="sequence">50</field>
+    </record>
+
+    <record id="template_odoo19_dev_vol_ide_init" model="service.template.volume">
+        <field name="template_id" ref="template_odoo19_dev"/>
+        <field name="name">Scripts de arranque del IDE</field>
+        <field name="local_path">./ide-init</field>
+        <field name="owner">1000:1000</field>
+        <field name="permissions">755</field>
+        <field name="sequence">55</field>
+        <field name="exclude_from_backup" eval="True"/>
+    </record>
+
+    <record id="template_odoo19_dev_vol_ide_seed" model="service.template.volume">
+        <field name="template_id" ref="template_odoo19_dev"/>
+        <field name="name">Semillas del HOME del IDE</field>
+        <field name="local_path">./ide-seed</field>
+        <field name="owner">1000:1000</field>
+        <field name="permissions">755</field>
+        <field name="sequence">56</field>
         <field name="exclude_from_backup" eval="True"/>
     </record>
 
@@ -556,6 +610,92 @@ Host odoo
     StrictHostKeyChecking no
     UserKnownHostsFile /dev/null
     LogLevel ERROR
+]]></field>
+    </record>
+
+    <!-- Ajustes de MÁQUINA del editor (./ide-config == /config, y code-server usa
+         /config/data como user-data-dir). No pisan los del usuario: VS Code los toma
+         como piso y lo que el dev cambie en sus ajustes gana. Se declara explícito el
+         auto-update de extensiones en vez de confiar en el default del editor. -->
+    <record id="template_odoo19_dev_config_ide_machine_settings" model="service.template.config.file">
+        <field name="template_id" ref="template_odoo19_dev"/>
+        <field name="name">Ajustes de máquina del IDE</field>
+        <field name="filename">settings.json</field>
+        <field name="path">./ide-config/data/Machine/</field>
+        <field name="syntax_mode">text</field>
+        <field name="sequence">30</field>
+        <field name="description">Ajustes a nivel máquina de code-server: mantienen las extensiones actualizadas solas contra Open VSX. El dev puede sobreescribirlos en sus propios ajustes.</field>
+        <field name="content_template"><![CDATA[{
+    "extensions.autoUpdate": true,
+    "extensions.autoCheckUpdates": true
+}
+]]></field>
+    </record>
+
+    <!-- Init de linuxserver: la imagen del IDE no trae sshpass y el alias `odoo`
+         lo necesita para no pedir la contraseña en cada conexión. Se instala en el
+         arranque (con red; si falla, el IDE igual levanta y `ssh odoo` pide la
+         contraseña a mano). -->
+    <record id="template_odoo19_dev_config_ide_init" model="service.template.config.file">
+        <field name="template_id" ref="template_odoo19_dev"/>
+        <field name="name">Init del IDE (sshpass)</field>
+        <field name="filename">10-sshpass</field>
+        <field name="path">./ide-init/</field>
+        <field name="syntax_mode">sh</field>
+        <field name="sequence">40</field>
+        <!-- linuxserver saltea los hooks que no son ejecutables ("is not an
+             executable file"), y el chmod de volúmenes solo toca directorios. -->
+        <field name="is_executable" eval="True"/>
+        <field name="description">Script de arranque del IDE: instala sshpass para el alias "odoo".</field>
+        <field name="content_template"><![CDATA[#!/usr/bin/with-contenv bash
+# 1) sshpass, que la imagen no trae y usa el alias `odoo` del ~/.bashrc.
+if ! command -v sshpass >/dev/null 2>&1; then
+    apt-get update -qq && apt-get install -y --no-install-recommends sshpass || \
+        echo "[steer] no se pudo instalar sshpass; 'ssh odoo' va a pedir la contraseña"
+fi
+
+# 2) Bienvenida y alias del panel. Van a un archivo APARTE que se refresca en cada
+#    arranque (así un cambio de plantilla llega), y al .bashrc del dev solo se le
+#    agrega una vez la línea que lo carga: su .bashrc sigue siendo suyo.
+#    No alcanza con "copiar si no existe": linuxserver ya crea /config/.bashrc desde
+#    /etc/skel al primer arranque, así que esa condición nunca se cumple.
+MARCA='# --- steer: entorno de desarrollo ---'
+if [ -f /seed/bashrc ]; then
+    cp /seed/bashrc /config/.steer.bashrc
+    chown abc:abc /config/.steer.bashrc
+    touch /config/.bashrc
+    if ! grep -qF "$MARCA" /config/.bashrc; then
+        printf '\n%s\n[ -f "$HOME/.steer.bashrc" ] && . "$HOME/.steer.bashrc"\n' \
+            "$MARCA" >> /config/.bashrc
+        echo "[steer] enganchado .steer.bashrc en /config/.bashrc"
+    fi
+    chown abc:abc /config/.bashrc
+fi
+exit 0
+]]></field>
+    </record>
+
+    <!-- Bienvenida del IDE + alias `odoo` para entrar al contenedor de Odoo. -->
+    <record id="template_odoo19_dev_config_ide_bashrc" model="service.template.config.file">
+        <field name="template_id" ref="template_odoo19_dev"/>
+        <field name="name">Bashrc del IDE (semilla)</field>
+        <field name="filename">bashrc</field>
+        <field name="path">./ide-seed/</field>
+        <field name="syntax_mode">sh</field>
+        <field name="sequence">50</field>
+        <field name="description">Perfil de shell del IDE: alias "odoo" para entrar por SSH al contenedor de Odoo. Se copia al HOME en el primer arranque; después es del dev.</field>
+        <field name="content_template"><![CDATA[[ -z "$PS1" ] && return
+echo -e "\e[1;32m----------------------------------------------------"
+echo -e "  Entorno de desarrollo Odoo  ({{ instance.subdomain }})"
+echo -e "----------------------------------------------------\e[0m"
+echo -e "\e[1;36m  odoo\e[0m  -> shell del contenedor de Odoo"
+echo -e "\e[2m  Adentro: odoo shell -c /etc/odoo/odoo.conf -d {{ db_name | default(instance.subdomain or instance.code, true) }}\e[0m"
+echo -e "\e[1;32m----------------------------------------------------\e[0m"
+
+# El host "odoo" lo reescribe ~/.ssh/config al nombre único del contenedor de esta
+# instancia (en la red compartida "odoo" resolvería a varias). Sin known_hosts: los
+# contenedores se recrean seguido y su host key cambia.
+alias odoo="sshpass -p '{{ dev_ssh_password | default('Temp1234') }}' ssh -o StrictHostKeyChecking=no -o UserKnownHostsFile=/dev/null odoo@{{ INSTANCE_CODE }}"
 ]]></field>
     </record>
 

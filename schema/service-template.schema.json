@@ -176,6 +176,7 @@
         },
         "description": { "type": "string", "description": "What the file is for." },
         "skip_update": { "type": "boolean", "description": "Do not overwrite on updates (first-deploy only)." },
+        "is_executable": { "type": "boolean", "description": "Write the file with mode 755 instead of 644. Needed for startup hook scripts, which are skipped when not executable." },
         "active": { "type": "boolean" },
         "sequence": { "type": "integer" }
       }
