@@ -6,6 +6,9 @@
     <record id="template_evolution_api" model="service.template">
         <field name="name">Evolution API</field>
         <field name="code">evolution-api</field>
+        <!-- Los servicios están dimensionados abajo: una instancia nueva nace
+             con esos topes aplicados. No afecta a las instancias ya creadas. -->
+        <field name="resource_limits_default" eval="True"/>
         <field name="image" type="base64" file="steer_infra_suite/static/img/templates/evolution-api.png"/>
         <field name="description">API open-source de integración con WhatsApp. Incluye PostgreSQL y Redis para alta performance. Ideal para envío masivo, chatbots y automatizaciones.</field>
         <field name="category">communication</field>

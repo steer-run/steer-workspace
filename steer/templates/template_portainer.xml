@@ -6,6 +6,9 @@
     <record id="template_portainer" model="service.template">
         <field name="name">Portainer CE</field>
         <field name="code">portainer</field>
+        <!-- Los servicios están dimensionados abajo: una instancia nueva nace
+             con esos topes aplicados. No afecta a las instancias ya creadas. -->
+        <field name="resource_limits_default" eval="True"/>
         <field name="image" type="base64" file="steer_infra_suite/static/img/templates/portainer.png"/>
         <field name="description">Interfaz web para gestionar contenedores Docker. Visualiza, crea, inicia, detiene y elimina contenedores, imágenes, redes y volúmenes. Incluye gestión de stacks con Docker Compose.</field>
         <field name="category">dev_tools</field>

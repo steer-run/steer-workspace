@@ -6,6 +6,9 @@
     <record id="template_nginx" model="service.template">
         <field name="name">Nginx Web Server</field>
         <field name="code">nginx</field>
+        <!-- Los servicios están dimensionados abajo: una instancia nueva nace
+             con esos topes aplicados. No afecta a las instancias ya creadas. -->
+        <field name="resource_limits_default" eval="True"/>
         <field name="image" type="base64" file="steer_infra_suite/static/img/templates/nginx.png"/>
         <field name="description">Servidor web Nginx para sitios estáticos o como reverse proxy.</field>
         <field name="category">networking</field>
