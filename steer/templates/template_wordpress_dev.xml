@@ -25,7 +25,6 @@
         <!-- Indica que tiene IDE integrado -->
         <field name="has_integrated_ide">True</field>
         <!-- Subdominios adicionales: configurados en puertos (traefik_subdomain_suffix) -->
-        <field name="additional_subdomain_suffixes"></field>
         <!-- Base de datos -->
         <field name="requires_database">True</field>
         <field name="database_type">mysql</field>

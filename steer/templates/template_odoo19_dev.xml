@@ -34,7 +34,6 @@
              El resto del endurecimiento queda intacto. -->
         <field name="extra_capabilities">SYS_CHROOT,AUDIT_WRITE</field>
         <!-- Subdominios adicionales: configurados en puertos (traefik_subdomain_suffix) -->
-        <field name="additional_subdomain_suffixes"></field>
         <!-- Base de datos -->
         <field name="requires_database">True</field>
         <field name="database_type">postgres</field>
