@@ -3,9 +3,9 @@ name: validate
 # Validate everything you author under my/ before it can reach your panel.
 on:
   push:
-    paths: ["my/**", "schema/**", "harness/**", "examples/**"]
+    paths: ["my/**", "schema/**", "harness/**", "examples/**", "steer/templates/**"]
   pull_request:
-    paths: ["my/**", "schema/**", "harness/**", "examples/**"]
+    paths: ["my/**", "schema/**", "harness/**", "examples/**", "steer/templates/**"]
   workflow_dispatch:
 
 jobs:
@@ -20,5 +20,7 @@ jobs:
         run: pip install jsonschema
       - name: Validate examples (must stay green)
         run: python harness/validate.py examples/
+      - name: Validate the official catalog against the current contract
+        run: python harness/validate.py steer/templates/
       - name: Validate your apps
         run: python harness/validate.py my/

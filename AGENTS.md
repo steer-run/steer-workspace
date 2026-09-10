@@ -28,9 +28,12 @@ description of how to deploy an app. The panel turns a template into a running *
 ## Authoring an application template
 
 A template is an XML file with one `service.template` record plus its sub-records (ports, variables,
-volumes, config files, service configs, actions). **It must validate against**
-[`schema/service-template.schema.json`](schema/service-template.schema.json). Start from
-[`examples/`](examples/) — copy the closest one and adapt it.
+volumes, config files, service configs, actions, repositories). **It must validate against**
+[`schema/service-template.schema.json`](schema/service-template.schema.json), which is **generated
+from the panel model**: every property is a real field with its help text, and unknown fields are
+rejected. Start from [`examples/`](examples/) — copy the closest one and adapt it. Two fields you
+will see in the official catalog are not part of the contract: `is_global` (tenancy is decided by
+the panel at install) and `display_name` on sub-records (Odoo's computed name; use `description`).
 
 ### The usual starting point: a `docker-compose`
 
@@ -100,26 +103,62 @@ A dashboard is a Grafana model JSON validated against
 ```bash
 python harness/validate.py my/templates/<your-app>.xml      # one file
 python harness/validate.py my/                              # everything you authored
+python harness/validate.py --panel my/                      # + the panel's own validator (renders the compose)
 ```
 
 The validator checks the schema **and** the conventions above (secrets typed, web app has a routed
-port, DB app has custom backup + excluded data dir, etc.). CI runs the same check on every push to
-`my/` — a file that doesn't validate never reaches the panel.
+port, DB app has custom backup + excluded data dir, etc.); they mirror the panel's lints. With
+`--panel` (and `STEER_PANEL_URL` / `STEER_MCP_TOKEN` set) each file is also validated by the panel
+itself through MCP (`validate_template`): it renders the Jinja2 compose with real context and
+installs nothing. CI runs the offline check on every push to `my/` — a file that doesn't validate
+never reaches the panel.
 
-## Operating the live panel (imperative plane)
+## Operating the live panel (imperative plane): MCP
 
-To do things on the running panel — create an instance, deploy, check status, run a backup — use the
-web services described in [`api/openapi.yaml`](api/openapi.yaml). Typical flow:
+The panel **is** an MCP server (`POST https://<your-panel>/mcp`, spec 2026-07-28, also the
+`initialize` era). Every tool runs with the permissions of the user behind the token and is
+audited; writes never run directly, they create a **proposal** a person confirms (inline when
+your client supports elicitation, or through a confirmation URL).
 
-1. `GET /servers` — find the target server.
-2. `POST /instances` — create an instance from a template (`code`, `server_id`, `subdomain`).
-3. `POST /instances/{id}/deploy` — deploy it (stream the operation log).
-4. `GET /instances/{id}/status` — confirm it's running.
-5. `POST /instances/{id}/backup` — back it up.
+**Connect.** Create a token in the panel (*Governance → Agent connections*), then:
 
-> **Status:** the web services are **on the roadmap**; `api/openapi.yaml` is the contract they will
-> implement. Treat endpoints marked `x-status: planned` as not-yet-live. The declarative plane
-> (authoring files in `my/`) works today.
+- **Claude Code, plugin (recommended):** `/plugin marketplace add steer-run/steer-workspace` then
+  `/plugin install steer@steer-run`. It brings the MCP server (reads `STEER_PANEL_URL` and
+  `STEER_MCP_TOKEN` from your environment) and the skills `steer-templates`, `steer-operate`,
+  `steer-troubleshoot`. Opening this repository in Claude Code also offers the same server from
+  `.mcp.json`.
+- **Claude Code, no plugin:** `claude mcp add --transport http steer https://<panel>/mcp --header
+  "Authorization: Bearer <token>"`.
+- **Codex CLI:** in `~/.codex/config.toml`:
+  ```toml
+  [mcp_servers.steer]
+  url = "https://<panel>/mcp"
+  bearer_token_env_var = "STEER_MCP_TOKEN"
+  ```
+  The skills are also exposed under `.agents/skills/` for Codex.
+- **Anything else that speaks MCP:** HTTP transport, `Authorization: Bearer <token>`.
+
+**Discover.** Call `steer_help` (tools by intent, what your token grants) or `get_overview`.
+Read the resources `steer://instructions`, `steer://guide/applications`,
+`steer://guide/diagnosis`; use the prompts `troubleshoot_instance` / `troubleshoot_server`.
+
+**Templates, both planes.**
+
+| Step | Tool |
+|------|------|
+| Check a spec, an installed app or a workspace XML with the panel's validator (installs nothing) | `validate_template` (`spec` / `code` / `xml`) — also `python harness/validate.py --panel` |
+| Create or modify a template in the panel (proposal) | `propose_template` |
+| Get the workspace XML of an installed template, to commit it under `my/` | `export_template_xml` |
+| See the store and install an app from it (proposal) | `list_catalog`, `install_catalog_template` |
+| Pull your repository into the panel now (proposal) | `sync_template_source` |
+| Installed templates | `list_applications`, `get_application` |
+
+**Operate.** `list_instances` → `get_instance` → `diagnose_instance` → containers / logs →
+`start_instance` / `stop_instance` / `restart_instance` / `create_backup` (proposals). Long
+operations return a task (`tasks/get`) or an `operation_id` (`get_operation`).
+
+> **REST status:** a REST façade over the same tool registry is on the roadmap; `api/openapi.yaml`
+> is a draft of that contract and is **not live**. Use MCP.
 
 ## Golden rules
 

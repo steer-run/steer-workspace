@@ -1,185 +1,795 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://steer.run/schema/service-template.schema.json",
-  "x-schema-version": "1.0",
+  "x-schema-version": "1.1",
   "title": "Steer service template",
-  "description": "Logical structure of a Steer application template (service.template) and its sub-records. Templates are authored as Odoo XML; this schema describes the data a valid template must contain. The harness parses the XML into this shape and validates it. CONTRACT VERSIONING: 'x-schema-version' is the version of THIS contract (not the app's 'version' label). A template MAY declare which contract version it targets with an XML comment '<!-- steer-schema-version: 1.0 -->' (Odoo ignores comments, so it never affects install); the harness rejects a version it does not support. No marker = assumed current.",
+  "description": "Logical structure of a Steer application template (service.template) and its sub-records, GENERATED from the panel model (steer_infra_suite): every property is a real field, with its help text. Templates are authored as Odoo XML; the harness parses the XML into this shape and validates it. CONTRACT VERSIONING: 'x-schema-version' is the version of THIS contract (not the app's 'version' label). A template MAY declare which contract version it targets with an XML comment '<!-- steer-schema-version: 1.1 -->'; the harness rejects a version it does not support. No marker = assumed current.",
   "type": "object",
-  "required": ["name", "code", "docker_compose_template"],
-  "additionalProperties": true,
+  "required": [
+    "name",
+    "code",
+    "docker_compose_template"
+  ],
+  "additionalProperties": false,
   "properties": {
-    "name": { "type": "string", "description": "Display name shown in the catalog." },
+    "name": {
+      "type": "string",
+      "description": "Service template name"
+    },
+    "sequence": {
+      "type": "integer",
+      "description": "Sequence",
+      "default": 10
+    },
     "code": {
       "type": "string",
-      "pattern": "^[a-z0-9][a-z0-9_-]*$",
-      "description": "Unique, snake/kebab-case identifier. Must be unique across the whole catalog."
+      "description": "Unique template code (used internally) Unique across the whole catalog; lowercase snake/kebab-case.",
+      "pattern": "^[a-z0-9][a-z0-9_-]*$"
     },
     "service_code": {
       "type": "string",
-      "description": "Groups interchangeable apps (cross-restore + 'change template'). Empty = only compatible with itself."
+      "description": "Groups mutually compatible applications to restore cross backups (e.g. \"odoo-19\"). Apps with the same Service Code generate and restore backups the same way. If left empty, the app is only compatible with itself."
     },
-    "version": { "type": "string", "description": "Human-readable version label (e.g. '19.0', 'latest')." },
-    "description": { "type": "string", "description": "Short teaser shown on the catalog card." },
-    "rich_description": { "type": "string", "description": "Optional rich HTML description (sanitized HTML allowed)." },
+    "version": {
+      "type": "string",
+      "description": "Human-readable version of the packaged application shown in the catalog (e.g. \"19.0\", \"16.6\", \"stable\"). It distinguishes templates that share the same Service Code (e.g. Odoo 17 vs Odoo 19). It is a label only: it does NOT affect the deployment fingerprint (see \"Content hash\")."
+    },
+    "description": {
+      "type": "string",
+      "description": "Short one-line summary shown on the catalog card and in search."
+    },
+    "rich_description": {
+      "type": "string",
+      "description": "Full professional HTML description shown on the application page (curated, first-party content — rendered as-is)."
+    },
     "category": {
       "type": "string",
-      "description": "Classifies the app by what it does.",
       "enum": [
-        "database", "cache", "storage", "networking", "monitoring", "mail", "security",
-        "dev_tools", "ci_cd", "automation", "ai", "analytics", "cms", "ecommerce", "business",
-        "finance", "productivity", "collaboration", "communication", "media", "knowledge",
-        "gaming", "other"
-      ]
+        "web",
+        "proxy",
+        "database",
+        "cache",
+        "storage",
+        "networking",
+        "monitoring",
+        "mail",
+        "security",
+        "dev_tools",
+        "ci_cd",
+        "automation",
+        "ai",
+        "analytics",
+        "cms",
+        "ecommerce",
+        "business",
+        "finance",
+        "productivity",
+        "collaboration",
+        "communication",
+        "media",
+        "knowledge",
+        "gaming",
+        "other"
+      ],
+      "description": "Category",
+      "default": "other"
     },
-    "tags": {
-      "type": "array",
-      "items": { "type": "string", "pattern": "^tag_[a-z0-9_]+$" },
-      "description": "Catalog tags (xmlids of steer_infra_suite.tag_*, without the module prefix)."
-    },
-    "website_url": { "type": "string", "format": "uri" },
-    "documentation_url": { "type": "string", "format": "uri" },
-    "source_url": { "type": "string", "format": "uri" },
-    "is_web_app": {
-      "type": "boolean",
-      "description": "Enables domain/SSL/Traefik. If true, at least one port must be traefik_routed."
-    },
-    "requires_database": { "type": "boolean" },
-    "database_type": {
+    "website_url": {
       "type": "string",
-      "enum": ["postgres", "mysql", "mongodb", "redis", "sqlserver", "none"]
+      "description": "Official website of the application."
     },
-    "database_is_external": {
-      "type": "boolean",
-      "description": "DB is an external host (e.g. on-prem SQL Server), not a container in the stack."
-    },
-    "requires_backup": { "type": "boolean" },
-    "backup_mode": {
+    "documentation_url": {
       "type": "string",
-      "enum": ["standard", "custom"],
-      "description": "'standard' tars the data volumes; 'custom' uses backup_script/restore_script (required for databases)."
+      "description": "Link to the official documentation."
+    },
+    "source_url": {
+      "type": "string",
+      "description": "Source code repository (e.g. GitHub/GitLab/Gitea) of the upstream project."
+    },
+    "is_hidden": {
+      "type": "boolean",
+      "description": "If True, the template is not shown in the listing (system templates)",
+      "default": false
+    },
+    "allowed_production": {
+      "type": "boolean",
+      "description": "Allow using this template in production environments",
+      "default": true
+    },
+    "allowed_staging": {
+      "type": "boolean",
+      "description": "Allow using this template in staging environments",
+      "default": true
+    },
+    "allowed_development": {
+      "type": "boolean",
+      "description": "Allow using this template in development environments",
+      "default": true
+    },
+    "has_integrated_ide": {
+      "type": "boolean",
+      "description": "Indicates that this template includes an integrated IDE (code-server) for development.",
+      "default": false
+    },
+    "docker_compose_template": {
+      "type": "string",
+      "description": "Docker Compose template with ${VARIABLE} variables"
     },
     "health_check_command": {
       "type": "string",
-      "description": "Soft post-deploy check run inside the container (e.g. 'pg_isready -U $POSTGRES_USER')."
+      "description": "Command for the Docker healthcheck of the main service (e.g.: curl -f http://localhost:8069/web/health)"
     },
-    "use_cloudflare_tunnel": { "type": "boolean", "description": "Expose via cloudflared instead of Traefik (servers with no public IP)." },
-    "docker_compose_template": {
+    "extra_capabilities": {
       "type": "string",
-      "minLength": 1,
-      "description": "Jinja2 + YAML compose. Secrets are referenced as ${VAR_NAME}; per-instance values use variables."
+      "description": "Comma-separated Linux capabilities to grant back on top of the default hardening baseline (cap_drop:[ALL] + a minimal safe set: CHOWN, SETUID, SETGID, NET_BIND_SERVICE, etc.). Only list what your image additionally needs, e.g.: NET_RAW (ping healthcheck), NET_ADMIN, SYS_PTRACE."
     },
-    "backup_script": { "type": "string", "description": "Bash. Dumps state into $BACKUP_DATA_DIR. Required when backup_mode=custom." },
-    "restore_script": { "type": "string", "description": "Bash. Restores from $RESTORE_DATA_DIR and verifies the data is present." },
+    "is_web_app": {
+      "type": "boolean",
+      "description": "If active, this application will be accessible via HTTP/HTTPS through Traefik",
+      "default": true
+    },
+    "requires_database": {
+      "type": "boolean",
+      "description": "Requires Database",
+      "default": false
+    },
+    "database_type": {
+      "type": "string",
+      "enum": [
+        "postgres",
+        "mysql",
+        "mongodb",
+        "redis",
+        "sqlserver",
+        "none"
+      ],
+      "description": "Database Type",
+      "default": "none"
+    },
+    "database_is_external": {
+      "type": "boolean",
+      "description": "The database is not a stack container but an external server (e.g. SQL Server on-premise of the client). SQL commands are run via sqlcmd against the external host (db_host/db_port/db_instance variables), not via \"docker compose exec db\"."
+    },
+    "use_cloudflare_tunnel": {
+      "type": "boolean",
+      "description": "Exposes the instances through a Cloudflare tunnel (cloudflared) instead of Traefik. For servers without a public IP (on-premise)."
+    },
+    "sql_databases_template": {
+      "type": "string",
+      "description": "Jinja expression that, rendered with the instance variables, returns the databases on which SQL commands are run by default (names separated by comma or line break). It is rendered with the same context as docker_compose_template (direct access to the variables, e.g. {{ db_wincampo }}). Empty = classic behavior (a single database)."
+    },
+    "sql_audit_check_template": {
+      "type": "string",
+      "description": "Jinja SQL run on the target database BEFORE everything, to decide whether the command was already applied (idempotency). It must print the __STEER_APPLIED__ token when already applied (and nothing otherwise). Empty = it is not checked (always runs)."
+    },
+    "sql_audit_pre_template": {
+      "type": "string",
+      "description": "Jinja SQL run on the target database BEFORE each NON readonly command (e.g. INSERT of the record in PENDING state). Empty = no log."
+    },
+    "sql_audit_post_template": {
+      "type": "string",
+      "description": "Jinja SQL run on the target database AFTER each NON readonly command (e.g. UPDATE of the record to OK/ERROR). Extra context: success (bool), error_output. Empty = no log."
+    },
+    "requires_backup": {
+      "type": "boolean",
+      "description": "Requires Backup",
+      "default": true
+    },
+    "backup_mode": {
+      "type": "string",
+      "enum": [
+        "standard",
+        "custom"
+      ],
+      "description": "Standard: compresses the entire service folder. Custom: uses defined scripts.",
+      "default": "standard"
+    },
+    "backup_tolerate_live_files": {
+      "type": "boolean",
+      "description": "Treat tar's 'file changed as we read it' warning as success (hot copy). Enable ONLY for stores that keep rewriting files while running and support live volume copies — Prometheus, Loki, Grafana, VictoriaMetrics, etc. NEVER enable it for databases: a hot copy of live database files is corrupt — use a database dump (Custom backup mode) instead.",
+      "default": false
+    },
+    "backup_script": {
+      "type": "string",
+      "description": "Bash script to create the backup file. It only handles data, not the service."
+    },
+    "restore_script": {
+      "type": "string",
+      "description": "Bash script to restore data from backup. The system handles starting/stopping the service."
+    },
+    "resource_limits_default": {
+      "type": "boolean",
+      "description": "Instances deployed from this template are created with \"Limit Resources\" already on, so they get the per-service limits declared below. Turn it on for templates whose services are sized here; leave it off for stacks that must use whatever the host has free (monitoring, for example). It only sets the initial value: each instance can be switched afterwards.",
+      "default": false
+    },
+    "rollback_unsafe": {
+      "type": "boolean",
+      "description": "Updating this app migrates its database (e.g. Odoo -u, Laravel migrate): putting the previous code back over the migrated schema can do more harm than the failed update. With this flag the automatic rollback never fires for its instances; a failed update only notifies and leaves the manual rollback available.",
+      "default": false
+    },
+    "active": {
+      "type": "boolean",
+      "description": "Active",
+      "default": true
+    },
+    "tags": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "pattern": "^tag_[a-z0-9_]+$"
+      },
+      "description": "Catalog tags (xmlids of steer_infra_suite.tag_*, without the module prefix)."
+    },
     "ports": {
       "type": "array",
-      "items": { "$ref": "#/$defs/port" }
+      "items": {
+        "$ref": "#/$defs/ports"
+      }
     },
     "variables": {
       "type": "array",
-      "items": { "$ref": "#/$defs/variable" }
+      "items": {
+        "$ref": "#/$defs/variables"
+      }
     },
     "volumes": {
       "type": "array",
-      "items": { "$ref": "#/$defs/volume" }
+      "items": {
+        "$ref": "#/$defs/volumes"
+      }
     },
     "config_files": {
       "type": "array",
-      "items": { "$ref": "#/$defs/config_file" }
+      "items": {
+        "$ref": "#/$defs/config_files"
+      }
+    },
+    "service_configs": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/service_configs"
+      }
+    },
+    "actions": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/actions"
+      }
+    },
+    "repositories": {
+      "type": "array",
+      "items": {
+        "$ref": "#/$defs/repositories"
+      }
     }
   },
   "allOf": [
     {
-      "if": { "properties": { "is_web_app": { "const": true } }, "required": ["is_web_app"] },
+      "if": {
+        "properties": {
+          "is_web_app": {
+            "const": true
+          }
+        },
+        "required": [
+          "is_web_app"
+        ]
+      },
       "then": {
         "properties": {
           "ports": {
             "type": "array",
             "minItems": 1,
-            "contains": { "properties": { "traefik_routed": { "const": true } }, "required": ["traefik_routed"] }
+            "contains": {
+              "properties": {
+                "traefik_routed": {
+                  "const": true
+                }
+              },
+              "required": [
+                "traefik_routed"
+              ]
+            }
           }
         },
-        "required": ["ports"]
+        "required": [
+          "ports"
+        ]
       }
     },
     {
-      "if": { "properties": { "requires_database": { "const": true } }, "required": ["requires_database"] },
+      "if": {
+        "properties": {
+          "requires_database": {
+            "const": true
+          }
+        },
+        "required": [
+          "requires_database"
+        ]
+      },
       "then": {
-        "properties": { "backup_mode": { "const": "custom" } },
-        "required": ["backup_mode", "backup_script", "restore_script"]
+        "properties": {
+          "backup_mode": {
+            "const": "custom"
+          }
+        },
+        "required": [
+          "backup_mode",
+          "backup_script",
+          "restore_script"
+        ]
       }
     }
   ],
   "$defs": {
-    "port": {
+    "ports": {
       "type": "object",
-      "required": ["code", "default_port"],
-      "additionalProperties": true,
-      "properties": {
-        "code": { "type": "string" },
-        "name": { "type": "string" },
-        "default_port": { "type": "integer", "minimum": 1, "maximum": 65535 },
-        "traefik_routed": { "type": "boolean", "description": "Route a Traefik subdomain to this port (the web port)." },
-        "traefik_subdomain_suffix": { "type": "string", "description": "Optional extra subdomain suffix for this port." },
-        "expose_to_host": { "type": "boolean", "description": "If false, the port is internal (expose:) only." },
-        "sequence": { "type": "integer" }
-      }
-    },
-    "variable": {
-      "type": "object",
-      "required": ["name", "var_type"],
-      "additionalProperties": true,
-      "properties": {
-        "name": { "type": "string", "pattern": "^[A-Za-z_][A-Za-z0-9_]*$", "description": "Must match ${NAME} in the compose exactly." },
-        "var_type": {
-          "type": "string",
-          "enum": ["string", "integer", "boolean", "password", "fernet_key", "selection", "text"],
-          "description": "'password'/'fernet_key' are auto-generated secrets."
-        },
-        "is_secret": { "type": "boolean", "description": "Secret value: rendered as ${NAME}, written only to the runtime .env." },
-        "default_value": { "type": "string" },
-        "selection_options": { "type": "string", "description": "For var_type=selection: comma-separated or newline-separated options." },
-        "description": { "type": "string" },
-        "sequence": { "type": "integer" }
-      },
-      "allOf": [
-        {
-          "if": { "properties": { "var_type": { "enum": ["password", "fernet_key"] } } },
-          "then": { "properties": { "is_secret": { "const": true } } }
-        }
-      ]
-    },
-    "volume": {
-      "type": "object",
-      "required": ["name", "local_path"],
-      "additionalProperties": true,
-      "properties": {
-        "name": { "type": "string" },
-        "local_path": { "type": "string", "description": "Relative bind-mount path, e.g. './data'." },
-        "owner": { "type": "string", "pattern": "^[0-9]+:[0-9]+$", "description": "UID:GID that must own the directory." },
-        "exclude_from_backup": { "type": "boolean", "description": "Exclude from the file backup (set true on raw DB data dirs)." },
-        "sequence": { "type": "integer" }
-      }
-    },
-    "config_file": {
-      "type": "object",
-      "required": ["name", "filename", "content_template"],
       "additionalProperties": false,
       "properties": {
-        "name": { "type": "string", "description": "Descriptive name of the file (e.g. 'PostgreSQL Config')." },
-        "filename": { "type": "string", "description": "Name of the file to generate (e.g. 'postgresql.conf', '.env')." },
-        "path": { "type": "string", "description": "Relative path from the service directory (e.g. './', './config/'). Defaults to './'." },
-        "content_template": { "type": "string", "description": "Jinja2-rendered config file content. Same variables as the compose." },
+        "code": {
+          "type": "string",
+          "description": "Port identifier (e.g.: http, longpolling, ws). Used as PORT_CODE in Docker"
+        },
+        "name": {
+          "type": "string",
+          "description": "Descriptive name of the port"
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the port usage"
+        },
+        "default_port": {
+          "type": "integer",
+          "description": "Suggested port (reference only, the real one is auto-assigned on the instance)"
+        },
+        "is_fixed": {
+          "type": "boolean",
+          "description": "If active, the port is not auto-assigned and always uses the default value. Useful for system services such as the reverse proxy.",
+          "default": false
+        },
+        "expose_to_host": {
+          "type": "boolean",
+          "description": "If active, the port is mapped to the host in docker-compose. If disabled, it is only accessible via the Docker network (Traefik).",
+          "default": false
+        },
+        "sequence": {
+          "type": "integer",
+          "description": "Sequence",
+          "default": 10
+        },
+        "traefik_routed": {
+          "type": "boolean",
+          "description": "If active, Traefik will create a router for this port.",
+          "default": false
+        },
+        "traefik_path_prefix": {
+          "type": "string",
+          "description": "Path prefix for routing (e.g.: /websocket). Empty = catch-all of the domain."
+        },
+        "traefik_strip_prefix": {
+          "type": "boolean",
+          "description": "If active, Traefik strips the prefix before forwarding to the container.",
+          "default": false
+        },
+        "traefik_subdomain_suffix": {
+          "type": "string",
+          "description": "Suffix for an additional subdomain (e.g.: -ide, -api). Generates {subdomain}{suffix}.{domain} as a separate route."
+        },
+        "traefik_docker_service": {
+          "type": "string",
+          "description": "Name of the service in docker-compose where to inject Traefik labels. Empty = main service. E.g.: headscale-admin"
+        },
+        "cors_allowed_origins": {
+          "type": "string",
+          "description": "List of allowed origins for CORS on the subdomain routed by this port (Traefik accesscontrolalloworiginlist label), comma-separated. Empty = only the main domain of the service (default behavior). Use \"*\" to allow any origin (needed e.g. for hybrid mobile apps/WebView that send Origin http://localhost or capacitor://localhost)."
+        },
+        "health_check_path": {
+          "type": "string",
+          "description": "Path the panel probes to decide if this subdomain is up (e.g.: /health). Empty = root \"/\". Useful for services that do not serve \"/\" (a WebSocket/Socket.IO or an API returns 404 on \"/\" although it is alive) — point it to a route that answers 2xx."
+        },
+        "prometheus_scrape": {
+          "type": "boolean",
+          "description": "If active, the monitoring stack scrapes this port as a Prometheus exporter. For remote scrape via VPN, also check \"Expose to Host\".",
+          "default": false
+        },
+        "prometheus_job": {
+          "type": "string",
+          "description": "Name of the job under which the targets of this exporter are grouped (e.g.: postgres, mssql, redis, myapp). Empty = the port code is used. Reserved: prometheus, node, cadvisor, traefik, blackbox, loki."
+        },
+        "metrics_path": {
+          "type": "string",
+          "description": "HTTP path where the exporter exposes the metrics (default /metrics).",
+          "default": "/metrics"
+        },
+        "metrics_container_suffix": {
+          "type": "string",
+          "description": "Suffix of the container that exposes the metrics, for the LOCAL scrape via DNS ({INSTANCE_CODE}{suffix}). Empty = main container ({INSTANCE_CODE}). E.g.: -pgexporter for a postgres-exporter sidecar."
+        }
+      },
+      "required": [
+        "code",
+        "name"
+      ],
+      "description": "Records of service.template.port (one per <record model=\"service.template.port\">)."
+    },
+    "variables": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Variable name (without ${}, e.g.: DB_PASSWORD)"
+        },
+        "sequence": {
+          "type": "integer",
+          "description": "Sequence",
+          "default": 10
+        },
+        "description": {
+          "type": "string",
+          "description": "Variable description"
+        },
+        "help": {
+          "type": "string",
+          "description": "Additional help text for the user"
+        },
+        "default_value": {
+          "type": "string",
+          "description": "Default value of the variable"
+        },
+        "required": {
+          "type": "boolean",
+          "description": "If enabled, the deploy requires a value for this variable (validated in the deploy wizard).",
+          "default": false
+        },
+        "is_secret": {
+          "type": "boolean",
+          "description": "If secret, it will not be shown in logs",
+          "default": false
+        },
+        "var_type": {
+          "type": "string",
+          "enum": [
+            "string",
+            "integer",
+            "boolean",
+            "password",
+            "fernet_key",
+            "selection",
+            "text"
+          ],
+          "description": "«Password» auto-generates a random secure password on deploy. «Secret Key (Fernet)» auto-generates a valid Fernet master key (base64 url-safe, 32 bytes) — use it for STEER_SECRET_KEY when a deployed service is itself a panel: the value is generated once per instance, kept encrypted and re-injected on every redeploy (stable, so it never breaks the child's at-rest secrets). Both are treated as secret (masked in logs, written to the runtime .env, not inlined).",
+          "default": "string"
+        },
+        "selection_options": {
+          "type": "string",
+          "description": "Comma-separated options (e.g.: option1,option2,option3)"
+        },
+        "is_version_variable": {
+          "type": "boolean",
+          "description": "Indicates that this variable tracks the version/tag of a Docker image",
+          "default": false
+        }
+      },
+      "required": [
+        "name"
+      ],
+      "description": "Records of service.template.variable (one per <record model=\"service.template.variable\">)."
+    },
+    "volumes": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "sequence": {
+          "type": "integer",
+          "description": "Sequence",
+          "default": 10
+        },
+        "name": {
+          "type": "string",
+          "description": "Descriptive name of the volume"
+        },
+        "local_path": {
+          "type": "string",
+          "description": "Path relative to the service (e.g.: ./data, ./config)"
+        },
+        "owner": {
+          "type": "string",
+          "description": "UID:GID format (e.g.: 100:101 for Odoo, 999:999 for PostgreSQL)",
+          "default": "1000:1000"
+        },
+        "permissions": {
+          "type": "string",
+          "description": "chmod permissions (e.g.: 755, 750, 700)",
+          "default": "755"
+        },
+        "is_log_folder": {
+          "type": "boolean",
+          "description": "Check if this volume stores logs. Allows cleaning it from the cleanup wizard.",
+          "default": false
+        },
+        "exclude_from_backup": {
+          "type": "boolean",
+          "description": "Exclude this directory from file backups. Use for data requiring a special dump (e.g.: PostgreSQL data).",
+          "default": false
+        },
+        "allow_file_management": {
+          "type": "boolean",
+          "description": "Allows uploading, downloading and deleting files from the instance. Only enable on safe directories (e.g.: db-backups, uploads).",
+          "default": false
+        }
+      },
+      "required": [
+        "name",
+        "local_path"
+      ],
+      "description": "Records of service.template.volume (one per <record model=\"service.template.volume\">)."
+    },
+    "config_files": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Descriptive name of the file (e.g.: PostgreSQL Config)"
+        },
+        "filename": {
+          "type": "string",
+          "description": "Name of the file to generate (e.g.: postgresql.conf, .env, config.ini)"
+        },
+        "path": {
+          "type": "string",
+          "description": "Relative path from the service directory (e.g.: ./, ./config/, ./etc/)",
+          "default": "./"
+        },
+        "content_template": {
+          "type": "string",
+          "description": "File content with Jinja2 syntax. Same variables as Docker Compose."
+        },
         "syntax_mode": {
           "type": "string",
-          "enum": ["text", "sh", "yaml", "nginx", "ini", "python", "xml"],
-          "description": "Editor syntax highlighting mode."
+          "enum": [
+            "text",
+            "sh",
+            "yaml",
+            "nginx",
+            "ini",
+            "python",
+            "xml"
+          ],
+          "description": "Syntax highlighting mode in the editor",
+          "default": "text"
         },
-        "description": { "type": "string", "description": "What the file is for." },
-        "skip_update": { "type": "boolean", "description": "Do not overwrite on updates (first-deploy only)." },
-        "is_executable": { "type": "boolean", "description": "Write the file with mode 755 instead of 644. Needed for startup hook scripts, which are skipped when not executable." },
-        "active": { "type": "boolean" },
-        "sequence": { "type": "integer" }
-      }
+        "sequence": {
+          "type": "integer",
+          "description": "File generation order",
+          "default": 10
+        },
+        "description": {
+          "type": "string",
+          "description": "Description of the file purpose"
+        },
+        "skip_update": {
+          "type": "boolean",
+          "description": "If active, the file is only created on the first deploy. Updates/Redeploys do not overwrite it. Useful for externally managed files (e.g.: ACL policies).",
+          "default": false
+        },
+        "is_executable": {
+          "type": "boolean",
+          "description": "Writes the file with mode 755 instead of 644. Needed for scripts a container runs at startup (e.g. hooks in /custom-cont-init.d, which are skipped if they are not executable).",
+          "default": false
+        },
+        "active": {
+          "type": "boolean",
+          "description": "If disabled, the file will not be generated",
+          "default": true
+        }
+      },
+      "required": [
+        "name",
+        "filename",
+        "content_template"
+      ],
+      "description": "Records of service.template.config.file (one per <record model=\"service.template.config.file\">)."
+    },
+    "service_configs": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "service_name": {
+          "type": "string",
+          "description": "Name of the service in docker-compose (e.g.: db, odoo, redis)"
+        },
+        "sequence": {
+          "type": "integer",
+          "description": "Sequence",
+          "default": 10
+        },
+        "memory_limit": {
+          "type": "string",
+          "description": "Docker memory limit (e.g.: 512m, 1g, 2g)"
+        },
+        "cpu_limit": {
+          "type": "number",
+          "description": "CPU limit (1.0 = 100% of one core)"
+        },
+        "memory_reservation": {
+          "type": "string",
+          "description": "Guaranteed memory (e.g.: 256m, 512m). Optional."
+        },
+        "log_max_size": {
+          "type": "string",
+          "description": "Maximum size per log file (e.g.: 10m, 50m, 100m)",
+          "default": "10m"
+        },
+        "log_max_file": {
+          "type": "string",
+          "description": "Maximum number of rotated log files",
+          "default": "3"
+        },
+        "restart_policy": {
+          "type": "string",
+          "enum": [
+            "",
+            "unless-stopped",
+            "always",
+            "on-failure",
+            "no"
+          ],
+          "description": "Container restart policy"
+        },
+        "stop_grace_period": {
+          "type": "integer",
+          "description": "Seconds Docker waits for this service to shut down cleanly before SIGKILL. Overrides the instance default for stateful services (databases). Leave at 0 to use the instance default."
+        }
+      },
+      "required": [
+        "service_name"
+      ],
+      "description": "Records of service.template.service.config (one per <record model=\"service.template.service.config\">)."
+    },
+    "actions": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Label of the button on the instance (e.g.: \"Update Odoo\")"
+        },
+        "code": {
+          "type": "string",
+          "description": "Unique identifier of the action within the template (snake_case)"
+        },
+        "sequence": {
+          "type": "integer",
+          "description": "Sequence",
+          "default": 10
+        },
+        "active": {
+          "type": "boolean",
+          "description": "Active",
+          "default": true
+        },
+        "description": {
+          "type": "string",
+          "description": "Descriptive text of what the action does"
+        },
+        "icon": {
+          "type": "string",
+          "description": "FontAwesome icon for the button (e.g.: fa-arrow-up, fa-refresh)"
+        },
+        "button_class": {
+          "type": "string",
+          "enum": [
+            "btn-primary",
+            "btn-secondary",
+            "btn-success",
+            "btn-warning",
+            "btn-danger",
+            "btn-info"
+          ],
+          "description": "Button Style",
+          "default": "btn-secondary"
+        },
+        "command": {
+          "type": "string",
+          "description": "Bash command to run in the service directory. Supports Jinja2 with the same context as the configuration files (instance, variables, PORT_*, base_path). The value entered by the user is available as {{ input_quoted }} (quoted with shlex, shell-safe — use this one) or {{ input }} (raw, only for advanced uses such as $(cat file))."
+        },
+        "target_service": {
+          "type": "string",
+          "description": "Name of the affected service in docker-compose (e.g.: odoo). Used to stop/start around the command."
+        },
+        "pull_repositories": {
+          "type": "boolean",
+          "description": "Before running the command, does a \"git pull\" of all the repositories associated with the instance.",
+          "default": false
+        },
+        "backup_before": {
+          "type": "string",
+          "enum": [
+            "no",
+            "production",
+            "always"
+          ],
+          "description": "Creates a backup of the instance before running the action. \"Only in production\" does it only if the environment is production.",
+          "default": "no"
+        },
+        "stop_service_before": {
+          "type": "boolean",
+          "description": "Runs \"docker compose stop <service>\" before the command",
+          "default": false
+        },
+        "start_service_after": {
+          "type": "boolean",
+          "description": "Runs \"docker compose start <service>\" when the command finishes",
+          "default": false
+        },
+        "timeout": {
+          "type": "integer",
+          "description": "Maximum command execution time in seconds",
+          "default": 1800
+        },
+        "requires_confirmation": {
+          "type": "boolean",
+          "description": "Shows a confirmation dialog before running",
+          "default": false
+        },
+        "confirmation_message": {
+          "type": "string",
+          "description": "Text of the confirmation dialog"
+        },
+        "requires_input": {
+          "type": "boolean",
+          "description": "Requests a value from the user before running (available as {{ input }})",
+          "default": false
+        },
+        "input_label": {
+          "type": "string",
+          "description": "Label of the input field (e.g.: \"Modules to update\")"
+        },
+        "input_default": {
+          "type": "string",
+          "description": "Initial value of the parameter (e.g.: \"all\")"
+        },
+        "input_placeholder": {
+          "type": "string",
+          "description": "Parameter Placeholder"
+        },
+        "input_multiline": {
+          "type": "boolean",
+          "description": "If active, the parameter is entered in a text area",
+          "default": false
+        },
+        "available_states": {
+          "type": "string",
+          "description": "States of the instance (comma-separated) in which the button appears. Empty = in all states. E.g.: running,stopped,error",
+          "default": "running,stopped,error"
+        }
+      },
+      "required": [
+        "name",
+        "code",
+        "command"
+      ],
+      "description": "Records of service.template.action (one per <record model=\"service.template.action\">)."
+    },
+    "repositories": {
+      "type": "object",
+      "additionalProperties": false,
+      "properties": {
+        "clone_path": {
+          "type": "string",
+          "description": "Relative path where to clone the repository (e.g.: ./app, ./frontend, ./config)",
+          "default": "./"
+        },
+        "sequence": {
+          "type": "integer",
+          "description": "Cloning order of the repositories",
+          "default": 10
+        }
+      },
+      "description": "Records of service.template.repository (one per <record model=\"service.template.repository\">)."
     }
   }
 }

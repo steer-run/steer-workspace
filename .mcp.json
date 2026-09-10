@@ -1,0 +1,9 @@
+{
+  "mcpServers": {
+    "steer": {
+      "type": "http",
+      "url": "${STEER_PANEL_URL}/mcp",
+      "headers": { "Authorization": "Bearer ${STEER_MCP_TOKEN}" }
+    }
+  }
+}

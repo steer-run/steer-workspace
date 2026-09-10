@@ -1,0 +1,15 @@
+{
+  "name": "steer-run",
+  "owner": { "name": "Steer", "email": "hello@steer.run" },
+  "metadata": { "description": "Steer: agentic infrastructure platform. Plugins to operate a panel and author templates." },
+  "plugins": [
+    {
+      "name": "steer",
+      "source": "./",
+      "description": "MCP connector to your Steer panel plus skills: author templates, operate instances and servers, troubleshoot.",
+      "version": "0.1.0",
+      "category": "devops",
+      "keywords": ["steer", "docker", "mcp", "infrastructure"]
+    }
+  ]
+}

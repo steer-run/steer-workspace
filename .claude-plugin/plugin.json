@@ -1,0 +1,12 @@
+{
+  "$schema": "https://json.schemastore.org/claude-code-plugin-manifest.json",
+  "name": "steer",
+  "displayName": "Steer",
+  "version": "0.1.0",
+  "description": "Operate a Steer panel and author its application templates: MCP connector plus skills for templates, operations and troubleshooting.",
+  "author": { "name": "Steer", "email": "hello@steer.run", "url": "https://steer.run" },
+  "homepage": "https://steer.run",
+  "repository": "https://github.com/steer-run/steer-workspace",
+  "license": "MIT",
+  "keywords": ["steer", "devops", "docker", "mcp", "infrastructure", "templates"]
+}

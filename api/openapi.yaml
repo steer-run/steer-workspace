@@ -6,11 +6,10 @@ info:
     Web services to operate a Steer panel from an agent (the **imperative plane**): list servers,
     create and deploy instances, check status, run backups.
 
-    **Status: planned.** This file is the *contract* the panel will implement — it is not live yet.
-    Endpoints carry `x-status: planned` until shipped. The **declarative plane** (authoring templates
-    and dashboards under `my/` and letting the panel sync them) works today and needs no API.
-
-    A thin MCP server is expected to wrap this API so any agent can call it as tools.
+    **Status: planned draft.** The panel's live agent surface is its **MCP server** (`POST /mcp`,
+    see AGENTS.md); this REST façade over the same tool registry is on the roadmap and this file is
+    only a draft of its contract — it is not live. Endpoints carry `x-status: planned` until shipped.
+    The **declarative plane** (authoring templates and dashboards under `my/`) works today.
   contact:
     name: Steer
     url: https://steer.run
