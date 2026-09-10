@@ -157,6 +157,11 @@ Read the resources `steer://instructions`, `steer://guide/applications`,
 `start_instance` / `stop_instance` / `restart_instance` / `create_backup` (proposals). Long
 operations return a task (`tasks/get`) or an `operation_id` (`get_operation`).
 
+**Provision.** `get_deploy_schema` → `validate_deploy` (dry run with the real wizard rules) →
+`deploy_instance` (proposal → task). On a deployed instance: `update_instance`, `rollback_instance`
+(`list_instance_snapshots`), `restore_backup` (`list_backups`), `migrate_instance` (panel-only
+confirmation). Stale state: `check_instance_state`, `test_server_connection`.
+
 > **REST status:** a REST façade over the same tool registry is on the roadmap; `api/openapi.yaml`
 > is a draft of that contract and is **not live**. Use MCP.
 

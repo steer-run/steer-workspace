@@ -29,9 +29,9 @@ copy, then connect it to your Steer panel.
    Steer panel **syncs** that folder (once a day, or on demand) and they show up in your catalog,
    ready to deploy. You never edit `steer/`.
 2. **Imperative (MCP).** The AI **operates the live panel** through its MCP server: read and
-   diagnose instances and servers, start/stop/restart, back up, validate and propose templates,
-   install apps from the store, sync this repository — every write as a proposal a person
-   confirms. See [`AGENTS.md`](AGENTS.md#operating-the-live-panel-imperative-plane-mcp).
+   diagnose instances and servers, start/stop/restart, back up, **deploy, update, roll back,
+   restore and migrate instances**, validate and propose templates, install apps from the store,
+   sync this repository — every write as a proposal a person confirms. See [`AGENTS.md`](AGENTS.md#operating-the-live-panel-imperative-plane-mcp).
 
 ## Quick start
 
