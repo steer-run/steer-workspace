@@ -120,7 +120,9 @@ The panel **is** an MCP server (`POST https://<your-panel>/mcp`, spec 2026-07-28
 audited; writes never run directly, they create a **proposal** a person confirms (inline when
 your client supports elicitation, or through a confirmation URL).
 
-**Connect.** Create a token in the panel (*Governance → Agent connections*), then:
+**Connect.** Create a token in the panel (*Governance → Agent connections*), then (the
+full guide for the person doing the wiring, error codes included, is
+[`docs/connect.md`](docs/connect.md)):
 
 - **Claude Code, plugin (recommended):** `/plugin marketplace add steer-run/steer-workspace` then
   `/plugin install steer@steer-run`. It brings the MCP server (reads `STEER_PANEL_URL` and
@@ -167,7 +169,10 @@ operations return a task (`tasks/get`) or an `operation_id` (`get_operation`).
 **Provision.** `get_deploy_schema` → `validate_deploy` (dry run with the real wizard rules) →
 `deploy_instance` (proposal → task). On a deployed instance: `update_instance`, `rollback_instance`
 (`list_instance_snapshots`), `restore_backup` (`list_backups`), `migrate_instance` (panel-only
-confirmation). Stale state: `check_instance_state`, `test_server_connection`.
+confirmation). Stale state: `check_instance_state`, `test_server_connection`. **Console:**
+`exec_command` runs one plain command on a server (no pipes, `sudo` or interactive programs)
+only while a person keeps a console grant on that server; if the tool says there is no grant,
+ask the person to grant it from the server form and do not try to work around it.
 
 > **REST:** the same tool registry is also served as a plain REST facade for conventional
 > applications: `POST $STEER_PANEL_URL/api/v1/tools/<tool>` with the tool arguments as the JSON

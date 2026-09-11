@@ -1,0 +1,52 @@
+{
+  "$schema": "https://static.modelcontextprotocol.io/schemas/2025-12-11/server.schema.json",
+  "name": "io.github.steer-run/steer",
+  "title": "Steer panel",
+  "description": "Operate a Steer DevOps panel: instances, servers, deploys, backups, DNS, SSL, VPN and monitoring.",
+  "version": "1.3.0",
+  "websiteUrl": "https://steer.run",
+  "repository": {
+    "url": "https://github.com/steer-run/steer-workspace",
+    "source": "github"
+  },
+  "remotes": [
+    {
+      "type": "streamable-http",
+      "url": "https://{panel_host}/mcp",
+      "variables": {
+        "panel_host": {
+          "description": "Host name of your Steer panel (each customer runs their own).",
+          "isRequired": true,
+          "format": "string",
+          "placeholder": "panel.example.com"
+        }
+      },
+      "headers": [
+        {
+          "name": "Authorization",
+          "description": "Bearer <agent token> created in the panel under Governance → Agent connections. Leave it out to authorize through OAuth 2.1 instead (claude.ai, ChatGPT, Claude Code).",
+          "value": "Bearer {token}",
+          "isRequired": false,
+          "isSecret": true,
+          "variables": {
+            "token": {
+              "description": "Agent token (stmcp_…). Optional: the panel is also an OAuth 2.1 authorization server.",
+              "isRequired": false,
+              "isSecret": true
+            }
+          }
+        }
+      ]
+    }
+  ],
+  "_meta": {
+    "io.modelcontextprotocol.registry/publisher-provided": {
+      "protocolVersions": ["2026-07-28", "2025-11-25", "2025-06-18", "2025-03-26"],
+      "authorization": {
+        "oauth": "The panel serves RFC 9728 protected-resource metadata and RFC 8414 authorization-server metadata; clients may register through Client ID Metadata Documents or dynamic client registration, with PKCE S256.",
+        "bearer": "Agent tokens created in the panel (masked to the user's permissions)."
+      },
+      "rest": "https://{panel_host}/api/v1 (same tools and token; OpenAPI at /api/v1/openapi.json)"
+    }
+  }
+}

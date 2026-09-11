@@ -19,6 +19,7 @@ copy, then connect it to your Steer panel.
 | [`skills/`](skills/) | Agent Skills for Claude Code and Codex: author templates, operate, troubleshoot. | Steer |
 | [`.claude-plugin/`](.claude-plugin/), [`.mcp.json`](.mcp.json) | Claude Code plugin + marketplace and the MCP connector to your panel. | Steer |
 | [`api/`](api/) | OpenAPI 3.1 contract of the REST facade (`/api/v1`, same tools and token as MCP), a snapshot of what the panel serves at `GET /api/v1/openapi.json`. | Steer |
+| [`docs/connect.md`](docs/connect.md), [`server.json`](server.json) | How to connect each client (OAuth for claude.ai / ChatGPT, tokens for Claude Code / Codex, REST for applications), the proposal and task model, error codes; and the MCP registry manifest. | Steer |
 | [`harness/`](harness/) | Local validators — check what you author **before** you commit. | Steer |
 | [`examples/`](examples/) | Golden, annotated examples to learn from. | Steer |
 | [`AGENTS.md`](AGENTS.md) | **The map.** What this is and how to operate Steer. The first thing an AI should read. | Steer |
