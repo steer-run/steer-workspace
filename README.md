@@ -44,7 +44,9 @@ copy, then connect it to your Steer panel.
    steer-run/steer-workspace` → `/plugin install steer@steer-run` (or `claude mcp add --transport
    http steer $STEER_PANEL_URL/mcp --header "Authorization: Bearer $STEER_MCP_TOKEN"`). Codex CLI:
    add `[mcp_servers.steer]` with `url` and `bearer_token_env_var = "STEER_MCP_TOKEN"` to
-   `~/.codex/config.toml`.
+   `~/.codex/config.toml`. **claude.ai / ChatGPT:** add a custom connector with the URL
+   `$STEER_PANEL_URL/mcp` and no credentials; the panel authorizes it through OAuth 2.1 with a consent
+   screen where you choose what the agent may do.
 4. **Point your AI at this repo.** Tell it to read [`AGENTS.md`](AGENTS.md). Then ask it things like:
    - *"Create a template for [app] from this docker-compose."*
    - *"Add a dashboard that tracks [metric]."*

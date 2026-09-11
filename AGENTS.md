@@ -137,6 +137,13 @@ your client supports elicitation, or through a confirmation URL).
   ```
   The skills are also exposed under `.agents/skills/` for Codex.
 - **Anything else that speaks MCP:** HTTP transport, `Authorization: Bearer <token>`.
+- **claude.ai, ChatGPT, or any client that does OAuth (no token to paste):** add the panel as a
+  custom connector with the URL `https://<panel>/mcp`, no client id or secret. The panel is its own
+  OAuth 2.1 authorization server (RFC 9728 / 8414 discovery, Client ID Metadata Documents and dynamic
+  registration, PKCE S256, rotated refresh tokens). The browser lands on the panel's consent screen:
+  log in, see which client asks and where it returns to, and choose what the agent may do (read only,
+  read and operate, or full access), how long the connection lasts and whether it reaches production.
+  The result is a normal agent connection (*Governance → Agent connections*), revocable there.
 
 **Discover.** Call `steer_help` (tools by intent, what your token grants) or `get_overview`.
 Read the resources `steer://instructions`, `steer://guide/applications`,
