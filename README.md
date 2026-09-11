@@ -18,7 +18,7 @@ copy, then connect it to your Steer panel.
 | [`schema/`](schema/) | Machine-readable JSON Schemas. They keep the AI from inventing fields. | Steer |
 | [`skills/`](skills/) | Agent Skills for Claude Code and Codex: author templates, operate, troubleshoot. | Steer |
 | [`.claude-plugin/`](.claude-plugin/), [`.mcp.json`](.mcp.json) | Claude Code plugin + marketplace and the MCP connector to your panel. | Steer |
-| [`api/`](api/) | Draft OpenAPI contract of a future REST façade (not live; the live surface is MCP). | Steer |
+| [`api/`](api/) | OpenAPI 3.1 contract of the REST facade (`/api/v1`, same tools and token as MCP), a snapshot of what the panel serves at `GET /api/v1/openapi.json`. | Steer |
 | [`harness/`](harness/) | Local validators — check what you author **before** you commit. | Steer |
 | [`examples/`](examples/) | Golden, annotated examples to learn from. | Steer |
 | [`AGENTS.md`](AGENTS.md) | **The map.** What this is and how to operate Steer. The first thing an AI should read. | Steer |
