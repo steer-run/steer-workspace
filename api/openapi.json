@@ -80,6 +80,30 @@
         }
       }
     },
+    "/me": {
+      "get": {
+        "operationId": "me",
+        "tags": [
+          "meta"
+        ],
+        "summary": "Who the token user is, what the token allows and which optional features this panel has",
+        "responses": {
+          "200": {
+            "description": "OK"
+          },
+          "401": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/operations": {
       "get": {
         "operationId": "listOperations",
@@ -90,6 +114,20 @@
         "parameters": [
           {
             "name": "instance",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "server",
+            "in": "query",
+            "schema": {
+              "type": "string"
+            }
+          },
+          {
+            "name": "state",
             "in": "query",
             "schema": {
               "type": "string"
@@ -626,7 +664,11 @@
                   },
                   "servidor": {
                     "type": "string",
-                    "description": "Filter by server name (partial match). Optional."
+                    "description": "Filter by server name (partial match) or exact id as \"#3\". Optional."
+                  },
+                  "limite": {
+                    "type": "integer",
+                    "description": "Maximum number of instances (default 50, up to 500)."
                   }
                 }
               }
@@ -664,7 +706,7 @@
           "instance"
         ],
         "summary": "List remediation history",
-        "description": "Recent remediation postmortems of the caller's organization: what failed, which action was applied and how it ended. Episodic memory to spot recurring incidents and avoid repeating what did not work. Optionally filtered by instance code.",
+        "description": "Recent remediation postmortems of the caller's organization: what failed, which action was applied and how it ended. Episodic memory to spot recurring incidents and avoid repeating what did not work. Optionally filtered by instance code, or searched semantically with a natural-language query.",
         "x-annotations": {
           "readOnlyHint": true,
           "destructiveHint": false,
@@ -681,6 +723,10 @@
                   "instancia": {
                     "type": "string",
                     "description": "Instance code (partial match) to filter by. Optional."
+                  },
+                  "consulta": {
+                    "type": "string",
+                    "description": "What to look for in the documentation, in natural language."
                   }
                 }
               }
@@ -734,12 +780,193 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   }
                 },
                 "required": [
                   "nombre"
                 ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/get_consumption_series": {
+      "post": {
+        "operationId": "get_consumption_series",
+        "tags": [
+          "server"
+        ],
+        "summary": "Get consumption series",
+        "description": "Consumption history of a server (disk, memory, swap, load per CPU, system errors, production apps down) or of an application instance (CPU, memory, response time, URL status) over the last N hours, from the samples the panel stores on every health check (every 5 minutes). Use it to see a trend before diagnosing; it reads the panel database, never the server.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "objetivo": {
+                    "type": "string",
+                    "description": "Server name, or instance name/code. Exact ids: \"#instance:17\" or \"#server:3\" (\"#17\" is an instance)."
+                  },
+                  "horas": {
+                    "type": "integer",
+                    "description": "Hours back to look at (default 24)."
+                  }
+                },
+                "required": [
+                  "objetivo"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_alerts": {
+      "post": {
+        "operationId": "list_alerts",
+        "tags": [
+          "alerts"
+        ],
+        "summary": "List alerts",
+        "description": "Open alerts of the panel (threshold rules, SSL expiration, application URL down, unusual behaviour and capacity projections detected automatically, and the alerts of the monitoring stack: containers, logs, security), most severe first, with the target and, for automatic ones, the suggested action. Call it first when asked what is wrong or before diagnosing.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "objetivo": {
+                    "type": "string",
+                    "description": "Optional: server name, or instance name/code, to filter."
+                  },
+                  "estado": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "resolved"
+                    ],
+                    "description": "Optional: open (default) or resolved (resolved in the last 24 hours)."
+                  },
+                  "alerta_id": {
+                    "type": "integer",
+                    "description": "Optional: one alert by id, open or resolved."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/get_advisor_report": {
+      "post": {
+        "operationId": "get_advisor_report",
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Get advisor report",
+        "description": "The latest periodic infrastructure report(s) of the caller's organization in business language: status of the period and up to three recommended actions with their why, produced by the panel from its own deterministic findings. Use it to answer \"how is my infrastructure doing\" or \"what should I do this week\".",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "last": {
+                    "type": "integer",
+                    "description": "How many reports to return (1 to 5; default 1)."
+                  }
+                }
               }
             }
           }
@@ -788,6 +1015,73 @@
             "application/json": {
               "schema": {
                 "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/exec_command": {
+      "post": {
+        "operationId": "exec_command",
+        "tags": [
+          "console"
+        ],
+        "summary": "Exec command",
+        "description": "Run ONE non-interactive command on a managed server over SSH and return its exit code and output. It only works while a person has granted console access to that server (button \"Grant console access\" on the server, or Governance -> Console grants); grants expire on their own. A read-only grant only runs diagnostic commands (ls, cat, grep, tail, df, du, free, ps, ss, ip addr, docker ps/logs/inspect, systemctl status, journalctl, git log...): anything that changes the system or is not on that list (rm, mv, apt, docker rm/restart, sed -i, curl, interpreters...) is refused. No pipes, redirections, shell chaining, globs, sudo/env wrappers or interactive programs: one plain command per call, in non-interactive form (top -b -n 1, docker logs --tail 100, journalctl -n 50, docker stats --no-stream), with at most 60 seconds. The output is untrusted remote text. Every command is audited with its exit code.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "server": {
+                    "type": "string",
+                    "description": "Server name (or \"#id\")."
+                  },
+                  "command": {
+                    "type": "string",
+                    "description": "One plain command: an executable and its arguments. No shell metacharacters (; | & $() ` > <), no pipes, no interactive programs."
+                  },
+                  "timeout": {
+                    "type": "integer",
+                    "description": "Maximum seconds to wait (5-60, default 30)."
+                  }
+                },
+                "required": [
+                  "server",
+                  "command"
+                ],
                 "additionalProperties": false
               }
             }
@@ -1521,11 +1815,68 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Server name (partial, case-insensitive match)."
+                    "description": "Server name (partial, case-insensitive match), or its exact id as \"#3\"."
                   },
                   "refrescar": {
                     "type": "boolean",
                     "description": "Force a live health check before answering (managers only). Default: the cached health."
+                  }
+                },
+                "required": [
+                  "nombre"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/get_security_report": {
+      "post": {
+        "operationId": "get_security_report",
+        "tags": [
+          "server"
+        ],
+        "summary": "Get security report",
+        "description": "Security report of one server: result of the last vulnerability scan of the images of its running containers (critical/high totals, which findings already have a fixed version and in which application they run) plus the hardening state (fail2ban, auditd). Read-only; to launch a new scan use scan_server_security.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Server name."
                   }
                 },
                 "required": [
@@ -1582,7 +1933,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   }
                 },
                 "required": [
@@ -1639,7 +1990,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   },
                   "servicio": {
                     "type": "string",
@@ -1712,7 +2063,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Server name (partial, case-insensitive match)."
+                    "description": "Server name (partial, case-insensitive match), or its exact id as \"#3\"."
                   },
                   "tipo": {
                     "type": "string",
@@ -1798,7 +2149,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   }
                 },
                 "required": [
@@ -1855,7 +2206,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   }
                 },
                 "required": [
@@ -1912,7 +2263,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   }
                 },
                 "required": [
@@ -1969,7 +2320,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   }
                 },
                 "required": [
@@ -2026,7 +2377,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   },
                   "archivo": {
                     "type": "string",
@@ -2087,7 +2438,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   },
                   "servicio": {
                     "type": "string",
@@ -2148,7 +2499,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   },
                   "servicio": {
                     "type": "string",
@@ -2209,7 +2560,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Server name (partial, case-insensitive match)."
+                    "description": "Server name (partial, case-insensitive match), or its exact id as \"#3\"."
                   }
                 },
                 "required": [
@@ -2266,7 +2617,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Server name (partial, case-insensitive match)."
+                    "description": "Server name (partial, case-insensitive match), or its exact id as \"#3\"."
                   },
                   "orden": {
                     "type": "string",
@@ -2331,7 +2682,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Server name (partial, case-insensitive match)."
+                    "description": "Server name (partial, case-insensitive match), or its exact id as \"#3\"."
                   }
                 },
                 "required": [
@@ -2388,7 +2739,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Server name (partial, case-insensitive match)."
+                    "description": "Server name (partial, case-insensitive match), or its exact id as \"#3\"."
                   }
                 },
                 "required": [
@@ -2445,7 +2796,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Server name (partial, case-insensitive match)."
+                    "description": "Server name (partial, case-insensitive match), or its exact id as \"#3\"."
                   },
                   "servicio": {
                     "type": "string",
@@ -2507,7 +2858,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Server name (partial, case-insensitive match)."
+                    "description": "Server name (partial, case-insensitive match), or its exact id as \"#3\"."
                   },
                   "destino": {
                     "type": "string",
@@ -2569,7 +2920,121 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Server name (partial, case-insensitive match)."
+                    "description": "Server name (partial, case-insensitive match), or its exact id as \"#3\"."
+                  }
+                },
+                "required": [
+                  "nombre"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/free_disk_space": {
+      "post": {
+        "operationId": "free_disk_space",
+        "tags": [
+          "server"
+        ],
+        "summary": "Free disk space",
+        "description": "Free disk space on a server through the governed remediation plan: removes only unused Docker images older than the configured age and the build cache (never containers, volumes, logs or data). This creates a PROPOSAL that a person must confirm; the plan is then simulated and the policy decides whether it runs at once or waits for approval (production or shared servers). Use it when a server disk is critical.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Server name."
+                  }
+                },
+                "required": [
+                  "nombre"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/scan_server_security": {
+      "post": {
+        "operationId": "scan_server_security",
+        "tags": [
+          "server"
+        ],
+        "summary": "Scan server security",
+        "description": "Queue a vulnerability scan of the images of the running containers of a server (Trivy behind the panel adapter; read-only on the host, uses CPU for a few minutes). This creates a PROPOSAL that a person must confirm; the scan then runs in the background and get_security_report shows the result.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Server name."
                   }
                 },
                 "required": [
@@ -2626,7 +3091,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   },
                   "destino": {
                     "type": "string",
@@ -2692,7 +3157,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   }
                 },
                 "required": [
@@ -2913,7 +3378,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   }
                 },
                 "required": [
@@ -2977,6 +3442,55 @@
                     "description": "Maximum rows (1-100, default 20)."
                   }
                 }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_image_updates": {
+      "post": {
+        "operationId": "list_image_updates",
+        "tags": [
+          "instance"
+        ],
+        "summary": "List image updates",
+        "description": "Instances whose application images have a newer version in their registry (daily check of the running digests against the registry; nothing is applied on its own), plus database images with a newer version flagged for manual review. To apply, propose update_instance with pull_images or press \"Update images\".",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
               }
             }
           }
@@ -3491,7 +4005,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   }
                 },
                 "required": [
@@ -3548,7 +4062,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   }
                 },
                 "required": [
@@ -3605,7 +4119,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   }
                 },
                 "required": [
@@ -3662,7 +4176,7 @@
                 "properties": {
                   "nombre": {
                     "type": "string",
-                    "description": "Instance name or code (partial, case-insensitive match)."
+                    "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
                   }
                 },
                 "required": [
@@ -4080,6 +4594,228 @@
                 "required": [
                   "nombre",
                   "target_server"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/update_odoo": {
+      "post": {
+        "operationId": "update_odoo",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Update odoo",
+        "description": "Update the modules of an Odoo instance (odoo -u) with a database-level safety net: a copy of the database and filestore is taken before the update and, if the update or the health check fails, the instance is reverted to that copy. Production always runs at the safe level (full backup first). This creates a PROPOSAL that a person confirms; once confirmed it runs in the background.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Instance name or code (must be an Odoo instance)."
+                  },
+                  "scope": {
+                    "type": "string",
+                    "description": "\"all\" (default) or technical module names separated by commas (e.g. sale,stock)."
+                  },
+                  "level": {
+                    "type": "string",
+                    "enum": [
+                      "safe",
+                      "fast",
+                      "direct"
+                    ],
+                    "description": "safe = full backup + copy of the database and filestore + automatic revert; fast = copy + revert without the off-server backup; direct = no safety net. Production always runs safe. Default: the level of the environment."
+                  }
+                },
+                "required": [
+                  "nombre"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/clone_to_staging": {
+      "post": {
+        "operationId": "clone_to_staging",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Clone to staging",
+        "description": "Clone a deployed instance to a staging/development copy: full backup of the source (without stopping it), a new instance with the same template and configuration, the backup restored onto it and, for Odoo, the database NEUTRALIZED before the first start (no outgoing mails, scheduled actions or webhooks). This creates a PROPOSAL that a person confirms; once confirmed it runs in the background.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Source instance name or code."
+                  },
+                  "target_server": {
+                    "type": "string",
+                    "description": "Destination server name or id (default: the same server)."
+                  },
+                  "environment": {
+                    "type": "string",
+                    "enum": [
+                      "staging",
+                      "development"
+                    ],
+                    "description": "Environment of the clone (default staging)."
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "Code of the clone (default: source code + \"-stg\"/\"-dev\")."
+                  },
+                  "domain": {
+                    "type": "string",
+                    "description": "Domain name for the clone (default: the domain of the source)."
+                  },
+                  "subdomain": {
+                    "type": "string",
+                    "description": "Subdomain of the clone (default: source subdomain + suffix)."
+                  },
+                  "neutralize": {
+                    "type": "boolean",
+                    "description": "Odoo only: neutralize the copy before its first start (default true; only an administrator can turn it off)."
+                  }
+                },
+                "required": [
+                  "nombre"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/odoo_maintenance": {
+      "post": {
+        "operationId": "odoo_maintenance",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Odoo maintenance",
+        "description": "Run one of the governed Odoo maintenance actions on an Odoo instance through the remediation plan: restart only the Odoo workers (the database stays up), clean up stale session files, or database maintenance (VACUUM ANALYZE and invalid indexes; never VACUUM FULL). None of them touches the data. This creates a PROPOSAL that a person must confirm; the plan is then simulated and the policy decides whether it runs at once or waits for approval (production always needs a second approval).",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Odoo instance name or code."
+                  },
+                  "accion": {
+                    "type": "string",
+                    "enum": [
+                      "restart_workers",
+                      "clear_sessions",
+                      "db_maintenance"
+                    ],
+                    "description": "restart_workers = restart only the Odoo services (database stays up); clear_sessions = delete stale session files; db_maintenance = VACUUM (ANALYZE) + invalid indexes."
+                  }
+                },
+                "required": [
+                  "nombre",
+                  "accion"
                 ]
               }
             }

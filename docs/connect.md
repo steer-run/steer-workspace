@@ -109,6 +109,13 @@ curl -s https://<panel>/api/v1/tools/get_instance -H "Authorization: Bearer <tok
 | `GET /api/v1/proposals/<id>` · `POST …/confirm` · `POST …/discard` | Proposals |
 | `GET /api/v1/operations[/<id>]` | Queued operations (filters `instance`, `server`, `state`, `limit`) |
 | `GET /api/v1/openapi.json` | OpenAPI 3.1 contract generated from what this token sees |
+| `GET /api/v1/me` | Who the token user is (organization, roles), what the token allows (level per area, environments, expiry) and which optional features the panel has. Does not count against the quota |
+
+Tools that take an instance or server name also accept its **exact id as `#17`** (a name match is
+partial and takes the first hit, and several instances can share a name); the consumption series take
+`#instance:17` or `#server:3`. Two optional headers: `X-Steer-Lang: es_AR` returns the panel's own
+phrases (health, alerts, diagnosis) in that language when it is active in the panel, and
+`X-Steer-Client: <name>/<version> <detail>` labels the connection in *Agent connections*.
 
 Errors come as `{ok: false, error_code, message, hint, retryable}`:
 
