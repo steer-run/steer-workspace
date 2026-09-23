@@ -116,8 +116,9 @@ never reaches the panel.
 ## Operating the live panel (imperative plane): MCP
 
 The panel **is** an MCP server (`POST https://<your-panel>/mcp`, spec 2026-07-28, also the
-`initialize` era). Every tool runs with the permissions of the user behind the token and is
-audited; writes never run directly, they create a **proposal** a person confirms (inline when
+`initialize` era). Every tool runs with the permissions of the user behind the token and every
+action is audited (plain reads are not); writes never run directly, they create a **proposal** a
+person confirms (inline when
 your client supports elicitation, or through a confirmation URL).
 
 **Connect.** Create a token in the panel (*Governance → Agent connections*), then (the
