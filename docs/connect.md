@@ -81,6 +81,8 @@ a **proposal**.
 - **Migrating an instance** is only confirmed in the panel, with the user's password, like its
   own wizard (`panel_only: true`, REST `409 CONFIRMATION_REQUIRED`).
 - Confirming re-checks the token's permission for the tool that created the proposal.
+- The Steer app's own connection is only for the app: on `/mcp` it gets `403 app_connection`.
+  Agents connect with their own connection.
 
 **Server console.** `exec_command` runs one plain, non-interactive command on a managed server
 (no pipes, redirections, `sudo` or interactive programs) but only while a **person has granted
@@ -90,7 +92,7 @@ console access** to that server in the panel (server form → *Grant console acc
 else is refused with the reason), or read and write; for a limited time and number of commands. Without a grant the tool answers so and the agent should ask the person for
 one. Every command is audited with its exit code.
 
-What the panel queues (deploy, update, restore, migration, backup) comes back as a **task**
+What the panel queues (start, stop, restart, deploy, update, restore, migration, backup) comes back as a **task**
 (`resultType: task`, poll `tasks/get`) or as an `operation_id` for `get_operation` /
 `list_operations`. Never retry the action call: you would start the same operation twice.
 
@@ -110,10 +112,12 @@ curl -s https://<panel>/api/v1/tools/get_instance -H "Authorization: Bearer <tok
 | `GET /api/v1/operations[/<id>]` | Queued operations (filters `instance`, `server`, `state`, `limit`) |
 | `GET /api/v1/openapi.json` | OpenAPI 3.1 contract generated from what this token sees |
 | `GET /api/v1/me` | Who the token user is (organization, roles), what the token allows (level per area, environments, expiry) and which optional features the panel has. Does not count against the quota |
+| `POST /api/v1/chat` · `GET /api/v1/chat/messages` | The conversation with the panel's own assistant. It shares the person's whole history with the assistant in the panel, so **only the Steer mobile app's own connection can use it**; any other token gets `403 FORBIDDEN` (agents use MCP) |
 
 Tools that take an instance or server name also accept its **exact id as `#17`** (a name match is
 partial and takes the first hit, and several instances can share a name); the consumption series take
-`#instance:17` or `#server:3`. Two optional headers: `X-Steer-Lang: es_AR` returns the panel's own
+`#instance:17` or `#server:3`; `list_servers` returns at most 50, filter it with `nombre` (partial name or
+`#3`). Two optional headers: `X-Steer-Lang: es_AR` returns the panel's own
 phrases (health, alerts, diagnosis) in that language when it is active in the panel, and
 `X-Steer-Client: <name>/<version> <detail>` labels the connection in *Agent connections*.
 

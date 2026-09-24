@@ -164,8 +164,12 @@ Read the resources `steer://instructions`, `steer://guide/applications`,
 | Installed templates | `list_applications`, `get_application` |
 
 **Operate.** `list_instances` → `get_instance` → `diagnose_instance` → containers / logs →
-`start_instance` / `stop_instance` / `restart_instance` / `create_backup` (proposals). Long
-operations return a task (`tasks/get`) or an `operation_id` (`get_operation`).
+`start_instance` / `stop_instance` / `restart_instance` / `create_backup` (proposals). Once
+confirmed they run as operations: a task (`tasks/get`) or an `operation_id` (`get_operation`;
+`list_operations` filters by instance, server, state and `since_hours`). Do not claim the instance
+started, stopped or restarted until the operation succeeded. Alerts:
+`list_alerts` → `acknowledge_alert` when the person says they are on it (records who and when;
+it does not resolve the alert and is not a proposal, but it is audited).
 
 **Provision.** `get_deploy_schema` → `validate_deploy` (dry run with the real wizard rules) →
 `deploy_instance` (proposal → task). On a deployed instance: `update_instance`, `rollback_instance`

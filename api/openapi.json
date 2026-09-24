@@ -134,6 +134,13 @@
             }
           },
           {
+            "name": "since_hours",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "schema": {
@@ -518,11 +525,11 @@
                 "properties": {
                   "instance": {
                     "type": "string",
-                    "description": "Instance name or code (partial match)."
+                    "description": "Instance name or code (partial match), or its exact id as \"#17\"."
                   },
                   "server": {
                     "type": "string",
-                    "description": "Server name (partial match)."
+                    "description": "Server name (partial match), or its exact id as \"#3\"."
                   },
                   "state": {
                     "type": "string",
@@ -535,6 +542,10 @@
                       "cancelled"
                     ],
                     "description": "Filter by state."
+                  },
+                  "since_hours": {
+                    "type": "integer",
+                    "description": "Only operations created in the last N hours (e.g. 24)."
                   },
                   "limit": {
                     "type": "integer",
@@ -995,6 +1006,63 @@
         }
       }
     },
+    "/tools/acknowledge_alert": {
+      "post": {
+        "operationId": "acknowledge_alert",
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Acknowledge alert",
+        "description": "Acknowledge an open alert: it records who is looking at it and when, so the rest of the team knows someone is on it. It does not resolve the alert or change anything on the servers; the alert closes by itself when the condition clears. Idempotent: an alert that is already acknowledged keeps its first acknowledgment. Audited.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "alerta_id": {
+                    "type": "integer",
+                    "description": "Id of the open alert to acknowledge (from list_alerts)."
+                  }
+                },
+                "required": [
+                  "alerta_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tools/list_servers": {
       "post": {
         "operationId": "list_servers",
@@ -1002,7 +1070,7 @@
           "server"
         ],
         "summary": "List servers",
-        "description": "List the servers the caller can see with their \"#id\", state, health status, CPU cores, RAM and disk usage. Start here before diagnosing a host.",
+        "description": "List the servers the caller can see with their \"#id\", state, health status, CPU cores, RAM and disk usage (at most 50; filter by name or \"#id\" to get one). Start here before diagnosing a host.",
         "x-annotations": {
           "readOnlyHint": true,
           "destructiveHint": false,
@@ -1015,7 +1083,12 @@
             "application/json": {
               "schema": {
                 "type": "object",
-                "additionalProperties": false
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Optional: server name (partial, case-insensitive match) or its exact id as \"#3\"."
+                  }
+                }
               }
             }
           }
@@ -3989,7 +4062,7 @@
           "instance"
         ],
         "summary": "Start instance",
-        "description": "Start a stopped or errored instance (docker compose up). This creates a PROPOSAL: nothing runs until a person confirms it (inline if your client supports it, or through the confirmation URL in the result). Diagnose first; do not claim the instance started until the confirmation result says so.",
+        "description": "Start a stopped or errored instance (docker compose up). This creates a PROPOSAL: nothing runs until a person confirms it (inline if your client supports it, or through the confirmation URL in the result). Once confirmed it runs in the background: the result carries a task or an operation id to poll with get_operation. Diagnose first; do not claim the instance started until the operation succeeded.",
         "x-annotations": {
           "readOnlyHint": false,
           "destructiveHint": true,
@@ -4046,7 +4119,7 @@
           "instance"
         ],
         "summary": "Stop instance",
-        "description": "Stop a running instance (docker compose down). Causes downtime. This creates a PROPOSAL that a person must confirm; in production state the impact and offer a backup first (create_backup).",
+        "description": "Stop a running instance (docker compose down). Causes downtime. This creates a PROPOSAL that a person must confirm; in production state the impact and offer a backup first (create_backup). Once confirmed it runs in the background: poll the task or the operation id with get_operation.",
         "x-annotations": {
           "readOnlyHint": false,
           "destructiveHint": true,
@@ -4103,7 +4176,7 @@
           "instance"
         ],
         "summary": "Restart instance",
-        "description": "Restart a running instance (docker compose restart). Brief interruption. This creates a PROPOSAL that a person must confirm; in production state the impact and offer a backup first. Prefer it over stop+start.",
+        "description": "Restart a running instance (docker compose restart). Brief interruption. This creates a PROPOSAL that a person must confirm; in production state the impact and offer a backup first. Prefer it over stop+start. Once confirmed it runs in the background: poll the task or the operation id with get_operation.",
         "x-annotations": {
           "readOnlyHint": false,
           "destructiveHint": true,
