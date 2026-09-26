@@ -142,6 +142,19 @@ server {
     gzip on;
     gzip_types text/plain text/css application/json application/javascript text/xml application/xml;
 
+    # Raíz del sitio: mientras html/ no tenga index.html se muestra la página de
+    # bienvenida (vive en conf.d/steer/, fuera del contenido del sitio). Subir un
+    # index.html la reemplaza sola, sin reiniciar; la plantilla nunca escribe en html/.
+    location = / {
+        index index.html index.htm /__steer/welcome.html;
+    }
+
+    location = /__steer/welcome.html {
+        internal;
+        alias /etc/nginx/conf.d/steer/welcome.html;
+        add_header Cache-Control "no-store";
+    }
+
     location / {
         try_files $uri $uri/ =404;
     }
@@ -152,6 +165,56 @@ server {
         add_header Cache-Control "public, immutable";
     }
 }
+]]></field>
+    </record>
+
+
+    <record id="template_nginx_config_welcome" model="service.template.config.file">
+        <field name="template_id" ref="template_nginx"/>
+        <field name="name">Página de bienvenida</field>
+        <field name="filename">welcome.html</field>
+        <field name="path">./conf.d/steer/</field>
+        <field name="syntax_mode">xml</field>
+        <field name="sequence">20</field>
+        <field name="description">Se muestra en la raíz del sitio mientras html/ no tenga un index.html. No hace falta borrarla: el index.html del sitio la reemplaza.</field>
+        <field name="content_template"><![CDATA[<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<meta name="robots" content="noindex">
+<title>{{ instance.name | e }}</title>
+<style>
+  :root { color-scheme: light dark; --bg: #f4f6f8; --card: #ffffff; --ink: #1c2530; --muted: #5b6878; --line: #dde3ea; --ok: #1f8a5b; }
+  @media (prefers-color-scheme: dark) {
+    :root { --bg: #11161c; --card: #19212a; --ink: #e6ebf0; --muted: #9aa7b5; --line: #2a3542; --ok: #4cc38a; }
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; min-height: 100vh; display: grid; place-items: center; padding: 24px 16px;
+         background: var(--bg); color: var(--ink);
+         font: 16px/1.55 system-ui, -apple-system, "Segoe UI", Roboto, sans-serif; }
+  main { width: 100%; max-width: 560px; background: var(--card); border: 1px solid var(--line);
+         border-radius: 10px; padding: 32px 28px; }
+  .status { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; font-weight: 600;
+            letter-spacing: .04em; text-transform: uppercase; color: var(--ok); }
+  .status::before { content: ""; width: 8px; height: 8px; border-radius: 50%; background: var(--ok); }
+  h1 { margin: 12px 0 8px; font-size: 26px; line-height: 1.25; overflow-wrap: anywhere; }
+  p { margin: 0 0 14px; color: var(--muted); }
+  code { font: 14px/1.4 ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; color: var(--ink);
+         background: var(--bg); border: 1px solid var(--line); border-radius: 4px; padding: 1px 5px; }
+  footer { margin-top: 22px; padding-top: 14px; border-top: 1px solid var(--line); font-size: 13px; color: var(--muted); }
+</style>
+</head>
+<body>
+<main>
+  <span class="status">Online</span>
+  <h1>{{ instance.name | e }} is up</h1>
+  <p>Nginx is running and this address already reaches it. This page stands in until the site has its own content.</p>
+  <p>To publish the site, put its files in the <code>html/</code> folder of the instance. As soon as there is an <code>index.html</code> there, it replaces this page. No restart needed.</p>
+  <footer>Served by Nginx, deployed from the Steer panel.</footer>
+</main>
+</body>
+</html>
 ]]></field>
     </record>
 
