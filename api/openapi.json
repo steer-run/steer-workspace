@@ -141,6 +141,13 @@
             }
           },
           {
+            "name": "batch_id",
+            "in": "query",
+            "schema": {
+              "type": "integer"
+            }
+          },
+          {
             "name": "limit",
             "in": "query",
             "schema": {
@@ -401,7 +408,7 @@
           "panel"
         ],
         "summary": "Panel overview",
-        "description": "One-shot overview of everything the caller can see: instances by state and environment, servers by state and health, open alerts by severity and operations that failed in the last 24 hours. Use it to orient yourself before drilling down.",
+        "description": "One-shot overview of everything the caller can see: instances by state and environment (also counted apart for the apps, without the system services the panel manages itself), servers by state and health, open alerts by severity and operations that failed in the last 24 hours (and how many ran in total). Use it to orient yourself before drilling down.",
         "x-annotations": {
           "readOnlyHint": true,
           "destructiveHint": false,
@@ -451,7 +458,7 @@
           "operations"
         ],
         "summary": "Get operation",
-        "description": "State, progress and output tail of one panel operation (deploy, backup, restore, update...) by id. Poll it after an action that returned an operation id until the state is success, warning, failed or cancelled.",
+        "description": "State, progress and output tail of one panel operation (deploy, backup, restore, update...) by id, with the steps of its whole output. Poll it after an action that returned an operation id until the state is success, warning, failed or cancelled.",
         "x-annotations": {
           "readOnlyHint": true,
           "destructiveHint": false,
@@ -547,11 +554,73 @@
                     "type": "integer",
                     "description": "Only operations created in the last N hours (e.g. 24)."
                   },
+                  "batch_id": {
+                    "type": "integer",
+                    "description": "Only the operations of one batch (a bulk action launched on several instances at once; see batch_id in each row). With it the whole batch is listed."
+                  },
                   "limit": {
                     "type": "integer",
-                    "description": "Max rows (1-50, default 20)."
+                    "description": "Max rows (1-500, default 20; with batch_id the whole batch)."
                   }
                 },
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/get_operation_batch": {
+      "post": {
+        "operationId": "get_operation_batch",
+        "tags": [
+          "operations"
+        ],
+        "summary": "Get operation batch",
+        "description": "One batch of operations launched together on several instances (a bulk start, stop, restart, update, backup, log cleanup or SQL run): who launched it and when, how many succeeded, failed or are still running, the error the failed ones share, and every operation of the batch. Use the batch_id of list_operations; retry_failed_operations proposes to run the failed ones again.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "batch_id": {
+                    "type": "integer",
+                    "description": "Batch id (batch_id of an operation)."
+                  }
+                },
+                "required": [
+                  "batch_id"
+                ],
                 "additionalProperties": false
               }
             }
@@ -886,6 +955,170 @@
         }
       }
     },
+    "/tools/get_instance_breakdown": {
+      "post": {
+        "operationId": "get_instance_breakdown",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Get instance breakdown",
+        "description": "Which container (compose service: database, worker, web...) of an application instance uses the most memory, CPU or processes now, and which grew the most over the last N hours. Use it after get_server_breakdown to find the container behind an application that grew; it reads the panel database, never the server.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instancia": {
+                    "type": "string",
+                    "description": "Instance name or code, or \"#17\" for the instance with id 17."
+                  },
+                  "metrica": {
+                    "type": "string",
+                    "enum": [
+                      "memory",
+                      "cpu",
+                      "pids"
+                    ],
+                    "description": "What to break down: memory (default), cpu, or pids (processes and threads)."
+                  },
+                  "horas": {
+                    "type": "integer",
+                    "description": "Hours back to look at (default 24). The per-container history is hourly."
+                  },
+                  "orden": {
+                    "type": "string",
+                    "enum": [
+                      "now",
+                      "growth"
+                    ],
+                    "description": "now (default): which container uses the most now; growth: which grew the most in the window."
+                  }
+                },
+                "required": [
+                  "instancia"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/get_server_breakdown": {
+      "post": {
+        "operationId": "get_server_breakdown",
+        "tags": [
+          "server"
+        ],
+        "summary": "Get server breakdown",
+        "description": "Which applications of a server use the most memory, CPU or disk now, and which grew the most over the last N hours, from the samples the panel stores on every health check. Use it to find the culprit of a memory, load or disk alert. Values are in MB (memory, disk) or % of one core (cpu); it reads the panel database, never the server.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "servidor": {
+                    "type": "string",
+                    "description": "Server name, or \"#3\" for the server with id 3."
+                  },
+                  "metrica": {
+                    "type": "string",
+                    "enum": [
+                      "memory",
+                      "cpu",
+                      "disk"
+                    ],
+                    "description": "What to break down: memory (default), cpu or disk."
+                  },
+                  "horas": {
+                    "type": "integer",
+                    "description": "Hours back to look at (default 24; 336 = 14 days)."
+                  },
+                  "orden": {
+                    "type": "string",
+                    "enum": [
+                      "now",
+                      "growth"
+                    ],
+                    "description": "now (default): who uses the most now; growth: who grew the most in the window."
+                  },
+                  "limite": {
+                    "type": "integer",
+                    "description": "How many applications come with their series (default 8; the rest are summed up)."
+                  },
+                  "alerta_id": {
+                    "type": "integer",
+                    "description": "Optional: the alert being explored, to return its threshold or projection with the data."
+                  }
+                },
+                "required": [
+                  "servidor"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tools/list_alerts": {
       "post": {
         "operationId": "list_alerts",
@@ -893,7 +1126,7 @@
           "alerts"
         ],
         "summary": "List alerts",
-        "description": "Open alerts of the panel (threshold rules, SSL expiration, application URL down, unusual behaviour and capacity projections detected automatically, and the alerts of the monitoring stack: containers, logs, security), most severe first, with the target and, for automatic ones, the suggested action. Call it first when asked what is wrong or before diagnosing.",
+        "description": "Open alerts of the panel (threshold rules, SSL expiration, application URL down, unusual behaviour and capacity projections detected automatically, and the alerts of the monitoring stack: containers, logs, security), most severe first, with the target and, for automatic ones, the suggested action. Call it first when asked what is wrong or before diagnosing. With state=resolved (or all) it returns the history of the alerts resolved in the last days (30 by default).",
         "x-annotations": {
           "readOnlyHint": true,
           "destructiveHint": false,
@@ -909,7 +1142,20 @@
                 "properties": {
                   "objetivo": {
                     "type": "string",
-                    "description": "Optional: server name, or instance name/code, to filter."
+                    "description": "Optional: server name, or instance name/code, to filter. Exact ids: \"#server:3\" (the server and its instances) or \"#instance:17\"."
+                  },
+                  "state": {
+                    "type": "string",
+                    "enum": [
+                      "open",
+                      "resolved",
+                      "all"
+                    ],
+                    "description": "Optional: open (default), resolved (resolved in the last \"days\" days) or all (open first, then resolved)."
+                  },
+                  "days": {
+                    "type": "integer",
+                    "description": "Optional, only for resolved alerts: how many days back (1-365, default 30)."
                   },
                   "estado": {
                     "type": "string",
@@ -917,7 +1163,7 @@
                       "open",
                       "resolved"
                     ],
-                    "description": "Optional: open (default) or resolved (resolved in the last 24 hours)."
+                    "description": "Deprecated, use state: open (default) or resolved (resolved in the last 24 hours unless days is given)."
                   },
                   "alerta_id": {
                     "type": "integer",
@@ -1990,7 +2236,7 @@
           "instance"
         ],
         "summary": "Diagnose instance",
-        "description": "Diagnosis of one application instance: environment, state, health, running containers, CPU/memory, public URL status and the health of its server. First step to understand an application problem; check the environment, production is critical.",
+        "description": "Diagnosis of one application instance: environment, state, health, running containers, CPU/memory, public URL status and the health of its server. First step to understand an application problem; check the environment, production is critical. Set refrescar=true to check it live (containers and URLs) instead of the cached health.",
         "x-annotations": {
           "readOnlyHint": true,
           "destructiveHint": false,
@@ -2007,6 +2253,10 @@
                   "nombre": {
                     "type": "string",
                     "description": "Instance name or code (partial, case-insensitive match), or its exact id as \"#17\"."
+                  },
+                  "refrescar": {
+                    "type": "boolean",
+                    "description": "Force a live health check before answering (managers only). Default: the cached health."
                   }
                 },
                 "required": [
@@ -4588,7 +4838,7 @@
                       "data",
                       "system"
                     ],
-                    "description": "full = system + data; data = files and databases only; system = compose/config only (does not touch data). Default full."
+                    "description": "data = databases, data files and the repositories the backup carries (the application is not touched); full = system + data; system = compose/config of the same instance only (does not touch data). Default: data on development instances (with an IDE) and with backups of another application, full otherwise."
                   },
                   "create_backup_before": {
                     "type": "boolean",
@@ -4889,6 +5139,63 @@
                 "required": [
                   "nombre",
                   "accion"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/retry_failed_operations": {
+      "post": {
+        "operationId": "retry_failed_operations",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Retry failed operations",
+        "description": "Run again ONLY the failed operations of a finished batch (a bulk action launched on several instances at once: start, stop, restart, update, backup, clear logs or SQL), with the same parameters, as a new batch. Instances whose state changed since then are skipped. This creates a PROPOSAL that a person must confirm; production needs a manager, retrying an update or SQL batch needs the provision level, and dangerous SQL commands are confirmed only in the panel. A batch is retried once: to retry again, use the batch of the retry. Poll get_operation_batch with the new batch id.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "batch_id": {
+                    "type": "integer",
+                    "description": "Id of the batch of operations launched together (batch_id of list_operations or get_operation_batch)."
+                  }
+                },
+                "required": [
+                  "batch_id"
                 ]
               }
             }
