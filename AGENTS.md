@@ -174,7 +174,9 @@ it does not resolve the alert and is not a proposal, but it is audited).
 **Provision.** `get_deploy_schema` → `validate_deploy` (dry run with the real wizard rules) →
 `deploy_instance` (proposal → task). On a deployed instance: `update_instance`, `rollback_instance`
 (`list_instance_snapshots`), `restore_backup` (`list_backups`), `migrate_instance` (panel-only
-confirmation). Stale state: `check_instance_state`, `test_server_connection`. **Console:**
+confirmation), `run_instance_action` (the template's buttons, listed by `get_instance_options`) and
+`set_instance_variables` (non-secret values, applied with a snapshot before). Stale state:
+`check_instance_state`, `test_server_connection`. **Console:**
 `exec_command` runs one plain command on a server (no pipes, `sudo` or interactive programs)
 only while a person keeps a console grant on that server; if the tool says there is no grant,
 ask the person to grant it from the server form and do not try to work around it.

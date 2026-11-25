@@ -408,7 +408,7 @@
           "panel"
         ],
         "summary": "Panel overview",
-        "description": "One-shot overview of everything the caller can see: instances by state and environment (also counted apart for the apps, without the system services the panel manages itself), servers by state and health, open alerts by severity and operations that failed in the last 24 hours (and how many ran in total). Use it to orient yourself before drilling down.",
+        "description": "One-shot overview of everything the caller can see: instances by state and environment (also counted apart for the apps, without the system services the panel manages itself), servers by state and health, open alerts by severity, operations that failed in the last 24 hours (and how many ran in total) and, when the panel is connected to external uptime, its monitors by state. Use it to orient yourself before drilling down.",
         "x-annotations": {
           "readOnlyHint": true,
           "destructiveHint": false,
@@ -1479,6 +1479,192 @@
         }
       }
     },
+    "/tools/get_uptime_summary": {
+      "post": {
+        "operationId": "get_uptime_summary",
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Get uptime summary",
+        "description": "Summary of the external uptime checks: whether the panel is connected to the Steer observer nodes, which nodes (regions) respond, the quorum, monitor counts by state and the monitors that need attention (down, unconfirmed or down in some regions). External checks cover production apps with a public URL and server heartbeats, seen from outside the customer network. It also lists the apps that are up but slow from outside (response time above their threshold for two cycles).",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_uptime_monitors": {
+      "post": {
+        "operationId": "list_uptime_monitors",
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "List uptime monitors",
+        "description": "List the external uptime monitors the caller can see (production apps checked by URL, servers by heartbeat) with their consolidated state (up, partial = down in some regions, suspect = unconfirmed, down = confirmed by quorum, paused, unknown) and what each observer region sees, with the reason when it is not up. Each app also carries its response time from outside, whether it is slow (above its threshold for two cycles) and, for JSON checks, the condition the response must meet. With a single monitor (\"#id\") it adds its drops in 30 days with their reason and the response time series of the window. Filter by name or \"#id\", state (\"attention\" = down, suspect or partial) and type (app or server).",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Optional: app or server name (partial match), or the exact monitor id as \"#3\"."
+                  },
+                  "estado": {
+                    "type": "string",
+                    "enum": [
+                      "up",
+                      "partial",
+                      "suspect",
+                      "down",
+                      "paused",
+                      "unknown",
+                      "attention"
+                    ],
+                    "description": "Optional: up, partial, suspect, down, paused, unknown, or \"attention\" (down, suspect or partial)."
+                  },
+                  "tipo": {
+                    "type": "string",
+                    "enum": [
+                      "app",
+                      "server"
+                    ],
+                    "description": "Optional: \"app\" (checked by URL) or \"server\" (heartbeat)."
+                  },
+                  "horas": {
+                    "type": "integer",
+                    "description": "Optional: window of the history bars in hours (1 to 720, default 24)."
+                  },
+                  "barras": {
+                    "type": "integer",
+                    "description": "Optional: number of bars in the window (10 to 120, default 48)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_status_pages": {
+      "post": {
+        "operationId": "list_status_pages",
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "List status pages",
+        "description": "List the public status pages of the caller's organization: public URL, whether it is published, overall status, components with their status, open incidents (published or still a draft opened by the panel) and upcoming maintenance. Use the incident id with post_status_update.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "pagina": {
+                    "type": "string",
+                    "description": "Optional: status page name, identifier (slug) or exact id as \"#3\"."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tools/list_applications": {
       "post": {
         "operationId": "list_applications",
@@ -2180,6 +2366,63 @@
         ],
         "summary": "Get security report",
         "description": "Security report of one server: result of the last vulnerability scan of the images of its running containers (critical/high totals, which findings already have a fixed version and in which application they run) plus the hardening state (fail2ban, auditd). Read-only; to launch a new scan use scan_server_security.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "nombre": {
+                    "type": "string",
+                    "description": "Server name."
+                  }
+                },
+                "required": [
+                  "nombre"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/get_security_round": {
+      "post": {
+        "operationId": "get_security_round",
+        "tags": [
+          "server"
+        ],
+        "summary": "Get security round",
+        "description": "Security round of one server (hourly check by SSH against its baseline): when the last round ran and its result, the open security findings (new users, SSH keys, scheduled tasks, listening ports, unmanaged containers, processes from /tmp, miners, web shells, first SSH accesses, posture) with their severity, and the posture (SSH password login, automatic security updates, pending reboot, auditd, fail2ban, firewall, kernel). Read-only.",
         "x-annotations": {
           "readOnlyHint": true,
           "destructiveHint": false,
@@ -3391,6 +3634,235 @@
         }
       }
     },
+    "/tools/update_server_security": {
+      "post": {
+        "operationId": "update_server_security",
+        "tags": [
+          "server"
+        ],
+        "summary": "Update server security",
+        "description": "Bring the security baseline of one or more servers up to date, one queued operation per server: fail2ban with growing bans for repeat offenders (the panel IP and the VPN range are always whitelisted) and the current auditd rules and their delivery to the system journal (no other package is installed), and (unless automatic_updates is false) automatic security updates in SAFE MODE: distribution security repository only, no automatic reboot, no automatic service restarts, and never Docker, containerd, runc, SQL Server or tailscale (where they were already on, only that exclusion list is added). It does not touch containers, apps or the network. Each operation ends with a security round, so the fixed alerts close at once. Pass server names (full name or \"#id\"), or pending=true for every server with open fail2ban, auditd or automatic-updates alerts. Tip: run it first on one or two servers, check them, then on the rest. This creates a PROPOSAL that a person must confirm; then poll list_operations (server=<name>) or get_operation.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "servers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Full server names or \"#id\"."
+                  },
+                  "pending": {
+                    "type": "boolean",
+                    "description": "Every server with open fail2ban, auditd or automatic-updates alerts."
+                  },
+                  "automatic_updates": {
+                    "type": "boolean",
+                    "description": "Turn on the automatic security updates in safe mode (default true)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/accept_security_finding": {
+      "post": {
+        "operationId": "accept_security_finding",
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Accept security finding",
+        "description": "Accept NEW-ITEM findings of the security round as expected (a new SSH access, SSH key, user, listening port, scheduled task or container that a person RECOGNIZED as legitimate; posture, miner or web shell findings are fixed, never accepted): each alert is resolved and the item joins the server baseline, so it does not alert again. Only for findings a person confirmed: never to silence something nobody recognizes (that is an incident). Pass the alert ids (list_alerts), at most 30. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "alert_ids": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Alert ids (from list_alerts), as \"#id\" or number."
+                  }
+                },
+                "required": [
+                  "alert_ids"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/server_maintenance": {
+      "post": {
+        "operationId": "server_maintenance",
+        "tags": [
+          "server"
+        ],
+        "summary": "Server maintenance",
+        "description": "Routine maintenance of a server, the same as its buttons in the panel: clear_logs (journal, /var/log, Docker logs, /tmp, logrotate and pruning unused Docker images, build cache, stopped containers and networks; never volumes), docker_cleanup (unused Docker images and build cache), recheck_apt (re-check the quarantined APT sources) or refresh_info (read OS, hardware and IPs again). This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "server": {
+                    "type": "string",
+                    "description": "Full server name or \"#id\"."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "clear_logs",
+                      "docker_cleanup",
+                      "recheck_apt",
+                      "refresh_info"
+                    ],
+                    "description": "The action."
+                  },
+                  "clean_journalctl": {
+                    "type": "boolean",
+                    "description": "clear_logs: cleaning option."
+                  },
+                  "clean_var_log": {
+                    "type": "boolean",
+                    "description": "clear_logs: cleaning option."
+                  },
+                  "clean_docker_logs": {
+                    "type": "boolean",
+                    "description": "clear_logs: cleaning option."
+                  },
+                  "clean_tmp": {
+                    "type": "boolean",
+                    "description": "clear_logs: cleaning option."
+                  },
+                  "run_logrotate": {
+                    "type": "boolean",
+                    "description": "clear_logs: cleaning option."
+                  },
+                  "prune_docker_images": {
+                    "type": "boolean",
+                    "description": "clear_logs: cleaning option."
+                  },
+                  "prune_docker_builder": {
+                    "type": "boolean",
+                    "description": "clear_logs: cleaning option."
+                  },
+                  "prune_docker_containers": {
+                    "type": "boolean",
+                    "description": "clear_logs: cleaning option."
+                  },
+                  "prune_docker_networks": {
+                    "type": "boolean",
+                    "description": "clear_logs: cleaning option."
+                  }
+                },
+                "required": [
+                  "server",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tools/test_instance_connectivity": {
       "post": {
         "operationId": "test_instance_connectivity",
@@ -3428,6 +3900,87 @@
                 "required": [
                   "nombre",
                   "destino"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/server_configuration": {
+      "post": {
+        "operationId": "server_configuration",
+        "tags": [
+          "server"
+        ],
+        "summary": "Server configuration",
+        "description": "Change the configuration of a server, the same as its buttons in the panel: apply_firewall, apply_config (its configuration template), enable_monitoring / disable_monitoring (agent of the Grafana stack), join_vpn (vpn_network if the organization has several), configure_swap (size_gb of the swap file, 0 removes it) and, CONFIRMED ONLY IN THE PANEL WITH THE PASSWORD: reboot (every app goes down for a few minutes), leave_vpn (an on-premise server can become unreachable for the panel) and deploy_traefik (redeploys the proxy: every site blinks). This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "server": {
+                    "type": "string",
+                    "description": "Full server name or \"#id\"."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "reboot",
+                      "apply_firewall",
+                      "apply_config",
+                      "deploy_traefik",
+                      "enable_monitoring",
+                      "disable_monitoring",
+                      "join_vpn",
+                      "leave_vpn",
+                      "configure_swap"
+                    ],
+                    "description": "The action."
+                  },
+                  "size_gb": {
+                    "type": "integer",
+                    "description": "configure_swap: GB of the swap file (0 removes it)."
+                  },
+                  "vpn_network": {
+                    "type": "string",
+                    "description": "join_vpn: VPN network (name or \"#id\")."
+                  }
+                },
+                "required": [
+                  "server",
+                  "action"
                 ]
               }
             }
@@ -4238,6 +4791,183 @@
         }
       }
     },
+    "/tools/propose_dashboard_template": {
+      "post": {
+        "operationId": "propose_dashboard_template",
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Propose dashboard template",
+        "description": "Create or modify a Grafana dashboard template of the panel: if the code exists (and is not a system one) it is modified, otherwise created. dashboard_json must be valid Grafana JSON (schemaVersion 39) whose datasources are only \"prometheus\" and \"loki\". Read get_dashboard_template for an example first. This creates a PROPOSAL that a person must confirm; add it to the Grafana stacks from the panel afterwards.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "code": {
+                    "type": "string",
+                    "description": "Unique code. If it exists (not system), it is modified."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Visible name."
+                  },
+                  "category": {
+                    "type": "string",
+                    "enum": [
+                      "overview",
+                      "linux",
+                      "containers",
+                      "traefik",
+                      "web",
+                      "availability",
+                      "application",
+                      "database",
+                      "logs",
+                      "security",
+                      "custom"
+                    ],
+                    "description": "Category of the template."
+                  },
+                  "description": {
+                    "type": "string",
+                    "description": "What the dashboard shows."
+                  },
+                  "grafana_uid": {
+                    "type": "string",
+                    "description": "Grafana uid; defaults to the code."
+                  },
+                  "requires": {
+                    "type": "string",
+                    "enum": [
+                      "none",
+                      "node",
+                      "cadvisor",
+                      "traefik",
+                      "loki"
+                    ],
+                    "description": "What the stack needs for this dashboard to have data."
+                  },
+                  "dashboard_json": {
+                    "type": "string",
+                    "description": "Grafana dashboard JSON (schemaVersion 39, datasources \"prometheus\"/\"loki\")."
+                  }
+                },
+                "required": [
+                  "code",
+                  "name",
+                  "dashboard_json"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/request_adaptation": {
+      "post": {
+        "operationId": "request_adaptation",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Request adaptation",
+        "description": "LAST RESORT: when what the user needs cannot be done with the current capabilities of the panel (it requires changing the software), register an adaptation request in the backlog of the development team. Check steer_help and search_knowledge first that it really cannot be done. Registered directly (audited), no confirmation.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "title": {
+                    "type": "string",
+                    "description": "Short summary of the requirement."
+                  },
+                  "need": {
+                    "type": "string",
+                    "description": "What the panel has to be able to do."
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "Why it is needed / what it solves."
+                  },
+                  "use_case": {
+                    "type": "string",
+                    "description": "A concrete example of the scenario."
+                  },
+                  "model_ref": {
+                    "type": "string",
+                    "description": "Related model (optional)."
+                  }
+                },
+                "required": [
+                  "title",
+                  "need"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tools/list_alert_rules": {
       "post": {
         "operationId": "list_alert_rules",
@@ -4272,11 +5002,341 @@
                     "type": "string",
                     "enum": [
                       "warning",
-                      "critical"
+                      "critical",
+                      "super_critical"
                     ],
                     "description": "Filter by severity. Optional."
                   }
                 }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/create_alert_rule": {
+      "post": {
+        "operationId": "create_alert_rule",
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Create alert rule",
+        "description": "Create a threshold alert rule for the caller's organization: source \"server\" (metric + operator + threshold: disk, RAM or swap used %, load ratio, production apps down, apps in error), \"certificate\" (SSL about to expire: operator \"<=\" and threshold in days) or \"instance\" (app URL down: operator \">=\" and threshold 1). This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Descriptive name of the rule."
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "server",
+                      "certificate",
+                      "instance"
+                    ],
+                    "description": "What is watched: a server metric, SSL expiry or an app URL down."
+                  },
+                  "metric": {
+                    "type": "string",
+                    "enum": [
+                      "disk_used_percent",
+                      "ram_used_percent",
+                      "swap_used_percent",
+                      "load_ratio",
+                      "apps_prod_down_count",
+                      "apps_error_count"
+                    ],
+                    "description": "Metric to evaluate (only for source \"server\")."
+                  },
+                  "operator": {
+                    "type": "string",
+                    "enum": [
+                      ">=",
+                      ">",
+                      "<=",
+                      "<"
+                    ],
+                    "description": "Comparison operator against the threshold."
+                  },
+                  "threshold": {
+                    "type": "number",
+                    "description": "Threshold value (e.g. 85 for %, or days for SSL)."
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "warning",
+                      "critical",
+                      "super_critical"
+                    ],
+                    "description": "Severity."
+                  },
+                  "server_id": {
+                    "type": "integer",
+                    "description": "Id of one server (optional; empty = every server of the organization)."
+                  },
+                  "notify": {
+                    "type": "boolean",
+                    "description": "Send external notifications (default true)."
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "description": "Turn the rule on or off."
+                  }
+                },
+                "required": [
+                  "name",
+                  "source",
+                  "operator",
+                  "threshold",
+                  "severity"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/update_alert_rule": {
+      "post": {
+        "operationId": "update_alert_rule",
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Update alert rule",
+        "description": "Modify an existing alert rule by id (list_alert_rules): only the given fields change (threshold, operator, severity, notify, active...). This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Descriptive name of the rule."
+                  },
+                  "source": {
+                    "type": "string",
+                    "enum": [
+                      "server",
+                      "certificate",
+                      "instance"
+                    ],
+                    "description": "What is watched: a server metric, SSL expiry or an app URL down."
+                  },
+                  "metric": {
+                    "type": "string",
+                    "enum": [
+                      "disk_used_percent",
+                      "ram_used_percent",
+                      "swap_used_percent",
+                      "load_ratio",
+                      "apps_prod_down_count",
+                      "apps_error_count"
+                    ],
+                    "description": "Metric to evaluate (only for source \"server\")."
+                  },
+                  "operator": {
+                    "type": "string",
+                    "enum": [
+                      ">=",
+                      ">",
+                      "<=",
+                      "<"
+                    ],
+                    "description": "Comparison operator against the threshold."
+                  },
+                  "threshold": {
+                    "type": "number",
+                    "description": "Threshold value (e.g. 85 for %, or days for SSL)."
+                  },
+                  "severity": {
+                    "type": "string",
+                    "enum": [
+                      "warning",
+                      "critical",
+                      "super_critical"
+                    ],
+                    "description": "Severity."
+                  },
+                  "server_id": {
+                    "type": "integer",
+                    "description": "Id of one server (optional; empty = every server of the organization)."
+                  },
+                  "notify": {
+                    "type": "boolean",
+                    "description": "Send external notifications (default true)."
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "description": "Turn the rule on or off."
+                  },
+                  "rule_id": {
+                    "type": "integer",
+                    "description": "Id of the rule to modify (list_alert_rules)."
+                  }
+                },
+                "required": [
+                  "rule_id"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/post_status_update": {
+      "post": {
+        "operationId": "post_status_update",
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Post status update",
+        "description": "PROPOSE a public update on a status page (the user confirms it): with incident_id, publish that incident if it is a draft and add the update; without it, open and publish a new incident on the given page. The message is PUBLIC (the page's visitors read it): write it in the page's language, without hostnames, IPs or internal details. Status \"resolved\" closes the incident.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "incidente_id": {
+                    "type": "integer",
+                    "description": "Existing incident id (from list_status_pages). Without it, a new incident is opened on the given page."
+                  },
+                  "pagina": {
+                    "type": "string",
+                    "description": "For a new incident: status page name, identifier (slug) or exact id as \"#3\"."
+                  },
+                  "titulo": {
+                    "type": "string",
+                    "description": "Public title. Required for a new incident; optional to rename an existing one."
+                  },
+                  "mensaje": {
+                    "type": "string",
+                    "description": "Public text of the update, in the language of the page, without hostnames, IPs or internal details. Required."
+                  },
+                  "estado": {
+                    "type": "string",
+                    "enum": [
+                      "investigating",
+                      "identified",
+                      "monitoring",
+                      "resolved"
+                    ],
+                    "description": "investigating, identified, monitoring or resolved (resolved closes the incident). Optional."
+                  },
+                  "impacto": {
+                    "type": "string",
+                    "enum": [
+                      "minor",
+                      "major",
+                      "critical"
+                    ],
+                    "description": "minor, major or critical. Optional (a new incident defaults to minor)."
+                  },
+                  "componentes": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "For a new incident: names of the affected components, as list_status_pages shows them."
+                  }
+                },
+                "required": [
+                  "mensaje"
+                ]
               }
             }
           }
@@ -4647,7 +5707,7 @@
           "instance"
         ],
         "summary": "Update instance",
-        "description": "Update a deployed instance (the \"Update\" wizard, headless): pass true ONLY for the options the diagnosis justifies (regenerate routing, pull images, git pull, regenerate config, apply compose, rebuild, recreate). This creates a PROPOSAL a person must confirm; once confirmed the update runs in the background with a snapshot taken before and automatic rollback if the service ends unhealthy. Not for \"it is down\" (use start_instance). Offer create_backup first in production.",
+        "description": "Update a deployed instance (the \"Update\" wizard, headless): pass true ONLY for the options the diagnosis justifies (regenerate routing, pull images, git pull, regenerate config, apply compose, rebuild, recreate). This creates a PROPOSAL a person must confirm; once confirmed the update runs in the background with a snapshot taken before and automatic rollback if the service ends unhealthy. Not for \"it is down\" (use start_instance). Offer create_backup first in production. To deploy new code from the repositories (git pull + restart), pass update_code; if the app builds its images from the repository (build: in its compose), pass rebuild_containers too, or the old image keeps running. To apply a pending template update (and clear \"update pending\"), sync from the template and regenerate the config; pulling images alone does not apply it.",
         "x-annotations": {
           "readOnlyHint": false,
           "destructiveHint": true,
@@ -4679,7 +5739,7 @@
                   },
                   "update_code": {
                     "type": "boolean",
-                    "description": "git pull on the instance repositories."
+                    "description": "git pull on the instance repositories, then restart of the services that mount a repository that changed (not the database or the IDE). Alone it is how to deploy new code from the repositories, unless the app builds its image from the repository (build: in its compose): then add rebuild_containers. For Odoo use update_odoo."
                   },
                   "fix_volume_permissions": {
                     "type": "boolean",
@@ -5225,6 +6285,495 @@
         }
       }
     },
+    "/tools/bulk_instance_action": {
+      "post": {
+        "operationId": "bulk_instance_action",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Bulk instance action",
+        "description": "Run one action on SEVERAL instances at once, as a batch with one operation per instance (the same as the Actions menu of the instance list): start, stop, restart, backup or clear_logs (irreversible: Docker logs and/or log folders, keeping the last retention_days). Pick instances by name/code/\"#id\" or every instance of a server. Incompatible instances (e.g. starting one that already runs) are skipped. For updates use bulk_update_instances, for SQL bulk_run_sql. This creates a PROPOSAL that a person must confirm; then poll get_operation_batch.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instances": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Instance names, codes or \"#id\" (exact or unique match)."
+                  },
+                  "server": {
+                    "type": "string",
+                    "description": "Every instance of this server (full name or \"#id\")."
+                  },
+                  "environment": {
+                    "type": "string",
+                    "enum": [
+                      "production",
+                      "staging",
+                      "development"
+                    ],
+                    "description": "Only instances of this environment (with server)."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "start",
+                      "stop",
+                      "restart",
+                      "backup",
+                      "clear_logs"
+                    ],
+                    "description": "The action."
+                  },
+                  "include_database": {
+                    "type": "boolean",
+                    "description": "stop/restart: the database too."
+                  },
+                  "clean_docker_logs": {
+                    "type": "boolean",
+                    "description": "clear_logs: Docker logs (default true)."
+                  },
+                  "clean_log_folders": {
+                    "type": "boolean",
+                    "description": "clear_logs: log folders."
+                  },
+                  "retention_days": {
+                    "type": "string",
+                    "enum": [
+                      "0",
+                      "1",
+                      "3",
+                      "7"
+                    ],
+                    "description": "clear_logs: days kept (0 = none)."
+                  }
+                },
+                "required": [
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/bulk_update_instances": {
+      "post": {
+        "operationId": "bulk_update_instances",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Bulk update instances",
+        "description": "Update SEVERAL instances at once with the same options as the Update wizard, as a batch with one operation per instance: pull_images, recreate_containers, update_config_files, update_routing, sync_from_template, update_code, update_docker, rebuild_containers, force_no_cache, fix_volume_permissions; include_database makes a full backup first and also applies to the database (required when the database image changes). Pick instances by name/code/\"#id\" or every instance of a server. This creates a PROPOSAL that a person must confirm; then poll get_operation_batch.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instances": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Instance names, codes or \"#id\" (exact or unique match)."
+                  },
+                  "server": {
+                    "type": "string",
+                    "description": "Every instance of this server (full name or \"#id\")."
+                  },
+                  "environment": {
+                    "type": "string",
+                    "enum": [
+                      "production",
+                      "staging",
+                      "development"
+                    ],
+                    "description": "Only instances of this environment (with server)."
+                  },
+                  "sync_from_template": {
+                    "type": "boolean",
+                    "description": "Option of the Update wizard."
+                  },
+                  "update_code": {
+                    "type": "boolean",
+                    "description": "Option of the Update wizard."
+                  },
+                  "update_config_files": {
+                    "type": "boolean",
+                    "description": "Option of the Update wizard."
+                  },
+                  "fix_volume_permissions": {
+                    "type": "boolean",
+                    "description": "Option of the Update wizard."
+                  },
+                  "update_docker": {
+                    "type": "boolean",
+                    "description": "Option of the Update wizard."
+                  },
+                  "pull_images": {
+                    "type": "boolean",
+                    "description": "Option of the Update wizard."
+                  },
+                  "rebuild_containers": {
+                    "type": "boolean",
+                    "description": "Option of the Update wizard."
+                  },
+                  "force_no_cache": {
+                    "type": "boolean",
+                    "description": "Option of the Update wizard."
+                  },
+                  "recreate_containers": {
+                    "type": "boolean",
+                    "description": "Option of the Update wizard."
+                  },
+                  "update_routing": {
+                    "type": "boolean",
+                    "description": "Option of the Update wizard."
+                  },
+                  "include_database": {
+                    "type": "boolean",
+                    "description": "Option of the Update wizard."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_sql_commands": {
+      "post": {
+        "operationId": "list_sql_commands",
+        "tags": [
+          "instance"
+        ],
+        "summary": "List sql commands",
+        "description": "Predefined SQL commands of the panel that can be run on instances with a SQL database (bulk_run_sql): id, code, name, engine and whether it is dangerous (dangerous ones are confirmed only in the panel).",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "search": {
+                    "type": "string",
+                    "description": "Text to look for in the name or the code."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/bulk_run_sql": {
+      "post": {
+        "operationId": "bulk_run_sql",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Bulk run sql",
+        "description": "Run predefined SQL commands (list_sql_commands) on SEVERAL instances with a SQL database, as a batch with one operation per instance. error_policy \"continue\" runs every command and reports each result; \"stop\" stops an instance on its first error. Instances where no command applies are skipped. Dangerous commands are confirmed only in the panel. This creates a PROPOSAL that a person must confirm; then poll get_operation_batch.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instances": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Instance names, codes or \"#id\" (exact or unique match)."
+                  },
+                  "server": {
+                    "type": "string",
+                    "description": "Every instance of this server (full name or \"#id\")."
+                  },
+                  "environment": {
+                    "type": "string",
+                    "enum": [
+                      "production",
+                      "staging",
+                      "development"
+                    ],
+                    "description": "Only instances of this environment (with server)."
+                  },
+                  "commands": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "SQL commands by \"#id\" or code (list_sql_commands)."
+                  },
+                  "error_policy": {
+                    "type": "string",
+                    "enum": [
+                      "continue",
+                      "stop"
+                    ],
+                    "description": "On error."
+                  }
+                },
+                "required": [
+                  "commands"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_certificates": {
+      "post": {
+        "operationId": "list_certificates",
+        "tags": [
+          "server"
+        ],
+        "summary": "List certificates",
+        "description": "SSL certificates of the panel: id, domain, state (active, expiring_soon, expired, error...), days to expiry, issuer, whether it is deployed on Traefik, automatic renewal and whether a previous certificate can be restored. Optionally filtered by domain text or state.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "search": {
+                    "type": "string",
+                    "description": "Text of the domain."
+                  },
+                  "state": {
+                    "type": "string",
+                    "description": "State (active, expiring_soon, expired, error...)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/certificate_action": {
+      "post": {
+        "operationId": "certificate_action",
+        "tags": [
+          "server"
+        ],
+        "summary": "Certificate action",
+        "description": "Act on an SSL certificate (list_certificates), the same as its buttons in the panel: issue (generate a draft or failed one), renew (re-issue and re-deploy), deploy (on Traefik of every server), deploy_pending (only where it is missing or old) or restore_previous (go back to the previous certificate and deploy it; refused if it expired or would replace a CA-issued certificate with a self-signed one). This creates a PROPOSAL that a person must confirm; then poll get_operation.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "certificate": {
+                    "type": "string",
+                    "description": "Domain of the certificate or \"#id\"."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "issue",
+                      "renew",
+                      "deploy",
+                      "deploy_pending",
+                      "restore_previous"
+                    ],
+                    "description": "The action."
+                  }
+                },
+                "required": [
+                  "certificate",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
     "/tools/analyze_dashboard": {
       "post": {
         "operationId": "analyze_dashboard",
@@ -5255,6 +6804,201 @@
                     "description": "Run the dashboard queries to include current values (default true)."
                   }
                 }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_dns_domains": {
+      "post": {
+        "operationId": "list_dns_domains",
+        "tags": [
+          "server"
+        ],
+        "summary": "List dns domains",
+        "description": "DNS domains of the panel: id, name, provider (cloudflare, manual...) and state.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/repair_instance_dns": {
+      "post": {
+        "operationId": "repair_instance_dns",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Repair instance dns",
+        "description": "Reconcile the DNS records of an instance with its provider WITHOUT touching its containers (the same as \"Repair DNS\" in the panel): creates the missing records, re-points the changed ones and removes the tracked leftovers. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instance": {
+                    "type": "string",
+                    "description": "Instance name, code or \"#id\"."
+                  }
+                },
+                "required": [
+                  "instance"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/create_dns_record": {
+      "post": {
+        "operationId": "create_dns_record",
+        "tags": [
+          "server"
+        ],
+        "summary": "Create dns record",
+        "description": "Create a DNS record in a domain of the panel through its provider (the same as \"Create subdomain\" in the panel): type A, AAAA, CNAME, TXT, MX, NS or SRV, name (subdomain, \"@\" for the apex), content, optional ttl and proxied (Cloudflare). A domain in manual mode only returns the record to create by hand. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "domain": {
+                    "type": "string",
+                    "description": "Domain (name or \"#id\")."
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "A",
+                      "AAAA",
+                      "CNAME",
+                      "TXT",
+                      "MX",
+                      "NS",
+                      "SRV"
+                    ],
+                    "description": "Record type."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Subdomain (\"@\" = the domain itself)."
+                  },
+                  "content": {
+                    "type": "string",
+                    "description": "Content (IP, target, text...)."
+                  },
+                  "ttl": {
+                    "type": "integer",
+                    "description": "TTL in seconds (optional)."
+                  },
+                  "proxied": {
+                    "type": "boolean",
+                    "description": "Cloudflare proxy (optional)."
+                  }
+                },
+                "required": [
+                  "domain",
+                  "type",
+                  "name",
+                  "content"
+                ]
               }
             }
           }
@@ -5384,6 +7128,2385 @@
                 },
                 "required": [
                   "logql"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/get_instance_options": {
+      "post": {
+        "operationId": "get_instance_options",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Get instance options",
+        "description": "What can be done with an instance beyond start/stop/update: its git repositories (id, branch, last commit, last pull), the compatible applications it can switch to (change_instance_application), the actions its template defines (run_instance_action: code, parameter, states), whether an Odoo instance keeps the previous copy of its database after an update (odoo_previous_copy), and its pending update and database migration (apply_updates).",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instance": {
+                    "type": "string",
+                    "description": "Instance name, code or \"#id\"."
+                  }
+                },
+                "required": [
+                  "instance"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/pull_instance_repository": {
+      "post": {
+        "operationId": "pull_instance_repository",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Pull instance repository",
+        "description": "Run \"git pull\" on a repository of a deployed instance (the Pull button of its Repositories tab): it updates the code on disk and does NOT restart anything, so a running app keeps the old code. To deploy new code (pull + restart) use update_instance with update_code=true, or update_odoo for an Odoo instance. repository is the repository name or \"#id\" (get_instance_options); optional when the instance has only one. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instance": {
+                    "type": "string",
+                    "description": "Instance name, code or \"#id\"."
+                  },
+                  "repository": {
+                    "type": "string",
+                    "description": "Repository name or \"#id\"; optional if it has only one."
+                  }
+                },
+                "required": [
+                  "instance"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/change_instance_application": {
+      "post": {
+        "operationId": "change_instance_application",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Change instance application",
+        "description": "Switch an instance to another COMPATIBLE application (another template with the same service code, see get_instance_options), the \"Change application\" wizard: it regenerates docker-compose, config files and routing and restarts the instance. If the new template changes the database image a full backup is taken first; a major database version jump is refused (it needs a migration). Risky: take a backup before. This creates a PROPOSAL that a person must confirm; then poll get_operation.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instance": {
+                    "type": "string",
+                    "description": "Instance name, code or \"#id\"."
+                  },
+                  "application": {
+                    "type": "string",
+                    "description": "New template (name, code or \"#id\") with the same service code."
+                  }
+                },
+                "required": [
+                  "instance",
+                  "application"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/archive_instance": {
+      "post": {
+        "operationId": "archive_instance",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Archive instance",
+        "description": "Archive an instance (the Archive button): it takes a safety backup (create_backup, default true), stops and removes its containers, deletes its folder on the server and its DNS records; the instance stays archived in the panel with its backups. DESTRUCTIVE and confirmed ONLY in the panel with the password. This creates a PROPOSAL.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instance": {
+                    "type": "string",
+                    "description": "Instance name, code or \"#id\"."
+                  },
+                  "create_backup": {
+                    "type": "boolean",
+                    "description": "Safety backup first (default true)."
+                  }
+                },
+                "required": [
+                  "instance"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/run_instance_action": {
+      "post": {
+        "operationId": "run_instance_action",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Run instance action",
+        "description": "Run one of the actions the application template defines for its instances (the buttons of the instance in the panel, e.g. add a user or load demo data): get_instance_options lists them with their code, their parameter and the states they run in. parameter is the text the button would ask for; when the command takes it as several arguments, they are split as a shell would and each one is quoted, so nothing else can be chained to the command. An action whose command takes its parameter inside quotes or a nested shell is not run by an agent: a person runs it in the panel. In production a backup is taken first. This creates a PROPOSAL a person must confirm; once confirmed it runs in the background: poll get_operation (its output is the console of the command).",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instance": {
+                    "type": "string",
+                    "description": "Instance name, code or \"#id\"."
+                  },
+                  "action": {
+                    "type": "string",
+                    "description": "Action code (get_instance_options)."
+                  },
+                  "parameter": {
+                    "type": "string",
+                    "description": "The parameter the action asks for, if it asks for one."
+                  }
+                },
+                "required": [
+                  "instance",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/set_instance_variables": {
+      "post": {
+        "operationId": "set_instance_variables",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Set instance variables",
+        "description": "Change non-secret variables of a deployed instance (get_instance_variables lists them with their type) and apply them: it regenerates the configuration files and the compose and recreates what changed, with a snapshot before and automatic rollback (the variables go back to their previous values too) if the service ends unhealthy. values is {\"VARIABLE\": \"value\"}. Secrets (passwords, keys, tokens), values that refer to other variables and variables that set a host path or a container privilege are not changed here: a person sets them in the panel. This creates a PROPOSAL a person must confirm; once confirmed poll get_operation.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instance": {
+                    "type": "string",
+                    "description": "Instance name, code or \"#id\"."
+                  },
+                  "values": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": [
+                        "string",
+                        "number",
+                        "boolean"
+                      ]
+                    },
+                    "description": "The new values {NAME: value} (get_instance_variables)."
+                  }
+                },
+                "required": [
+                  "instance",
+                  "values"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/odoo_previous_copy": {
+      "post": {
+        "operationId": "odoo_previous_copy",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Odoo previous copy",
+        "description": "Act on the previous copy of the database and filestore that an Odoo update keeps on the server (get_instance_options says whether there is one): revert (go back to it; the CURRENT database is dropped; confirmed ONLY in the panel with the password; then poll get_operation) or discard (delete the copy to free disk; the way back is lost). This creates a PROPOSAL.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instance": {
+                    "type": "string",
+                    "description": "Instance name, code or \"#id\"."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "revert",
+                      "discard"
+                    ],
+                    "description": "revert or discard."
+                  }
+                },
+                "required": [
+                  "instance",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_pending_updates": {
+      "post": {
+        "operationId": "list_pending_updates",
+        "tags": [
+          "instance"
+        ],
+        "summary": "List pending updates",
+        "description": "Everything the Updates panel lists: each application or server with something to apply (panel improvement of its template, unapplied changes, new image version, OS security patches, database patch, database migration to a new major version), with what changes and whether it is scheduled; plus the scheduled update plans (id, time, state). Apply them with apply_updates; launch or cancel a plan with update_plan_action.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/apply_updates": {
+      "post": {
+        "operationId": "apply_updates",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Apply updates",
+        "description": "Run (when=now) or schedule (when=later + scheduled_at in UTC) the pending updates of some applications and/or servers (list_pending_updates), the \"Run updates\" wizard: each application is updated by its kind (template, changes, new image, database patch or MIGRATION to a new database version, with the application down meanwhile) with a backup first (backup_before, default true) and automatic rollback if it does not come back; servers install their OS security patches. If something touches a database, confirm_database must be true (ask the user first). This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "instances": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Applications (name, code or \"#id\")."
+                  },
+                  "servers": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Servers (name or \"#id\"): OS security patches."
+                  },
+                  "when": {
+                    "type": "string",
+                    "enum": [
+                      "now",
+                      "later"
+                    ],
+                    "description": "now or later."
+                  },
+                  "scheduled_at": {
+                    "type": "string",
+                    "description": "later: date and time in UTC (YYYY-MM-DD HH:MM:SS)."
+                  },
+                  "backup_before": {
+                    "type": "boolean",
+                    "description": "Backup first (default true)."
+                  },
+                  "confirm_database": {
+                    "type": "boolean",
+                    "description": "The user understands that a database is updated."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/update_plan_action": {
+      "post": {
+        "operationId": "update_plan_action",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Update plan action",
+        "description": "Act on a scheduled update plan (list_pending_updates): launch_now (run it now instead of at its time) or cancel. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "plan": {
+                    "type": "string",
+                    "description": "Plan \"#id\"."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "launch_now",
+                      "cancel"
+                    ],
+                    "description": "launch_now or cancel."
+                  }
+                },
+                "required": [
+                  "plan",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_backup_policies": {
+      "post": {
+        "operationId": "list_backup_policies",
+        "tags": [
+          "backup"
+        ],
+        "summary": "List backup policies",
+        "description": "Backup policies: id, name, organization, frequency, enabled, last and next run and how many instances they cover. Run one now with run_backup_policy.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/run_backup_policy": {
+      "post": {
+        "operationId": "run_backup_policy",
+        "tags": [
+          "backup"
+        ],
+        "summary": "Run backup policy",
+        "description": "Back up NOW every instance a backup policy covers (the \"Run now\" button), by the same path as the scheduled run (one batch per server, in the background; it cannot be cancelled once launched). Not destructive. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "policy": {
+                    "type": "string",
+                    "description": "Policy name or \"#id\"."
+                  }
+                },
+                "required": [
+                  "policy"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_backup_storages": {
+      "post": {
+        "operationId": "list_backup_storages",
+        "tags": [
+          "backup"
+        ],
+        "summary": "List backup storages",
+        "description": "Where backups are stored: each storage (id, name, type, last connection test and its result) and each Steer Vault node (id, name, server, state, online, last seen). No credentials. Test or check for orphan files with backup_storage_action; act on a vault with backup_vault_action.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/backup_storage_action": {
+      "post": {
+        "operationId": "backup_storage_action",
+        "tags": [
+          "backup"
+        ],
+        "summary": "Backup storage action",
+        "description": "On a backup storage (list_backup_storages): test (connection test, records its result) or orphan_report (S3/Swift only: lists files in the bucket that no backup of the panel references; it never deletes). This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "storage": {
+                    "type": "string",
+                    "description": "Storage name or \"#id\"."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "test",
+                      "orphan_report"
+                    ],
+                    "description": "test or orphan_report."
+                  }
+                },
+                "required": [
+                  "storage",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/backup_vault_action": {
+      "post": {
+        "operationId": "backup_vault_action",
+        "tags": [
+          "backup"
+        ],
+        "summary": "Backup vault action",
+        "description": "On a Steer Vault node (list_backup_storages): regenerate_enrollment (new pairing code, the old one stops working; the code is shown only in the panel), revoke (it stops syncing; its local copies are kept) or reactivate (back to pairing with a new code). This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "vault": {
+                    "type": "string",
+                    "description": "Vault name or \"#id\"."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "regenerate_enrollment",
+                      "revoke",
+                      "reactivate"
+                    ],
+                    "description": "The action."
+                  }
+                },
+                "required": [
+                  "vault",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/deploy_backup_vault": {
+      "post": {
+        "operationId": "deploy_backup_vault",
+        "tags": [
+          "backup"
+        ],
+        "summary": "Deploy backup vault",
+        "description": "Deploy a Steer Vault node (a local mirror of the organization backups) on a managed server, the \"Deploy vault\" wizard: it creates the vault, its secrets and the steer-vault instance, deploys it and leaves it pairing by itself. Optional: name, admin_email, backups_path (folder on the server), domain + subdomain to publish its UI with a certificate. The admin password is shown only in the panel. This creates a PROPOSAL that a person must confirm; then poll get_operation.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "server": {
+                    "type": "string",
+                    "description": "Server name or \"#id\"."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Vault name."
+                  },
+                  "admin_email": {
+                    "type": "string",
+                    "description": "Admin user."
+                  },
+                  "backups_path": {
+                    "type": "string",
+                    "description": "Folder on the server where the copies are kept."
+                  },
+                  "domain": {
+                    "type": "string",
+                    "description": "DNS domain to publish it on (optional)."
+                  },
+                  "subdomain": {
+                    "type": "string",
+                    "description": "Subdomain (default vault)."
+                  }
+                },
+                "required": [
+                  "server"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_restore_requests": {
+      "post": {
+        "operationId": "list_restore_requests",
+        "tags": [
+          "backup"
+        ],
+        "summary": "List restore requests",
+        "description": "Restore requests (made from the client portal or the panel): id, reference, state (draft, pending approval, approved, executing, executed, rejected, failed, cancelled), backup, target instance and its environment, requester. Act on one with restore_request_action.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "description": "Filter by state (pending, approved...)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/restore_request_action": {
+      "post": {
+        "operationId": "restore_request_action",
+        "tags": [
+          "backup"
+        ],
+        "summary": "Restore request action",
+        "description": "Act on a restore request (list_restore_requests): approve (a pending one), reject (a pending one, with reason; the requester is told), execute (an approved one: DESTRUCTIVE, it overwrites the target data after a safety backup; poll get_operation) or cancel. The person who confirms the proposal is the approver. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "request": {
+                    "type": "string",
+                    "description": "Request reference or \"#id\"."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "approve",
+                      "reject",
+                      "execute",
+                      "cancel"
+                    ],
+                    "description": "The action."
+                  },
+                  "reason": {
+                    "type": "string",
+                    "description": "reject: the reason (the requester receives it)."
+                  }
+                },
+                "required": [
+                  "request",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_docker_images": {
+      "post": {
+        "operationId": "list_docker_images",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "List docker images",
+        "description": "Docker images the panel builds (CI/CD): id, name, registry, build server, the repositories and branches each one is built from, and its last versions (tag, state, latest, built). Also the registries and git repositories (id, name, state). Build with build_docker_image; sync versions or caches with docker_image_action; sync a repository or test a registry with build_source_action.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "search": {
+                    "type": "string",
+                    "description": "Text of the image name."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/build_docker_image": {
+      "post": {
+        "operationId": "build_docker_image",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Build docker image",
+        "description": "Build a Docker image and push it to its registry (the \"Build\" wizard): mode new (a new tag; by default the next number, moves \"latest\" if also_tag_latest) or rebuild (recompile an existing version: the push overwrites that tag). Optional: build_server, no_cache, pull_base, cleanup_after_push and branches (repository name -> branch for THIS build). The registry login is checked first. This creates a PROPOSAL that a person must confirm; then poll get_operation.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "description": "Image name or \"#id\"."
+                  },
+                  "mode": {
+                    "type": "string",
+                    "enum": [
+                      "new",
+                      "rebuild"
+                    ],
+                    "description": "new or rebuild."
+                  },
+                  "tag": {
+                    "type": "string",
+                    "description": "new: the tag (default: the next number)."
+                  },
+                  "version": {
+                    "type": "string",
+                    "description": "rebuild: the version (tag or \"#id\")."
+                  },
+                  "build_server": {
+                    "type": "string",
+                    "description": "Build server (default: the image one)."
+                  },
+                  "also_tag_latest": {
+                    "type": "boolean",
+                    "description": "Move \"latest\" (default true)."
+                  },
+                  "no_cache": {
+                    "type": "boolean",
+                    "description": "Without cache."
+                  },
+                  "pull_base": {
+                    "type": "boolean",
+                    "description": "Pull the base image again (default true)."
+                  },
+                  "cleanup_after_push": {
+                    "type": "boolean",
+                    "description": "Delete the local image after the push (default true)."
+                  },
+                  "branches": {
+                    "type": "object",
+                    "additionalProperties": {
+                      "type": "string"
+                    },
+                    "description": "Branch per repository for this build: {\"repo\": \"branch\"}."
+                  }
+                },
+                "required": [
+                  "image"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/docker_image_action": {
+      "post": {
+        "operationId": "docker_image_action",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Docker image action",
+        "description": "On a Docker image (list_docker_images): sync_versions (Docker Hub only: create the versions of the remote tags), refresh_build_cache (git pull of its repositories on the build server) or clear_build_cache (delete the build folder on the build server; the next build clones again). This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "image": {
+                    "type": "string",
+                    "description": "Image name or \"#id\"."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "sync_versions",
+                      "refresh_build_cache",
+                      "clear_build_cache"
+                    ],
+                    "description": "The action."
+                  }
+                },
+                "required": [
+                  "image",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/build_source_action": {
+      "post": {
+        "operationId": "build_source_action",
+        "tags": [
+          "catalog"
+        ],
+        "summary": "Build source action",
+        "description": "sync_repository: bring the branches and last commits of a git repository (list_docker_images); test_registry: \"docker login\" to a registry from a ready server of its organization. Neither changes anything on the servers. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "sync_repository",
+                      "test_registry"
+                    ],
+                    "description": "The action."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Repository or registry name or \"#id\"."
+                  }
+                },
+                "required": [
+                  "action",
+                  "name"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_monitoring_stacks": {
+      "post": {
+        "operationId": "list_monitoring_stacks",
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "List monitoring stacks",
+        "description": "Monitoring stacks (Grafana + Prometheus + Loki): id, name, organization, state, Grafana URL, monitored servers, dashboards and last sync. Act on one with monitoring_stack_action.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/monitoring_stack_action": {
+      "post": {
+        "operationId": "monitoring_stack_action",
+        "tags": [
+          "monitoring"
+        ],
+        "summary": "Monitoring stack action",
+        "description": "On a monitoring stack (list_monitoring_stacks): provision_agents (install or refresh node_exporter + cadvisor on every VPN server and reload Prometheus and the alerts; can take a while), apply_alerts (push the alert rules again), resync_dashboards (overwrite the panel dashboards in Grafana) or add_dashboards (dashboards: catalog dashboard names or \"#id\", see list_dashboard_templates). This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "stack": {
+                    "type": "string",
+                    "description": "Monitoring stack name or \"#id\"."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "provision_agents",
+                      "apply_alerts",
+                      "resync_dashboards",
+                      "add_dashboards"
+                    ],
+                    "description": "The action."
+                  },
+                  "dashboards": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "add_dashboards: catalog dashboards (name or \"#id\")."
+                  }
+                },
+                "required": [
+                  "stack",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_notification_channels": {
+      "post": {
+        "operationId": "list_notification_channels",
+        "tags": [
+          "alerts"
+        ],
+        "summary": "List notification channels",
+        "description": "Notification channels (where alerts and events are sent): id, name, organization, type, active, the non-secret destination (email recipients, Telegram chat id), the events it receives and the result of its last send. Never tokens or webhook URLs. Test one with test_notification_channel; create or change one with configure_notification_channel.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/test_notification_channel": {
+      "post": {
+        "operationId": "test_notification_channel",
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Test notification channel",
+        "description": "Send a test message through a notification channel (its \"Test\" button) and record the result. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channel": {
+                    "type": "string",
+                    "description": "Channel name or \"#id\"."
+                  }
+                },
+                "required": [
+                  "channel"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/configure_notification_channel": {
+      "post": {
+        "operationId": "configure_notification_channel",
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Configure notification channel",
+        "description": "Create a notification channel or change one (channel = its name or \"#id\"): name, organization, type (email; \"webpush\" is the Steer app inbox and push when installed), email_to (comma separated), active and events: a list of the events it receives (alert, incident, deploy_error, backup_error, health_critical, ssl_expiring, operation_failed, image_update, security_report, advisor_report, deploy_success, backup_complete, restore). Channels that need a secret (Telegram bot token, Slack/Discord/webhook URL, Apprise destinations) are created in the panel: a secret never goes through an agent. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "channel": {
+                    "type": "string",
+                    "description": "Channel to change (name or \"#id\"); empty = create one."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name."
+                  },
+                  "organization": {
+                    "type": "string",
+                    "description": "Organization (on create; default the user's)."
+                  },
+                  "type": {
+                    "type": "string",
+                    "enum": [
+                      "email",
+                      "webpush"
+                    ],
+                    "description": "Type (on create)."
+                  },
+                  "email_to": {
+                    "type": "string",
+                    "description": "Recipients, comma separated."
+                  },
+                  "active": {
+                    "type": "boolean",
+                    "description": "Active."
+                  },
+                  "events": {
+                    "type": "array",
+                    "items": {
+                      "type": "string"
+                    },
+                    "description": "Events it receives (replaces the list)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_vpn_networks": {
+      "post": {
+        "operationId": "list_vpn_networks",
+        "tags": [
+          "server"
+        ],
+        "summary": "List vpn networks",
+        "description": "VPN networks (Headscale) and their nodes: network id, name, organization, state; each node with its VPN IP, state, last seen and the managed server it is. No keys. Act on a network with vpn_network_action; servers join or leave with server_configuration.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/vpn_network_action": {
+      "post": {
+        "operationId": "vpn_network_action",
+        "tags": [
+          "server"
+        ],
+        "summary": "Vpn network action",
+        "description": "On a VPN network (list_vpn_networks): sync_nodes (read the nodes from Headscale), sync_full (nodes, users, keys and routes, plus the STUN firewall rule), sync_hostnames (rename the nodes in Headscale after their servers) or push_acl (push the ACL policy; a wrong policy can cut the connectivity between servers: confirmed ONLY in the panel with the password). Pre-auth keys are never created through an agent (they are secrets). This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "network": {
+                    "type": "string",
+                    "description": "VPN network name or \"#id\"."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "sync_nodes",
+                      "sync_full",
+                      "sync_hostnames",
+                      "push_acl"
+                    ],
+                    "description": "The action."
+                  }
+                },
+                "required": [
+                  "network",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_incidents": {
+      "post": {
+        "operationId": "list_incidents",
+        "tags": [
+          "alerts"
+        ],
+        "summary": "List incidents",
+        "description": "Incidents the AI watcher opened from correlated alerts and failures: id, name, severity, state (open, acknowledged, resolved, dismissed), origin, when, and its AI diagnosis. Act on one with incident_action.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "description": "Filter by state (open by default; all = every one)."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/incident_action": {
+      "post": {
+        "operationId": "incident_action",
+        "tags": [
+          "alerts"
+        ],
+        "summary": "Incident action",
+        "description": "On an incident (list_incidents): acknowledge, dismiss, resolve, or prepare_remediation (for an instance that is down or a server with critical disk: creates a DRAFT remediation plan that nothing runs until it is simulated, approved and executed with remediation_plan_action). This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "incident": {
+                    "type": "string",
+                    "description": "Incident \"#id\" or name."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "acknowledge",
+                      "dismiss",
+                      "resolve",
+                      "prepare_remediation"
+                    ],
+                    "description": "The action."
+                  }
+                },
+                "required": [
+                  "incident",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_remediation_plans": {
+      "post": {
+        "operationId": "list_remediation_plans",
+        "tags": [
+          "alerts"
+        ],
+        "summary": "List remediation plans",
+        "description": "Remediation plans: id, name, state (draft, awaiting approval, approved, running, done, failed, rolled back...), origin, requester, approver, whether it needs four eyes, and its steps (action, target, simulation and policy). Act on one with remediation_plan_action.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "state": {
+                    "type": "string",
+                    "description": "Filter by state."
+                  }
+                }
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/remediation_plan_action": {
+      "post": {
+        "operationId": "remediation_plan_action",
+        "tags": [
+          "instance"
+        ],
+        "summary": "Remediation plan action",
+        "description": "On a remediation plan (list_remediation_plans): dry_run (simulate a draft; the policy decides if it needs approval), approve (by a manager of its organization; in production someone other than the requester: the person who confirms the proposal is the approver), execute (an approved one, in the background with automatic rollback; poll get_operation) or cancel. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "plan": {
+                    "type": "string",
+                    "description": "Plan \"#id\" or name."
+                  },
+                  "action": {
+                    "type": "string",
+                    "enum": [
+                      "dry_run",
+                      "approve",
+                      "execute",
+                      "cancel"
+                    ],
+                    "description": "The action."
+                  }
+                },
+                "required": [
+                  "plan",
+                  "action"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/list_ssh_keys": {
+      "post": {
+        "operationId": "list_ssh_keys",
+        "tags": [
+          "server"
+        ],
+        "summary": "List ssh keys",
+        "description": "SSH keys the panel uses to reach servers: id, name, type, fingerprint, whether its key pair is generated and how many servers use it. Never the private key. Needed by create_server.",
+        "x-annotations": {
+          "readOnlyHint": true,
+          "destructiveHint": false,
+          "idempotentHint": true,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "additionalProperties": false
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/create_server": {
+      "post": {
+        "operationId": "create_server",
+        "tags": [
+          "server"
+        ],
+        "summary": "Create server",
+        "description": "Register a new server in the panel, in Draft (nothing is done on it yet): name, ip_public and/or ip_private, ssh_key (list_ssh_keys: its public key must already be in authorized_keys of the server), ssh_user (default root), ssh_port (default 22) and organization. Then prepare it with prepare_server. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "name": {
+                    "type": "string",
+                    "description": "Name."
+                  },
+                  "ip_public": {
+                    "type": "string",
+                    "description": "Public IP."
+                  },
+                  "ip_private": {
+                    "type": "string",
+                    "description": "Private IP."
+                  },
+                  "ssh_key": {
+                    "type": "string",
+                    "description": "SSH key name or \"#id\"."
+                  },
+                  "ssh_user": {
+                    "type": "string",
+                    "description": "SSH user (root)."
+                  },
+                  "ssh_port": {
+                    "type": "integer",
+                    "description": "SSH port (22)."
+                  },
+                  "organization": {
+                    "type": "string",
+                    "description": "Organization; by default the user's."
+                  }
+                },
+                "required": [
+                  "name",
+                  "ssh_key"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/prepare_server": {
+      "post": {
+        "operationId": "prepare_server",
+        "tags": [
+          "server"
+        ],
+        "summary": "Prepare server",
+        "description": "Prepare a server that is in Draft, Pending or Error (the \"Prepare server\" button): installs Docker, the firewall and Traefik, hardens SSH (password login disabled) and leaves it Ready. Refused on a Ready server. This creates a PROPOSAL that a person must confirm; then poll get_operation.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "server": {
+                    "type": "string",
+                    "description": "Server name or \"#id\"."
+                  }
+                },
+                "required": [
+                  "server"
+                ]
+              }
+            }
+          }
+        },
+        "responses": {
+          "200": {
+            "description": "OK",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolResult"
+                }
+              }
+            }
+          },
+          "4XX": {
+            "description": "Business error (error_code, message, hint, retryable)",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/ToolError"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/tools/register_existing_service": {
+      "post": {
+        "operationId": "register_existing_service",
+        "tags": [
+          "server"
+        ],
+        "summary": "Register existing service",
+        "description": "Register in the panel a service that ALREADY runs on a Ready server (the \"Register existing service\" wizard): it reads /opt/services/<code>/docker-compose.yml and creates the instance as running, without touching the server. template (application name, code or \"#id\"), code (the folder name), environment (default production), name, is_system_service, and optionally domain + subdomain + ssl_enabled. This creates a PROPOSAL that a person must confirm.",
+        "x-annotations": {
+          "readOnlyHint": false,
+          "destructiveHint": true,
+          "idempotentHint": false,
+          "openWorldHint": false
+        },
+        "requestBody": {
+          "required": false,
+          "content": {
+            "application/json": {
+              "schema": {
+                "type": "object",
+                "properties": {
+                  "server": {
+                    "type": "string",
+                    "description": "Server name or \"#id\"."
+                  },
+                  "template": {
+                    "type": "string",
+                    "description": "Template name, code or \"#id\"."
+                  },
+                  "code": {
+                    "type": "string",
+                    "description": "Code (folder in /opt/services)."
+                  },
+                  "name": {
+                    "type": "string",
+                    "description": "Name."
+                  },
+                  "environment": {
+                    "type": "string",
+                    "enum": [
+                      "production",
+                      "staging",
+                      "development"
+                    ],
+                    "description": "Environment."
+                  },
+                  "is_system_service": {
+                    "type": "boolean",
+                    "description": "System service."
+                  },
+                  "domain": {
+                    "type": "string",
+                    "description": "DNS domain (optional)."
+                  },
+                  "subdomain": {
+                    "type": "string",
+                    "description": "Subdomain."
+                  },
+                  "ssl_enabled": {
+                    "type": "boolean",
+                    "description": "SSL (default true)."
+                  }
+                },
+                "required": [
+                  "server",
+                  "template",
+                  "code"
                 ]
               }
             }
