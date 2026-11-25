@@ -108,6 +108,8 @@ curl -s https://<panel>/api/v1/tools/get_instance -H "Authorization: Bearer <tok
 |---|---|
 | `GET /api/v1/tools` | Tools this token may call, with their JSON schema |
 | `POST /api/v1/tools/<tool>` | Call a tool; body = arguments → `{ok, status, data, text}` |
+| `GET /api/v1/proposals` | The user's proposal inbox: pending ones (oldest first, with `confirm_here`) and the ones resolved in the last 7 days, with who confirmed them, from where and the operation they started |
+| `POST /api/v1/proposals/confirm_all` | "Accept all": body `{"ids": [...]}`; each one goes through the same checks as a single confirmation, the ones that need the password in the panel are skipped, and one that fails does not stop the rest |
 | `GET /api/v1/proposals/<id>` · `POST …/confirm` · `POST …/discard` | Proposals |
 | `GET /api/v1/operations[/<id>]` | Queued operations (filters `instance`, `server`, `state`, `limit`) |
 | `GET /api/v1/openapi.json` | OpenAPI 3.1 contract generated from what this token sees |
