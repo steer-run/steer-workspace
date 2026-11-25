@@ -59,6 +59,13 @@ or `get_overview` (instances, servers, alerts, failed operations in one call).
   shell are done by a person in the panel.
 - *My token is limited to some instances.* It cannot even propose anything outside them, nor act on
   the server itself (OS patches, certificates); the error says so: ask a person to do it in the panel.
+  Docker images are the exception: it builds, recompiles or refreshes the ones in its connection's
+  "Images it can build", on their own build server (`build_docker_image`, `docker_image_action`).
+- *I need a token or a key* (push to GitHub, docker login, an API key). `list_credentials` shows the ones
+  this connection reaches, with a note on when and how to use each one. Use it through
+  `bin/steer-credential` (see `docs/connect.md`): never ask the person to paste a secret in the
+  chat. If it is missing, create it with `save_credential` (without the secret, unless you generated it)
+  and ask the person to paste the secret in the panel.
 
 Guides are MCP resources: `steer://instructions`, `steer://guide/capabilities`,
 `steer://guide/applications`, `steer://guide/dashboards`. Errors come as data

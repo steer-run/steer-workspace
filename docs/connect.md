@@ -112,6 +112,7 @@ curl -s https://<panel>/api/v1/tools/get_instance -H "Authorization: Bearer <tok
 | `GET /api/v1/operations[/<id>]` | Queued operations (filters `instance`, `server`, `state`, `limit`) |
 | `GET /api/v1/openapi.json` | OpenAPI 3.1 contract generated from what this token sees |
 | `GET /api/v1/me` | Who the token user is (organization, roles), what the token allows (level per area, environments, expiry) and which optional features the panel has. Does not count against the quota |
+| `POST /api/v1/credentials/use` | The secret of a panel credential this connection reaches (`{"name": …}` or `{"url": "<git remote>"}`), for the credential helper below. Needs the connection's "Credentials" level at Operate; not a tool, so the value never enters the agent's conversation |
 | `POST /api/v1/chat` · `GET /api/v1/chat/messages` | The conversation with the panel's own assistant. It shares the person's whole history with the assistant in the panel, so **only the Steer mobile app's own connection can use it**; any other token gets `403 FORBIDDEN` (agents use MCP) |
 
 Tools that take an instance or server name also accept its **exact id as `#17`** (a name match is
@@ -133,6 +134,31 @@ Errors come as `{ok: false, error_code, message, hint, retryable}`:
 | 404 | `NOT_FOUND` | Unknown tool or proposal |
 
 A snapshot of the contract from a full-access token lives in [`api/openapi.json`](../api/openapi.json).
+
+### Credentials without copying secrets: `bin/steer-credential`
+
+The panel keeps tokens and keys of external services (*Configuration -> Credentials*: GitHub, Docker
+Hub, Cloudflare, AI providers...). An agent sees them with `list_credentials` (never the secret) when
+its connection has the **Credentials** level, which starts at *No access* and is not opened by "Full
+access". It reaches the credentials of the instances it sees and the panel ones assigned to it. To
+use one, run the tool through the helper, which asks the panel for the secret and hands it straight
+to the tool:
+
+```bash
+export STEER_PANEL_URL=https://<panel> STEER_MCP_TOKEN_FILE=~/.config/steer/panel.token
+# git, once: pushes to https://github.com/owner/repo use the credential whose target is owner/repo.
+# The empty helper first drops the others for github.com (no keychain copy, no stale token).
+git config --global credential.https://github.com.helper ''
+git config --global --add credential.https://github.com.helper '!steer-credential git'
+git config --global credential.https://github.com.useHttpPath true
+steer-credential docker-login "Docker Hub (push)"            # docker login, secret through stdin
+steer-credential env "Cloudflare DNS" CF_API_TOKEN -- ./script.sh
+```
+
+`bin/` must be on the `PATH` (or use the full path). Each use is counted and audited in the panel, and
+the endpoint follows the same kill-switch, budget and quota as the tools. `docker-login` leaves the
+registry token where docker keeps it (`~/.docker/config.json` without a `credsStore`): `docker logout`
+when done.
 
 ## 6. OAuth 2.1 details (for implementers)
 
