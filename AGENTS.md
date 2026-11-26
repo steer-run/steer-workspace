@@ -174,8 +174,18 @@ it does not resolve the alert and is not a proposal, but it is audited).
 **Provision.** `get_deploy_schema` → `validate_deploy` (dry run with the real wizard rules) →
 `deploy_instance` (proposal → task). On a deployed instance: `update_instance`, `rollback_instance`
 (`list_instance_snapshots`), `restore_backup` (`list_backups`), `migrate_instance` (panel-only
-confirmation), `run_instance_action` (the template's buttons, listed by `get_instance_options`) and
-`set_instance_variables` (non-secret values, applied with a snapshot before). Stale state:
+confirmation), `run_instance_action` (the template's buttons, listed by `get_instance_options`, and
+the panel buttons no other tool covers, with a `panel.` code), `set_instance_variables` (non-secret
+values, applied with a snapshot before) and `configure_instance` (the instance form: domain, SSL,
+resource limits per compose service, ports, repositories, backups; applied with an Update with only
+what is needed, and rolled back with the panel values if the instance ends unhealthy). Servers:
+`configure_server` (hostname, time zone, SSL mode, firewall rules; the connection data only in the
+panel) and `server_configuration` (their buttons); `get_server_options` lists them. VPN:
+`configure_vpn` (users, groups, node tags and rules "group -> tag, ports", optionally applying the
+policy) and `vpn_preauth_key` (the key is never returned to the agent). Diagnosis with data:
+`list_log_labels` + `query_logs` (Loki), `query_metrics` (Prometheus) and `query_instance_database`
+(one read-only SQL query, as a proposal). DNS: `change_dns_record`; one compose service:
+`restart_instance` with `servicio`. Stale state:
 `check_instance_state`, `test_server_connection`. **Console:**
 `exec_command` runs one plain command on a server (no pipes, `sudo` or interactive programs)
 only while a person keeps a console grant on that server; if the tool says there is no grant,
