@@ -69,6 +69,11 @@ or `get_overview` (instances, servers, alerts, failed operations in one call).
   ends unhealthy the rollback puts the old values back. If the values are already saved but the
   container still has the old ones, send the same values in `services` only: the panel compares them with
   the container and proposes applying them. Taking an instance out of production is confirmed only in the panel.
+- *Only some IPs may reach an instance (an intranet).* `configure_instance` with
+  `settings: {"allowed_ips": "203.0.113.10 # Office"}` (one IP or network per line; empty opens it
+  again). Steer's external checks are added by themselves (`allowed_ips_steer_checks`, default true).
+  Published directly, Traefik filters; behind Cloudflare (tunnel or proxy) the panel keeps a WAF rule in
+  the zone, which needs the «Zone WAF: Edit» permission on the domain token.
 - *Change a server: hostname, time zone, SSL mode, firewall rules.* `get_server_options` →
   `configure_server` (`firewall: {"add": [...], "update": {...}, "remove": [...], "apply": true}`). How
   the panel reaches the server (IP, SSH port, user, key) is confirmed only in the panel.
