@@ -65,8 +65,10 @@ or `get_overview` (instances, servers, alerts, failed operations in one call).
   service, each port, each repository) → `configure_instance` with `settings`, `services`, `ports` or
   `repositories`, e.g. `services: {"ide-docker": {"memory_limit": "6g", "cpu_limit": 2}}` (per-service
   limits need `settings: {"resource_limits_enabled": true}`). It applies with an Update that does only
-  what is needed, and if the instance ends unhealthy the rollback puts the old values back. Taking an
-  instance out of production is confirmed only in the panel.
+  what is needed (only per-service limits: only those containers are recreated), and if the instance
+  ends unhealthy the rollback puts the old values back. If the values are already saved but the
+  container still has the old ones, send the same values in `services` only: the panel compares them with
+  the container and proposes applying them. Taking an instance out of production is confirmed only in the panel.
 - *Change a server: hostname, time zone, SSL mode, firewall rules.* `get_server_options` →
   `configure_server` (`firewall: {"add": [...], "update": {...}, "remove": [...], "apply": true}`). How
   the panel reaches the server (IP, SSH port, user, key) is confirmed only in the panel.

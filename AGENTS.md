@@ -178,7 +178,8 @@ confirmation), `run_instance_action` (the template's buttons, listed by `get_ins
 the panel buttons no other tool covers, with a `panel.` code), `set_instance_variables` (non-secret
 values, applied with a snapshot before) and `configure_instance` (the instance form: domain, SSL,
 resource limits per compose service, ports, repositories, backups; applied with an Update with only
-what is needed, and rolled back with the panel values if the instance ends unhealthy). Servers:
+what is needed, recreating only the containers whose limits changed, and rolled back with the panel
+values if the instance ends unhealthy). Servers:
 `configure_server` (hostname, time zone, SSL mode, firewall rules; the connection data only in the
 panel) and `server_configuration` (their buttons); `get_server_options` lists them. VPN:
 `configure_vpn` (users, groups, node tags and rules "group -> tag, ports", optionally applying the
